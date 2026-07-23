@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#111714">
+  <title>Phillis & Ruby Adventure Hub</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="topbar">
+  <div>
+    <small class="brand-kicker">PHILLIS & RUBY</small>
+    <h1>Adventure Hub</h1>
+    <p class="brand-subtitle">Our miles, stays & memories</p>
+  </div>
+  <button class="icon-button" data-view="more" aria-label="Open more options"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+</header>
+
+<main>
+  <section id="home" class="view active">
+    <div id="nextTrips" class="next-trips"></div>
+
+    <h2 class="section-heading">Add something</h2>
+    <div class="quick-actions">
+      <button data-open="trip"><span>＋</span>Add trip</button>
+      <button data-open="fuel"><span>⛽</span>Add fuel</button>
+    </div>
+
+    <div class="section-row">
+      <h2>Upcoming trips</h2>
+      <button class="text-button" data-view="trips">See all</button>
+    </div>
+    <div id="upcomingList" class="stack"></div>
+
+    <div class="section-row">
+      <h2>Recent records</h2>
+    </div>
+    <div id="recentRecords" class="stack"></div>
+  </section>
+
+  <section id="trips" class="view">
+    <div class="page-title">
+      <div><small>YOUR TRAVEL LOG</small><h2>Trips</h2></div>
+      <button class="primary" data-open="trip">Add trip</button>
+    </div>
+    <div class="filters">
+      <input id="tripSearch" type="search" placeholder="Search trips">
+      <select id="tripYear"><option value="all">All years</option></select>
+    </div>
+    <div id="tripList" class="stack"></div>
+  </section>
+
+  <section id="phillis" class="view">
+    <div class="page-title"><div><small>BRINKLEY i265</small><h2>Phillis</h2></div></div>
+    <div class="menu-list">
+      <button data-page="phillis-maintenance"><span>🔧</span><div><b>Maintenance & repairs</b><small>Work performed, cost and notes</small></div><i>›</i></button>
+      <button data-page="phillis-upgrades"><span>🧰</span><div><b>Upgrades</b><small>Changes and additions</small></div><i>›</i></button>
+      <button data-page="lehigh"><span>🏕️</span><div><b>Lehigh Gorge · Site 39</b><small>Seasonal fees and electric</small></div><i>›</i></button>
+    </div>
+    <div id="phillisPanel"></div>
+  </section>
+
+  <section id="ruby" class="view">
+    <div class="page-title"><div><small>2025 FORD F-250 TREMOR</small><h2>Ruby</h2></div></div>
+    <p class="intro">Ruby's records are here when you need them, without taking over the home screen.</p>
+    <div class="menu-list">
+      <button data-page="ruby-maintenance"><span>🔧</span><div><b>Maintenance & service</b><small>Oil, filters, tires and repairs</small></div><i>›</i></button>
+      <button data-page="ruby-upgrades"><span>🛻</span><div><b>Upgrades</b><small>Accessories and modifications</small></div><i>›</i></button>
+      <button data-page="fuel-history"><span>⛽</span><div><b>Fuel history</b><small>All recorded fuel stops</small></div><i>›</i></button>
+    </div>
+    <div id="rubyPanel"></div>
+  </section>
+
+  <section id="more" class="view">
+    <div class="page-title"><div><small>ADVENTURE HUB</small><h2>More</h2></div></div>
+    <article class="card" id="cloudAccountCard">
+      <h3>Shared cloud account</h3>
+      <p id="cloudAccountStatus">Checking your secure connection…</p>
+      <div class="button-row">
+        <button class="secondary" id="cloudSignOut" hidden>Sign out</button>
+      </div>
+    </article>
+    <article class="card" id="householdAccessCard" hidden>
+      <h3>Invite family</h3>
+      <p>Create a one-time code. Each code expires after seven days and can be used once.</p>
+      <div class="invite-actions">
+        <button class="primary" id="inviteEditor">Invite Kay · Full access</button>
+        <button class="secondary" id="inviteViewer">Invite family viewer</button>
+      </div>
+      <div id="inviteResult" class="invite-result" hidden>
+        <small>INVITATION CODE</small>
+        <strong id="inviteCode"></strong>
+        <p id="inviteDescription"></p>
+      </div>
+    </article>
+    <article class="card" id="backupCard">
+      <h3>Backup your records</h3>
+      <p>Your shared records are stored securely in Supabase. You can still download a personal backup whenever you like.</p>
+      <div class="button-row">
+        <button class="primary" id="export">Export backup</button>
+        <label class="secondary file-label">Import backup<input id="importFile" type="file" accept="application/json" hidden></label>
+      </div>
+    </article>
+    <article class="card">
+      <h3>Shared syncing</h3>
+      <p>Changes made while signed in are shared between your devices. A browser copy is also retained as a safety backup.</p>
+    </article>
+  </section>
+</main>
+
+<nav class="bottom-nav">
+  <button class="active" data-view="home"><span>⌂</span>Home</button>
+  <button data-view="trips"><span>◇</span>Trips</button>
+  <button data-view="phillis"><span>△</span>Phillis</button>
+  <button data-view="ruby"><span>▰</span>Ruby</button>
+  <button data-view="more"><span>•••</span>More</button>
+</nav>
+
+<dialog id="entryDialog">
+  <form id="entryForm">
+    <div class="dialog-head"><div><small>NEW RECORD</small><h2 id="entryTitle"></h2></div><button type="button" class="close">×</button></div>
+    <input id="entryType" type="hidden">
+    <input id="entryIndex" type="hidden">
+    <input id="entryStayIndex" type="hidden">
+    <div id="entryFields"></div>
+    <label>Notes<textarea id="notes" rows="3"></textarea></label>
+    <div class="form-actions"><button class="primary">Save</button><button type="button" class="secondary close">Cancel</button></div>
+  </form>
+</dialog>
+
+<dialog id="detailDialog">
+  <div class="dialog-head"><div><small id="detailKicker">DETAILS</small><h2 id="detailTitle"></h2></div><button type="button" class="close">×</button></div>
+  <div id="detailBody"></div>
+</dialog>
+<div id="authGate" class="auth-gate" hidden>
+  <section class="auth-card">
+    <small class="brand-kicker">PHILLIS & RUBY</small>
+    <h2>Adventure Hub</h2>
+    <p>Sign in to connect your shared travel records.</p>
+    <form id="authForm">
+      <label>Email<input id="authEmail" type="email" autocomplete="email" required></label>
+      <label>Password<input id="authPassword" type="password" autocomplete="current-password" minlength="8" required></label>
+      <p id="authMessage" class="auth-message" aria-live="polite"></p>
+      <button class="primary" id="signInButton" type="submit">Sign in</button>
+      <button class="secondary" id="signUpButton" type="button">Create account</button>
+    </form>
+    <form id="joinForm" hidden>
+      <p>Your account is confirmed. Enter the invitation code Scott sent you.</p>
+      <label>Invitation code<input id="joinCode" autocomplete="one-time-code" maxlength="8" required></label>
+      <p id="joinMessage" class="auth-message" aria-live="polite"></p>
+      <button class="primary" type="submit">Join Higgins Hub</button>
+      <button class="secondary" id="joinSignOut" type="button">Use a different account</button>
+    </form>
+  </section>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+<script src="supabase-config.js" defer></script>
+<script src="cloud.js" defer></script>
+<script src="cloud-store.js" defer></script>
+<script src="app.js" defer></script>
+</body>
+</html>
