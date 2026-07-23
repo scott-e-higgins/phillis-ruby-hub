@@ -81,19 +81,6 @@
         <button class="secondary" id="cloudSignOut" hidden>Sign out</button>
       </div>
     </article>
-    <article class="card" id="householdAccessCard" hidden>
-      <h3>Invite family</h3>
-      <p>Create a one-time code. Each code expires after seven days and can be used once.</p>
-      <div class="invite-actions">
-        <button class="primary" id="inviteEditor">Invite Kay · Full access</button>
-        <button class="secondary" id="inviteViewer">Invite family viewer</button>
-      </div>
-      <div id="inviteResult" class="invite-result" hidden>
-        <small>INVITATION CODE</small>
-        <strong id="inviteCode"></strong>
-        <p id="inviteDescription"></p>
-      </div>
-    </article>
     <article class="card" id="backupCard">
       <h3>Backup your records</h3>
       <p>Your shared records are stored securely in Supabase. You can still download a personal backup whenever you like.</p>
@@ -137,13 +124,13 @@
   <section class="auth-card">
     <small class="brand-kicker">PHILLIS & RUBY</small>
     <h2>Adventure Hub</h2>
-    <p>Sign in to connect your shared travel records.</p>
+    <p>Private access for approved Higgins Hub family members.</p>
     <form id="authForm">
       <label>Email<input id="authEmail" type="email" autocomplete="email" required></label>
       <label>Password<input id="authPassword" type="password" autocomplete="current-password" minlength="8" required></label>
       <p id="authMessage" class="auth-message" aria-live="polite"></p>
       <button class="primary" id="signInButton" type="submit">Sign in</button>
-      <button class="secondary" id="signUpButton" type="button">Create account</button>
+      <p class="auth-note">Accounts are created privately by Scott.</p>
     </form>
     <form id="recoveryForm" hidden>
       <p>Choose a new password with at least eight characters.</p>
@@ -154,10 +141,7 @@
       <button class="secondary" id="recoverySignOut" type="button">Return to sign in</button>
     </form>
     <form id="joinForm" hidden>
-      <p>Your account is confirmed. Enter the invitation code Scott sent you.</p>
-      <label>Invitation code<input id="joinCode" autocomplete="one-time-code" maxlength="8" required></label>
-      <p id="joinMessage" class="auth-message" aria-live="polite"></p>
-      <button class="primary" type="submit">Join Higgins Hub</button>
+      <p>This account has not been granted access to Higgins Hub. Ask Scott to add it, then sign in again.</p>
       <button class="secondary" id="joinSignOut" type="button">Use a different account</button>
     </form>
   </section>
