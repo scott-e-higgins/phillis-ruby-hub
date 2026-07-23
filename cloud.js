@@ -14,6 +14,11 @@
   const password = document.querySelector('#authPassword');
   const message = document.querySelector('#authMessage');
   const signUp = document.querySelector('#signUpButton');
+  const recoveryForm = document.querySelector('#recoveryForm');
+  const recoveryPassword = document.querySelector('#recoveryPassword');
+  const recoveryPasswordConfirm = document.querySelector('#recoveryPasswordConfirm');
+  const recoveryMessage = document.querySelector('#recoveryMessage');
+  const recoverySignOut = document.querySelector('#recoverySignOut');
   const signOut = document.querySelector('#cloudSignOut');
   const status = document.querySelector('#cloudAccountStatus');
   const joinForm = document.querySelector('#joinForm');
@@ -26,6 +31,8 @@
   const inviteResult = document.querySelector('#inviteResult');
   const inviteCode = document.querySelector('#inviteCode');
   const inviteDescription = document.querySelector('#inviteDescription');
+  let recoveringPassword = window.location.hash.includes('type=recovery')
+    || new URLSearchParams(window.location.search).get('type') === 'recovery';
 
   const setMessage = (text, isError = false) => {
     message.textContent = text;
@@ -37,6 +44,19 @@
       control.disabled = busy;
     });
   };
+
+  function showRecovery() {
+    gate.hidden = false;
+    document.body.classList.add('auth-locked');
+    document.body.classList.remove('viewer-mode');
+    form.hidden = true;
+    joinForm.hidden = true;
+    recoveryForm.hidden = false;
+    recoveryMessage.textContent = '';
+    status.textContent = 'Choose a new password.';
+    signOut.hidden = true;
+    accessCard.hidden = true;
+  }
 
   async function getMembership(user) {
     const membership = await client
@@ -55,6 +75,7 @@
       document.body.classList.add('auth-locked');
       document.body.classList.remove('viewer-mode');
       form.hidden = false;
+      recoveryForm.hidden = true;
       joinForm.hidden = true;
       status.textContent = 'Sign in to connect this device.';
       signOut.hidden = true;
@@ -68,6 +89,7 @@
         gate.hidden = false;
         document.body.classList.add('auth-locked');
         form.hidden = true;
+        recoveryForm.hidden = true;
         joinForm.hidden = false;
         joinMessage.textContent = '';
         status.textContent = 'Enter an invitation code to join Higgins Hub.';
@@ -81,6 +103,7 @@
         role: membership.role
       };
       gate.hidden = true;
+      recoveryForm.hidden = true;
       document.body.classList.remove('auth-locked');
       document.body.classList.toggle('viewer-mode', membership.role === 'viewer');
       status.textContent = `Connected as ${session.user.email} · ${membership.households?.name || 'Higgins Hub'} · ${membership.role === 'viewer' ? 'Family Viewer' : membership.role === 'editor' ? 'Full access' : 'Owner'}`;
@@ -131,6 +154,42 @@
     setMessage('Account created.');
   });
 
+  recoveryForm.addEventListener('submit', async event => {
+    event.preventDefault();
+    recoveryMessage.classList.remove('error');
+    if (recoveryPassword.value !== recoveryPasswordConfirm.value) {
+      recoveryMessage.textContent = 'The passwords do not match.';
+      recoveryMessage.classList.add('error');
+      return;
+    }
+    recoveryForm.querySelectorAll('button,input').forEach(control => {
+      control.disabled = true;
+    });
+    recoveryMessage.textContent = 'Saving your new password…';
+    const result = await client.auth.updateUser({
+      password: recoveryPassword.value
+    });
+    recoveryForm.querySelectorAll('button,input').forEach(control => {
+      control.disabled = false;
+    });
+    if (result.error) {
+      recoveryMessage.textContent = result.error.message;
+      recoveryMessage.classList.add('error');
+      return;
+    }
+    recoveringPassword = false;
+    recoveryPassword.value = '';
+    recoveryPasswordConfirm.value = '';
+    const session = (await client.auth.getSession()).data.session;
+    await activate(session);
+  });
+
+  recoverySignOut.addEventListener('click', async () => {
+    recoveringPassword = false;
+    await client.auth.signOut();
+    await activate(null);
+  });
+
   signOut.addEventListener('click', async () => {
     await client.auth.signOut();
   });
@@ -177,9 +236,21 @@
   inviteEditor.addEventListener('click', () => createInvite('editor'));
   inviteViewer.addEventListener('click', () => createInvite('viewer'));
 
-  client.auth.onAuthStateChange((_event, session) => {
+  client.auth.onAuthStateChange((event, session) => {
+    if (event === 'PASSWORD_RECOVERY') {
+      recoveringPassword = true;
+      window.setTimeout(showRecovery, 0);
+      return;
+    }
+    if (recoveringPassword) return;
     window.setTimeout(() => activate(session), 0);
   });
 
-  client.auth.getSession().then(({ data }) => activate(data.session));
+  client.auth.getSession().then(({ data }) => {
+    if (recoveringPassword && data.session) {
+      showRecovery();
+      return;
+    }
+    activate(data.session);
+  });
 })();
