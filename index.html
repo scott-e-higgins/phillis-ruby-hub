@@ -81,6 +81,16 @@
         <button class="secondary" id="cloudSignOut" hidden>Sign out</button>
       </div>
     </article>
+    <article class="card" id="passwordCard" hidden>
+      <h3>Change password</h3>
+      <p>Set a password for signing in on a new phone, tablet, or computer.</p>
+      <form id="accountPasswordForm" class="account-password-form">
+        <label>New password<input id="accountPassword" type="password" autocomplete="new-password" minlength="8" required></label>
+        <label>Confirm password<input id="accountPasswordConfirm" type="password" autocomplete="new-password" minlength="8" required></label>
+        <p id="accountPasswordMessage" class="auth-message" aria-live="polite"></p>
+        <button class="primary" type="submit">Save new password</button>
+      </form>
+    </article>
     <article class="card" id="backupCard">
       <h3>Backup your records</h3>
       <p>Your shared records are stored securely in Supabase. You can still download a personal backup whenever you like.</p>

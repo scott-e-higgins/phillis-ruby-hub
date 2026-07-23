@@ -209,6 +209,8 @@ fieldset legend{font-weight:850;padding:0 7px}
 .auth-message{min-height:24px;color:#9ed2b8;margin:2px 0;font-size:14px}
 .auth-message.error{color:var(--danger)}
 .auth-note{margin:5px 0 0;text-align:center;color:var(--muted);font-size:13px}
+.account-password-form{display:grid;gap:10px;margin-top:16px}
+.account-password-form .primary{width:100%}
 .auth-locked{overflow:hidden}
 
 

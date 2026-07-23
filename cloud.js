@@ -19,6 +19,11 @@
   const recoverySignOut = document.querySelector('#recoverySignOut');
   const signOut = document.querySelector('#cloudSignOut');
   const status = document.querySelector('#cloudAccountStatus');
+  const passwordCard = document.querySelector('#passwordCard');
+  const accountPasswordForm = document.querySelector('#accountPasswordForm');
+  const accountPassword = document.querySelector('#accountPassword');
+  const accountPasswordConfirm = document.querySelector('#accountPasswordConfirm');
+  const accountPasswordMessage = document.querySelector('#accountPasswordMessage');
   const joinForm = document.querySelector('#joinForm');
   const joinSignOut = document.querySelector('#joinSignOut');
   let recoveringPassword = window.location.hash.includes('type=recovery')
@@ -45,6 +50,7 @@
     recoveryMessage.textContent = '';
     status.textContent = 'Choose a new password.';
     signOut.hidden = true;
+    passwordCard.hidden = true;
   }
 
   async function getMembership(user) {
@@ -68,6 +74,7 @@
       joinForm.hidden = true;
       status.textContent = 'Sign in to connect this device.';
       signOut.hidden = true;
+      passwordCard.hidden = true;
       return;
     }
 
@@ -81,6 +88,7 @@
         joinForm.hidden = false;
         status.textContent = 'This account is awaiting access approval.';
         signOut.hidden = true;
+        passwordCard.hidden = true;
         return;
       }
       window.ADVENTURE_HUB_CLOUD = {
@@ -95,6 +103,7 @@
       document.body.classList.toggle('viewer-mode', membership.role === 'viewer');
       status.textContent = `Connected as ${session.user.email} · ${membership.households?.name || 'Higgins Hub'} · ${membership.role === 'viewer' ? 'Family Viewer' : membership.role === 'editor' ? 'Full access' : 'Owner'}`;
       signOut.hidden = false;
+      passwordCard.hidden = false;
       window.dispatchEvent(new CustomEvent('adventure-cloud-ready', {
         detail: window.ADVENTURE_HUB_CLOUD
       }));
@@ -155,6 +164,34 @@
 
   signOut.addEventListener('click', async () => {
     await client.auth.signOut();
+  });
+
+  accountPasswordForm.addEventListener('submit', async event => {
+    event.preventDefault();
+    accountPasswordMessage.classList.remove('error');
+    if (accountPassword.value !== accountPasswordConfirm.value) {
+      accountPasswordMessage.textContent = 'The passwords do not match.';
+      accountPasswordMessage.classList.add('error');
+      return;
+    }
+    accountPasswordForm.querySelectorAll('button,input').forEach(control => {
+      control.disabled = true;
+    });
+    accountPasswordMessage.textContent = 'Saving your new password…';
+    const result = await client.auth.updateUser({
+      password: accountPassword.value
+    });
+    accountPasswordForm.querySelectorAll('button,input').forEach(control => {
+      control.disabled = false;
+    });
+    if (result.error) {
+      accountPasswordMessage.textContent = result.error.message;
+      accountPasswordMessage.classList.add('error');
+      return;
+    }
+    accountPassword.value = '';
+    accountPasswordConfirm.value = '';
+    accountPasswordMessage.textContent = 'Password updated. You can now use it on another device.';
   });
 
   joinSignOut.addEventListener('click', async () => {
