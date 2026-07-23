@@ -7,6 +7,7 @@
   }
 
   const client = library.createClient(config.url, config.publishableKey);
+  const authRedirectUrl = new URL('.', window.location.href).href;
   const gate = document.querySelector('#authGate');
   const form = document.querySelector('#authForm');
   const email = document.querySelector('#authEmail');
@@ -113,7 +114,10 @@
     setMessage('Creating your account…');
     const result = await client.auth.signUp({
       email: email.value.trim(),
-      password: password.value
+      password: password.value,
+      options: {
+        emailRedirectTo: authRedirectUrl
+      }
     });
     setBusy(false);
     if (result.error) {
