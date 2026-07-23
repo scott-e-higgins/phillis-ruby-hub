@@ -145,6 +145,14 @@
       <button class="primary" id="signInButton" type="submit">Sign in</button>
       <button class="secondary" id="signUpButton" type="button">Create account</button>
     </form>
+    <form id="recoveryForm" hidden>
+      <p>Choose a new password with at least eight characters.</p>
+      <label>New password<input id="recoveryPassword" type="password" autocomplete="new-password" minlength="8" required></label>
+      <label>Confirm password<input id="recoveryPasswordConfirm" type="password" autocomplete="new-password" minlength="8" required></label>
+      <p id="recoveryMessage" class="auth-message" aria-live="polite"></p>
+      <button class="primary" type="submit">Save new password</button>
+      <button class="secondary" id="recoverySignOut" type="button">Return to sign in</button>
+    </form>
     <form id="joinForm" hidden>
       <p>Your account is confirmed. Enter the invitation code Scott sent you.</p>
       <label>Invitation code<input id="joinCode" autocomplete="one-time-code" maxlength="8" required></label>
