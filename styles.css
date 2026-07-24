@@ -35,6 +35,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 @keyframes refreshSpin{to{transform:rotate(360deg)}}
 
 .topbar{position:relative;overflow:hidden;min-height:calc(104px + env(safe-area-inset-top));padding-top:calc(16px + env(safe-area-inset-top));padding-right:max(20px,env(safe-area-inset-right),calc((100vw - 920px)/2));padding-bottom:16px;padding-left:max(20px,env(safe-area-inset-left),calc((100vw - 920px)/2));background:linear-gradient(135deg,#10241d,#1f4437);color:#fff;display:flex;align-items:center;justify-content:space-between;box-shadow:0 8px 28px rgba(0,0,0,.34)}
+html.standalone-app .topbar{padding-top:max(calc(16px + env(safe-area-inset-top)),64px);min-height:max(calc(104px + env(safe-area-inset-top)),142px)}
+html.standalone-app .pull-refresh{top:max(calc(env(safe-area-inset-top) + 8px),56px)}
 .topbar::before,.topbar::after{content:"";position:absolute;border-radius:50%;opacity:.26;filter:blur(.2px);pointer-events:none}
 .topbar::before{width:86px;height:86px;right:64px;top:-24px;background:radial-gradient(circle at 32% 32%,var(--pink) 0 10%,transparent 11%),radial-gradient(circle at 68% 34%,var(--purple) 0 10%,transparent 11%),radial-gradient(circle at 49% 66%,#f2b4c9 0 11%,transparent 12%),radial-gradient(circle at 25% 68%,#a995cc 0 9%,transparent 10%)}
 .topbar::after{width:56px;height:56px;right:18px;bottom:-18px;background:radial-gradient(circle at 35% 35%,#f3b7ca 0 12%,transparent 13%),radial-gradient(circle at 68% 42%,#a78ecb 0 12%,transparent 13%),radial-gradient(circle at 50% 72%,var(--pink) 0 12%,transparent 13%)}

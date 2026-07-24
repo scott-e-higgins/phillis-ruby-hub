@@ -2,6 +2,12 @@
 
 Adventure Hub is Scott and Kayla's private travel companion.
 
+## Version 0.17.6
+
+- Detects the installed iPhone Home Screen app directly.
+- Applies a dedicated Dynamic Island clearance only in installed-app mode,
+  without changing the correctly positioned Safari version.
+
 ## Version 0.17.5
 
 - Uses the iPhone’s reserved status-bar area instead of drawing the header
