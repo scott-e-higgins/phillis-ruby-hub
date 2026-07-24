@@ -1,4 +1,4 @@
-const APP_VERSION='0.20.2';
+const APP_VERSION='0.20.3';
 const SEED={"tripSummaries":[],"stays":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const $=s=>document.querySelector(s), $$=(s,root=document)=>[...root.querySelectorAll(s)];
@@ -332,7 +332,7 @@ function showTrip(index){
     $('#detailDialog').showModal();
     return;
   }
-  $('#detailBody').innerHTML=`<div class="trip-detail-top"><p class="intro">${tripHasDates(t)?`${date(s)} – ${date(e)}`:t.year}</p><button class="primary" id="editTripButton">Edit trip</button></div>${tripPhotoHtml(t,{detail:true})}<div class="detail-section"><h3>Trip totals</h3><div class="detail-row"><span>Miles</span><b>${number(t.distance,1)}</b></div><div class="detail-row"><span>Fuel cost</span><b>${money(t.cost)}</b></div><div class="detail-row"><span>Gallons</span><b>${number(t.gallons,2)}</b></div><div class="detail-row"><span>MPG</span><b>${number(t.mpg,2)}</b></div></div><div class="detail-section"><h3>Campgrounds & hosts</h3><div class="stay-listing-stack">${stays.map(x=>stayListing(x)).join('')||'<p class="intro">No campground stays linked yet.</p>'}</div></div><div class="detail-section"><div class="detail-section-head"><h3>Fuel stops</h3><button class="text-button" id="addTripFuelButton">Add fuel</button></div>${fuel.map(x=>`<div class="detail-row editable-detail-row"><span><b>${escapeHtml(x.station)}</b><br><small>${date(x.date)} · ${number(x.gallons,2)} gal</small></span><div class="detail-value-actions"><span>${money(x.total)}</span><button class="small-button" data-edit-fuel="${db.fuel.indexOf(x)}">Edit</button></div></div>`).join('')||'<p class="intro">No fuel stops linked yet.</p>'}</div>${t.notes?`<div class="detail-section"><h3>Notes</h3><p>${escapeHtml(t.notes)}</p></div>`:''}<div class="trip-delete-area"><button class="delete-link" id="deleteTripButton">Delete trip</button></div>`;
+  $('#detailBody').innerHTML=`<div class="trip-detail-top"><p class="intro">${tripHasDates(t)?`${date(s)} – ${date(e)}`:t.year}${t.towVehicle||t.rv?`<br>${escapeHtml([t.towVehicle,t.rv].filter(Boolean).join(' · '))}`:''}</p><button class="primary" id="editTripButton">Edit trip</button></div>${tripPhotoHtml(t,{detail:true})}<div class="detail-section"><h3>Trip totals</h3><div class="detail-row"><span>Miles</span><b>${number(t.distance,1)}</b></div><div class="detail-row"><span>Fuel cost</span><b>${money(t.cost)}</b></div><div class="detail-row"><span>Gallons</span><b>${number(t.gallons,2)}</b></div><div class="detail-row"><span>MPG</span><b>${number(t.mpg,2)}</b></div></div><div class="detail-section"><h3>Campgrounds & hosts</h3><div class="stay-listing-stack">${stays.map(x=>stayListing(x)).join('')||'<p class="intro">No campground stays linked yet.</p>'}</div></div><div class="detail-section"><div class="detail-section-head"><h3>Fuel stops</h3><button class="text-button" id="addTripFuelButton">Add fuel</button></div>${fuel.map(x=>`<div class="detail-row editable-detail-row"><span><b>${escapeHtml(x.station)}</b><br><small>${date(x.date)} · ${escapeHtml(x.vehicle||t.towVehicle||'')} · ${x.fuelType==='diesel'?'Diesel':'Gasoline'} · ${number(x.gallons,2)} gal</small></span><div class="detail-value-actions"><span>${money(x.total)}</span><button class="small-button" data-edit-fuel="${db.fuel.indexOf(x)}">Edit</button></div></div>`).join('')||'<p class="intro">No fuel stops linked yet.</p>'}</div>${t.notes?`<div class="detail-section"><h3>Notes</h3><p>${escapeHtml(t.notes)}</p></div>`:''}<div class="trip-delete-area"><button class="delete-link" id="deleteTripButton">Delete trip</button></div>`;
   $('#editTripButton').onclick=()=>{$('#detailDialog').close();openEntry('trip',index)};
   $('#addTripFuelButton').onclick=()=>{$('#detailDialog').close();openEntry('fuel',null,index)};
   $$('[data-edit-stay]').forEach(button=>button.onclick=()=>{$('#detailDialog').close();openEntry('stay',+button.dataset.editStay,index)});
@@ -376,13 +376,13 @@ function showPhillisRecord(key,index,type,page){
 }
 
 function fuelRecordList(items){
-  return items.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(x=>`<button class="record-item record-link" type="button" data-fuel-record-index="${items.indexOf(x)}"><span class="record-icon">⛽</span><div class="item-copy"><h3>${x.station||'Fuel stop'}</h3><p>${date(x.date)} · ${number(x.gallons,2)} gal · ${money(x.total)}</p></div><span class="record-chevron">›</span></button>`).join('')||'<div class="empty">No fuel records yet.</div>'
+  return items.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(x=>`<button class="record-item record-link" type="button" data-fuel-record-index="${items.indexOf(x)}"><span class="record-icon">⛽</span><div class="item-copy"><h3>${x.station||'Fuel stop'}</h3><p>${date(x.date)} · ${escapeHtml(x.vehicle||'Truck')} · ${x.fuelType==='diesel'?'Diesel':'Gasoline'} · ${number(x.gallons,2)} gal · ${money(x.total)}</p></div><span class="record-chevron">›</span></button>`).join('')||'<div class="empty">No fuel records yet.</div>'
 }
 function showFuelRecord(index){
   const record=db.fuel?.[index]; if(!record)return;
-  $('#detailKicker').textContent='RUBY FUEL STOP';
+  $('#detailKicker').textContent=`${record.vehicle||'TRIP'} FUEL STOP`.toUpperCase();
   $('#detailTitle').textContent=record.station||'Fuel stop';
-  $('#detailBody').innerHTML=`<div class="record-detail-actions"><button class="primary" id="editFuelRecord">Edit entry</button></div><div class="detail-section"><div class="detail-row"><span>Date</span><span>${date(record.date)}</span></div>${record.trip?`<div class="detail-row"><span>Trip</span><span>${escapeHtml(record.trip)}</span></div>`:''}${record.location?`<div class="detail-row"><span>Location</span><span>${escapeHtml(record.location)}</span></div>`:''}<div class="detail-row"><span>Gallons</span><span>${number(record.gallons,3)}</span></div><div class="detail-row"><span>Total</span><span>${money(record.total||0)}</span></div><div class="detail-row"><span>Price per gallon</span><span>${money(record.price||((record.gallons&&record.total)?record.total/record.gallons:0))}</span></div>${record.odometer?`<div class="detail-row"><span>Odometer</span><span>${number(record.odometer,1)}</span></div>`:''}${record.notes?`<div class="record-notes"><small>NOTES</small><p>${escapeHtml(record.notes)}</p></div>`:''}</div><div class="trip-delete-area"><button class="delete-link" id="deleteFuelRecord">Delete entry</button></div>`;
+  $('#detailBody').innerHTML=`<div class="record-detail-actions"><button class="primary" id="editFuelRecord">Edit entry</button></div><div class="detail-section"><div class="detail-row"><span>Date</span><span>${date(record.date)}</span></div>${record.trip?`<div class="detail-row"><span>Trip</span><span>${escapeHtml(record.trip)}</span></div>`:''}${record.vehicle?`<div class="detail-row"><span>Vehicle</span><span>${escapeHtml(record.vehicle)}</span></div>`:''}<div class="detail-row"><span>Fuel</span><span>${record.fuelType==='diesel'?'Diesel':'Gasoline'}</span></div>${record.location?`<div class="detail-row"><span>Location</span><span>${escapeHtml(record.location)}</span></div>`:''}<div class="detail-row"><span>Gallons</span><span>${number(record.gallons,3)}</span></div><div class="detail-row"><span>Total</span><span>${money(record.total||0)}</span></div><div class="detail-row"><span>Price per gallon</span><span>${money(record.price||((record.gallons&&record.total)?record.total/record.gallons:0))}</span></div>${record.odometer?`<div class="detail-row"><span>Odometer</span><span>${number(record.odometer,1)}</span></div>`:''}${record.notes?`<div class="record-notes"><small>NOTES</small><p>${escapeHtml(record.notes)}</p></div>`:''}</div><div class="trip-delete-area"><button class="delete-link" id="deleteFuelRecord">Delete entry</button></div>`;
   $('#editFuelRecord').onclick=()=>{$('#detailDialog').close();openEntry('fuel',index)};
   $('#deleteFuelRecord').onclick=()=>{if(!confirm(`Delete this fuel stop at ${record.station||'this station'}?`))return;db.fuel.splice(index,1);refreshTripFuelSummaries();save();$('#detailDialog').close();renderHome();renderTrips();showPanel('fuel-history')};
   $('#detailDialog').showModal();
@@ -690,6 +690,10 @@ function openEntry(type,index=null,returnTripIndex=null){
     syncCost();
   }
   if(type==='fuel'){
+    const syncTripFuelType=()=>{
+      const trip=db.tripSummaries.find(item=>item.name===$('#tripName').value);
+      if(trip?.towFuelType)$('#fuelType').value=trip.towFuelType;
+    };
     const updatePreview=()=>{
       const gallons=Number($('#gallons').value),total=Number($('#total').value),tripMeter=Number($('#tripMeter').value);
       const values=$$('#fuelCalculations b');
@@ -708,11 +712,13 @@ function openEntry(type,index=null,returnTripIndex=null){
       const currentTrip=db.tripSummaries.find(trip=>tripStatus(trip)==='current');
       if(currentTrip)$('#tripName').value=currentTrip.name;
     }
+    if(index===null)syncTripFuelType();
+    $('#tripName').addEventListener('change',syncTripFuelType);
     $('#date').addEventListener('change',()=>{
       if($('#tripName').value)return;
       const value=$('#date').value;
       const matching=db.tripSummaries.find(trip=>{const [start,end]=tripDates(trip);return start<=value&&end>=value;});
-      if(matching)$('#tripName').value=matching.name;
+      if(matching){$('#tripName').value=matching.name;syncTripFuelType();}
     });
     ['#gallons','#total','#tripMeter'].forEach(selector=>$(selector).addEventListener('input',updatePreview));
     updatePreview();
@@ -825,7 +831,7 @@ $('#entryForm').onsubmit=async e=>{
     const g=+$('#gallons').value||0,total=+$('#total').value||0,index=$('#entryIndex').value===''?null:+$('#entryIndex').value;
     const selectedTrip=db.tripSummaries.find(trip=>trip.name===$('#tripName').value);
     if(!selectedTrip){alert('Please choose a trip from the list.');$('#tripName').focus();return;}
-    const record={...(index===null?{}:db.fuel[index]),_tripId:selectedTrip._cloudId||null,date:$('#date').value,trip:selectedTrip.name,station:$('#station').value.trim(),location:$('#location').value.trim(),gallons:g,total,price:g?total/g:0,fuelType:$('#fuelType').value,tripMiles:+$('#tripMeter').value,odometer:$('#odometer').value===''?null:+$('#odometer').value,notes};
+    const record={...(index===null?{}:db.fuel[index]),_tripId:selectedTrip._cloudId||null,_vehicleId:selectedTrip._towVehicleId||null,vehicle:selectedTrip.towVehicle||'',date:$('#date').value,trip:selectedTrip.name,station:$('#station').value.trim(),location:$('#location').value.trim(),gallons:g,total,price:g?total/g:0,fuelType:$('#fuelType').value,tripMiles:+$('#tripMeter').value,odometer:$('#odometer').value===''?null:+$('#odometer').value,notes};
     if(index===null) db.fuel.push(record); else db.fuel[index]=record;
     refreshTripFuelSummaries();
   }

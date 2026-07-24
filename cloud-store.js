@@ -328,8 +328,12 @@
         const gallons = rows.reduce((sum, x) => sum + (num(x.gallons) || 0), 0);
         const cost = rows.reduce((sum, x) => sum + (num(x.total_cost) || 0), 0);
         const distance = rows.reduce((sum, x) => sum + (num(x.trip_meter) || 0), 0) || null;
+        const towVehicle = vehicleById.get(row.tow_vehicle_id);
+        const rv = vehicleById.get(row.rv_id);
         return {
           _cloudId: row.id,
+          _towVehicleId: row.tow_vehicle_id || null,
+          _rvId: row.rv_id || null,
           year: Number(String(row.start_date).slice(0, 4)),
           name: row.name,
           destination: row.destination_name,
@@ -337,6 +341,9 @@
           endDate: row.end_date,
           status: row.status,
           notes: row.notes || '',
+          towVehicle: towVehicle?.name || '',
+          towFuelType: towVehicle?.fuel_type || '',
+          rv: rv?.name || '',
           distance,
           gallons,
           cost,
@@ -402,7 +409,7 @@
       };
       maintenance.forEach(row => {
         const vehicle = vehicleById.get(row.vehicle_id);
-        const prefix = vehicle?.name === 'Ruby' ? 'ruby' : 'phillis';
+        const prefix = vehicle?.vehicle_type === 'truck' ? 'ruby' : 'phillis';
         const suffix = row.record_type === 'upgrade' ? 'Upgrades' : 'Maintenance';
         maintenanceGroups[prefix + suffix].push({
           _cloudId: row.id,
@@ -463,7 +470,9 @@
         fuel: fuel.map(row => ({
           _cloudId: row.id,
           _tripId: row.trip_id,
+          _vehicleId: row.vehicle_id || tripById.get(row.trip_id)?.tow_vehicle_id || null,
           trip: tripName(row.trip_id),
+          vehicle: vehicleById.get(row.vehicle_id || tripById.get(row.trip_id)?.tow_vehicle_id)?.name || '',
           date: row.fuel_date,
           station: row.station || '',
           location: row.location || '',
@@ -491,8 +500,8 @@
 
     async function write(snapshot) {
       const vehicles = assert(await client.from('vehicles').select('*').eq('household_id', householdId));
-      const ruby = vehicles.find(x => x.name === 'Ruby');
-      const phillis = vehicles.find(x => x.name === 'Phillis');
+      const ruby = vehicles.find(x => x.vehicle_type === 'truck' && x.is_active) || vehicles.find(x => x.name === 'Ruby');
+      const phillis = vehicles.find(x => x.vehicle_type === 'rv' && x.is_active) || vehicles.find(x => x.name === 'Phillis II.0') || vehicles.find(x => x.name === 'Phillis');
       const siteRows = assert(await client.from('seasonal_sites').select('*').eq('household_id', householdId));
       const seasonalSite = siteRows[0];
       if (!ruby || !phillis || !seasonalSite) throw new Error('Ruby, Phillis, or Lehigh Gorge is missing.');
@@ -502,7 +511,7 @@
         id: x._cloudId, household_id: householdId, name: x.name,
         destination_name: x.destination || x.name, start_date: x.startDate,
         end_date: x.endDate, status: x.status || 'planned', notes: x.notes || null,
-        tow_vehicle_id: ruby.id, rv_id: phillis.id,
+        tow_vehicle_id: x._towVehicleId || ruby.id, rv_id: x._rvId || phillis.id,
         on_road_photo_path: x.onRoadPhotoPath || null
       }));
       assert(await client.from('trips').upsert(tripRows));
@@ -530,6 +539,7 @@
       snapshot.fuel.forEach(x => { if (!x._cloudId) x._cloudId = uuid(); });
       const fuelRows = snapshot.fuel.map(x => ({
         id: x._cloudId, trip_id: x._tripId || tripFor(x.trip, x.date)?._cloudId,
+        vehicle_id: x._vehicleId || tripFor(x.trip, x.date)?._towVehicleId || ruby.id,
         fuel_date: x.date, station: x.station || null, location: x.location || null,
         odometer: x.odometer, trip_meter: x.tripMiles, gallons: x.gallons,
         total_cost: x.total, fuel_type: x.fuelType || (Number(String(x.date).slice(0, 4)) >= 2025 ? 'diesel' : 'gasoline'),

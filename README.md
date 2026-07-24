@@ -2,6 +2,16 @@
 
 Travel Journal is Scott and Kayla's private travel companion.
 
+## Version 0.20.3
+
+- Fuel stops now retain the tow vehicle assigned to their trip.
+- Fuel type follows the assigned truck: gasoline for the F-150 and Spruce,
+  diesel for Ruby.
+- Trip and fuel saves preserve historical truck and trailer assignments.
+- Fuel-history and trip-detail views show the truck and fuel type.
+
+Run `database-add-fuel-vehicles.sql` in Supabase before publishing this version.
+
 ## Version 0.20.2
 
 - Moves the complete Pictures section below the note text or checklist inside
