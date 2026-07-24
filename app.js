@@ -1,4 +1,4 @@
-const APP_VERSION='0.21.2';
+const APP_VERSION='0.22.0';
 const SEED={"tripSummaries":[],"stays":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const $=s=>document.querySelector(s), $$=(s,root=document)=>[...root.querySelectorAll(s)];
@@ -83,16 +83,19 @@ function setDetailHeader(kicker,title,trip=null,metaHtml=''){
 function stayTypeBadges(stay){
   return `${stay.harvestHost||stay.stayType==='harvest-host'?'<span class="stay-badge">Harvest Host</span>':''}${stay.moochdocking||stay.stayType==='moochdocking'?'<span class="stay-badge">Moochdocking</span>':''}${stay.boondocking||stay.stayType==='boondocking'?'<span class="stay-badge">Boondocking</span>':''}`;
 }
-function stayLocationHtml(stay){
+function stayLocationHtml(stay,{full=false}={}){
   const mapAddress=[stay.address,stay.city,stay.state,stay.zip].filter(Boolean).join(', ');
-  const cardLocation=[stay.city,stay.state].filter(Boolean).join(', ')||stay.address||'';
-  if(!mapAddress||!cardLocation)return '';
+  const displayLocation=full?mapAddress:([stay.city,stay.state].filter(Boolean).join(', ')||stay.address||'');
+  if(!mapAddress||!displayLocation)return '';
   const mapsUrl=`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapAddress)}`;
-  return `<p><a class="stay-address-link" href="${escapeHtml(mapsUrl)}" target="_blank" rel="noopener" data-map-address="${escapeHtml(mapAddress)}" aria-label="Open ${escapeHtml(mapAddress)} in Google Maps"><span aria-hidden="true">⌖</span>${escapeHtml(cardLocation)}</a></p>`;
+  return `<p><a class="stay-address-link" href="${escapeHtml(mapsUrl)}" target="_blank" rel="noopener" data-map-address="${escapeHtml(mapAddress)}" aria-label="Open ${escapeHtml(mapAddress)} in Google Maps"><span aria-hidden="true">⌖</span>${escapeHtml(displayLocation)}</a></p>`;
 }
 function stayListing(stay,{viewer=false}={}){
   const index=db.stays.indexOf(stay);
-  return `<article class="stay-listing-card"><div class="stay-listing-main"><div class="stay-listing-copy"><h4>${escapeHtml(stay.name)}</h4><p>${date(stay.arrival)}${stay.checkInTime?` · Check in ${clockTime(stay.checkInTime)}`:''} – ${date(stay.departure)}${stay.checkOutTime?` · Check out ${clockTime(stay.checkOutTime)}`:''}</p>${stayLocationHtml(stay)}${stay.site?`<p>Site ${escapeHtml(stay.site)}</p>`:''}<div class="stay-badges">${stayTypeBadges(stay)}</div></div>${stayPhotoGallery(stay)}${viewer?'':`<div class="detail-value-actions"><span>${money(stay.price)}</span><button class="small-button" data-edit-stay="${index}">Edit</button></div>`}</div></article>`;
+  const summary=viewer
+    ?'<span class="stay-card-chevron" aria-hidden="true">›</span>'
+    :`<div class="stay-card-summary"><span>${money(stay.price)}</span><i aria-hidden="true">›</i></div>`;
+  return `<article class="stay-listing-card" data-stay-detail="${index}" tabindex="0" aria-label="Open details for ${escapeHtml(stay.name)}"><div class="stay-listing-main"><div class="stay-listing-copy"><h4>${escapeHtml(stay.name)}</h4><p>${date(stay.arrival)}${stay.checkInTime?` · Check in ${clockTime(stay.checkInTime)}`:''} – ${date(stay.departure)}${stay.checkOutTime?` · Check out ${clockTime(stay.checkOutTime)}`:''}</p>${stayLocationHtml(stay)}${stay.site?`<p>Site ${escapeHtml(stay.site)}</p>`:''}<div class="stay-badges">${stayTypeBadges(stay)}</div></div>${stayPhotoGallery(stay)}${summary}</div></article>`;
 }
 function bindStayPhotoButtons(root=document){
   $$('[data-photo-url]',root).forEach(button=>button.onclick=()=>{
@@ -107,6 +110,20 @@ function bindStayMapLinks(root=document){
   $$('[data-map-address]',root).forEach(link=>link.onclick=event=>{
     const address=link.dataset.mapAddress;
     if(!confirm(`Open this address in Google Maps?\n\n${address}`))event.preventDefault();
+  });
+}
+function bindStayCards(root=document,tripIndex=null){
+  $$('[data-stay-detail]',root).forEach(card=>{
+    const open=()=>showStay(+card.dataset.stayDetail,tripIndex);
+    card.onclick=event=>{
+      if(event.target.closest('a,button,input,label'))return;
+      open();
+    };
+    card.onkeydown=event=>{
+      if(!['Enter',' '].includes(event.key)||event.target.closest('a,button,input,label'))return;
+      event.preventDefault();
+      open();
+    };
   });
 }
 let TODAY=new Date(); TODAY.setHours(0,0,0,0);
@@ -333,6 +350,21 @@ function matchingStays(t){
 function matchingFuel(t){
   return db.fuel.filter(f=>(f._tripId&&t._cloudId&&f._tripId===t._cloudId)||f.trip===t.name||(f.date&&+f.date.slice(0,4)===+t.year&&f.trip?.toLowerCase().includes(t.name.toLowerCase())));
 }
+function showStay(index,tripIndex=null){
+  const stay=db.stays[index]; if(!stay)return;
+  const viewer=window.ADVENTURE_HUB_CLOUD?.role==='viewer';
+  const type=stay.harvestHost||stay.stayType==='harvest-host'?'HARVEST HOST':stay.moochdocking||stay.stayType==='moochdocking'?'MOOCHDOCKING':stay.boondocking||stay.stayType==='boondocking'?'BOONDOCKING':'CAMPGROUND';
+  const headerMeta=`<p class="detail-header-dates">${date(stay.arrival)} – ${date(stay.departure)}</p>`;
+  setDetailHeader(type,stay.name,null,headerMeta);
+  const actions=`<div class="record-detail-actions stay-detail-actions">${tripIndex!==null?'<button class="text-button" id="backToTripButton">← Back to trip</button>':''}${viewer?'':'<button class="primary" id="editStayButton">Edit stay</button>'}</div>`;
+  const photos=stayPhotoGallery(stay);
+  $('#detailBody').innerHTML=`${actions}<div class="detail-section"><div class="detail-row"><span>Arrival</span><span>${date(stay.arrival)}${stay.checkInTime?` · ${clockTime(stay.checkInTime)}`:''}</span></div><div class="detail-row"><span>Departure</span><span>${date(stay.departure)}${stay.checkOutTime?` · ${clockTime(stay.checkOutTime)}`:''}</span></div>${stay.site?`<div class="detail-row"><span>Site</span><span>${escapeHtml(stay.site)}</span></div>`:''}${viewer?'':`<div class="detail-row"><span>Stay cost</span><span>${money(stay.price)}</span></div>`}<div class="stay-detail-location"><small>LOCATION</small>${stayLocationHtml(stay,{full:true})}</div>${photos?`<div class="stay-detail-photos"><small>PHOTOS</small>${photos}</div>`:''}${stay.notes?`<div class="record-notes"><small>NOTES</small><p>${escapeHtml(stay.notes)}</p></div>`:''}</div>`;
+  if(tripIndex!==null)$('#backToTripButton').onclick=()=>{$('#detailDialog').close();showTrip(tripIndex)};
+  if(!viewer)$('#editStayButton').onclick=()=>{$('#detailDialog').close();openEntry('stay',index,tripIndex)};
+  bindStayPhotoButtons($('#detailBody'));
+  bindStayMapLinks($('#detailBody'));
+  if(!$('#detailDialog').open)$('#detailDialog').showModal();
+}
 function refreshTripFuelSummaries(){
   db.tripSummaries.forEach(trip=>{
     const rows=matchingFuel(trip);
@@ -355,16 +387,17 @@ function showTrip(index){
     $('#detailBody').innerHTML=`${t.destination?`<div class="detail-section"><h3>Destination</h3><p>${escapeHtml(t.destination)}</p></div>`:''}<div class="detail-section"><h3>Itinerary</h3><div class="stay-listing-stack">${stays.map(x=>stayListing(x,{viewer:true})).join('')||'<p class="intro">No campground details have been added yet.</p>'}</div></div>`;
     bindStayPhotoButtons($('#detailBody'));
     bindStayMapLinks($('#detailBody'));
+    bindStayCards($('#detailBody'),index);
     $('#detailDialog').showModal();
     return;
   }
   $('#detailBody').innerHTML=`<div class="record-detail-actions"><button class="primary" id="editTripButton">Edit trip</button></div><div class="detail-section"><h3>Trip totals</h3><div class="detail-row"><span>Miles</span><b>${number(t.distance,1)}</b></div><div class="detail-row"><span>Fuel cost</span><b>${money(t.cost)}</b></div><div class="detail-row"><span>Gallons</span><b>${number(t.gallons,2)}</b></div><div class="detail-row"><span>MPG</span><b>${number(t.mpg,2)}</b></div></div><div class="detail-section"><h3>Campgrounds & hosts</h3><div class="stay-listing-stack">${stays.map(x=>stayListing(x)).join('')||'<p class="intro">No campground stays linked yet.</p>'}</div></div><div class="detail-section"><div class="detail-section-head"><h3>Fuel stops</h3><button class="text-button" id="addTripFuelButton">Add fuel</button></div>${fuel.map(x=>`<div class="detail-row editable-detail-row"><span><b>${escapeHtml(x.station)}</b><br><small>${date(x.date)} · ${escapeHtml(x.vehicle||t.towVehicle||'')} · ${x.fuelType==='diesel'?'Diesel':'Gasoline'} · ${number(x.gallons,2)} gal</small></span><div class="detail-value-actions"><span>${money(x.total)}</span><button class="small-button" data-edit-fuel="${db.fuel.indexOf(x)}">Edit</button></div></div>`).join('')||'<p class="intro">No fuel stops linked yet.</p>'}</div>${t.notes?`<div class="detail-section"><h3>Notes</h3><p>${escapeHtml(t.notes)}</p></div>`:''}<div class="trip-delete-area"><button class="delete-link" id="deleteTripButton">Delete trip</button></div>`;
   $('#editTripButton').onclick=()=>{$('#detailDialog').close();openEntry('trip',index)};
   $('#addTripFuelButton').onclick=()=>{$('#detailDialog').close();openEntry('fuel',null,index)};
-  $$('[data-edit-stay]').forEach(button=>button.onclick=()=>{$('#detailDialog').close();openEntry('stay',+button.dataset.editStay,index)});
   $$('[data-edit-fuel]').forEach(button=>button.onclick=()=>{$('#detailDialog').close();openEntry('fuel',+button.dataset.editFuel,index)});
   bindStayPhotoButtons($('#detailBody'));
   bindStayMapLinks($('#detailBody'));
+  bindStayCards($('#detailBody'),index);
   $('#deleteTripButton').onclick=()=>deleteTrip(index);
   $('#detailDialog').showModal();
 }

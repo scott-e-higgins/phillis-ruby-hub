@@ -13,6 +13,15 @@ Travel Journal is Scott and Kayla's private travel companion.
   read-only calendar subscription remains a fallback if a native companion is
   not pursued.
 
+## Version 0.22.0
+
+- Makes each campground, Harvest Host, boondocking, or moochdocking card
+  clickable from inside a trip.
+- Adds a dedicated stay-detail view with dates, check-in and checkout times,
+  site number, complete map-linked address, photos, cost, and notes.
+- Moves the Edit stay button into the stay-detail view.
+- Adds a Back to trip control and preserves direct photo and map-link actions.
+
 ## Version 0.21.2
 
 - Returns stay cards to their cleaner city-and-state display.

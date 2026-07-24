@@ -204,7 +204,9 @@ label textarea{resize:vertical}
 .stay-badge{display:inline-block;margin-top:5px;padding:3px 8px;border-radius:999px;background:var(--pine-3);color:var(--pine);font-size:11px;font-weight:850}
 .stay-badges{display:flex;flex-wrap:wrap;gap:6px}
 .stay-listing-stack{display:grid;gap:12px;margin-top:9px}
-.stay-listing-card{overflow:hidden;border:1px solid var(--line);border-radius:8px;background:#2a332e;box-shadow:var(--shadow-sm)}
+.stay-listing-card{overflow:hidden;border:1px solid var(--line);border-radius:8px;background:#2a332e;box-shadow:var(--shadow-sm);cursor:pointer;transition:transform .18s var(--ease),border-color .18s var(--ease),background .18s var(--ease)}
+.stay-listing-card:hover,.stay-listing-card:focus-visible{transform:translateY(-1px);border-color:#718178;background:#2d3832;outline:none}
+.stay-listing-card:focus-visible{box-shadow:0 0 0 3px rgba(216,154,157,.22),var(--shadow-sm)}
 .stay-listing-main{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:start;gap:12px;padding:15px}
 .stay-listing-copy{min-width:0}
 .stay-listing-copy h4{margin:0 0 5px;font-size:17px;letter-spacing:-.012em}
@@ -213,6 +215,15 @@ label textarea{resize:vertical}
 .stay-address-link>span{flex:0 0 auto;color:#e3aaab;font-size:15px}
 .stay-address-link:hover,.stay-address-link:focus-visible{color:#d9eee5;text-decoration:underline;text-underline-offset:3px}
 .stay-address-link:focus-visible{outline:2px solid #d89a9d;outline-offset:3px;border-radius:3px}
+.stay-card-summary{display:flex;align-items:center;gap:10px;color:#e4ebe7;font-size:14px;font-weight:850;white-space:nowrap}
+.stay-card-summary i,.stay-card-chevron{color:#d89a9d;font-size:25px;font-style:normal;font-weight:500;line-height:1}
+.stay-card-chevron{align-self:center}
+.stay-detail-actions{justify-content:space-between;align-items:center;gap:12px}
+.stay-detail-location,.stay-detail-photos{margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
+.stay-detail-location>small,.stay-detail-photos>small{display:block;margin-bottom:8px;color:#9eaaa4;font-size:11px;font-weight:850;letter-spacing:.08em}
+.stay-detail-location p{margin:0}
+.stay-detail-location .stay-address-link{font-size:14px}
+.stay-detail-photos .stay-photo-strip{margin-top:4px}
 .stay-photo-strip{display:flex;align-items:flex-start;gap:8px;padding:0;background:transparent}
 .stay-photo-thumb{display:block;min-width:0;width:78px;flex:0 0 78px;height:auto;padding:0;border:1px solid #536159;border-radius:8px;background:#202722;color:#fff;overflow:hidden;box-shadow:0 7px 18px rgba(0,0,0,.22)}
 .stay-photo-thumb img{display:block;width:100%;height:52px;object-fit:cover;transition:transform .24s var(--ease),filter .24s var(--ease)}
