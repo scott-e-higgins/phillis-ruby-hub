@@ -1,4 +1,4 @@
-const APP_VERSION='0.23.1';
+const APP_VERSION='0.24.0';
 const SEED={"tripSummaries":[],"stays":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const $=s=>document.querySelector(s), $$=(s,root=document)=>[...root.querySelectorAll(s)];
@@ -279,10 +279,16 @@ function renderHome(){
   $('#recentNotes').innerHTML=recentNotes.map(note=>noteCardHtml(note,true)).join('')||'<div class="empty">New notes will appear here.</div>';
   bindNoteCards($('#recentNotes'));
   const recent=[];
-  db.fuel.forEach(x=>recent.push({type:'Fuel',icon:'⛽',title:x.station||'Fuel stop',sub:`${date(x.date)} · ${money(x.total)}`,stamp:x.date||''}));
-  db.phillisMaintenance.forEach(x=>recent.push({type:'Phillis',icon:'🔧',title:x.description||'Maintenance',sub:`${date(x.date)} · ${money(x.price)}`,stamp:x.date||''}));
-  db.rubyMaintenance.forEach(x=>recent.push({type:'Ruby',icon:'🛻',title:x.description||'Maintenance',sub:`${date(x.date)} · ${money(x.price)}`,stamp:x.date||''}));
-  $('#recentRecords').innerHTML=recent.sort((a,b)=>b.stamp.localeCompare(a.stamp)).slice(0,4).map(r=>`<article class="record-item"><span class="record-icon">${r.icon}</span><div class="item-copy"><h3>${r.title}</h3><p>${r.sub}</p></div><span class="pill">${r.type}</span></article>`).join('')||'<div class="empty">New entries will appear here.</div>';
+  db.fuel.forEach((x,index)=>recent.push({type:'Fuel',kind:'fuel',index,icon:'⛽',title:x.station||'Fuel stop',sub:`${date(x.date)} · ${money(x.total)}`,stamp:x.date||''}));
+  db.phillisMaintenance.forEach((x,index)=>recent.push({type:'Phillis',kind:'phillis',index,icon:'🔧',title:x.description||'Maintenance',sub:`${date(x.date)} · ${money(x.price)}`,stamp:x.date||''}));
+  db.rubyMaintenance.forEach((x,index)=>recent.push({type:'Ruby',kind:'ruby',index,icon:'🛻',title:x.description||'Maintenance',sub:`${date(x.date)} · ${money(x.price)}`,stamp:x.date||''}));
+  $('#recentRecords').innerHTML=recent.sort((a,b)=>b.stamp.localeCompare(a.stamp)).slice(0,3).map(r=>`<button class="record-item record-link" type="button" data-recent-record-kind="${r.kind}" data-recent-record-index="${r.index}" aria-label="Open ${escapeHtml(r.title)}"><span class="record-icon">${r.icon}</span><div class="item-copy"><h3>${escapeHtml(r.title)}</h3><p>${r.sub}</p></div><span class="recent-record-end"><span class="pill">${r.type}</span><span class="record-chevron">›</span></span></button>`).join('')||'<div class="empty">New entries will appear here.</div>';
+  $$('[data-recent-record-kind]',$('#recentRecords')).forEach(button=>button.onclick=()=>{
+    const index=+button.dataset.recentRecordIndex;
+    if(button.dataset.recentRecordKind==='fuel')showFuelRecord(index);
+    if(button.dataset.recentRecordKind==='phillis')showPhillisRecord('phillisMaintenance',index,'phillis-maint','phillis-maintenance');
+    if(button.dataset.recentRecordKind==='ruby')showRubyRecord('rubyMaintenance',index,'ruby-maint','ruby-maintenance');
+  });
   bindTripButtons(); bindOpeners();
 }
 function initYears(){

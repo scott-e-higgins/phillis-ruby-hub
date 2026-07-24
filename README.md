@@ -13,6 +13,12 @@ Travel Journal is Scott and Kayla's private travel companion.
   read-only calendar subscription remains a fallback if a native companion is
   not pursued.
 
+## Version 0.24.0
+
+- Limits Home's Recent Records section to the three newest records.
+- Makes each recent fuel, Phillis maintenance, and Ruby maintenance card open
+  directly into its full record details.
+
 ## Version 0.23.1
 
 - Moves the Recent Updates card to the bottom of the More page.

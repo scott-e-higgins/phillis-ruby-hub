@@ -197,6 +197,7 @@ label textarea{resize:vertical}
 .detail-section h3{font-size:15px;text-transform:uppercase;letter-spacing:.08em;color:#9eaaa4;margin-bottom:6px}
 .detail-row{display:flex;justify-content:space-between;gap:15px;padding:12px 0;border-bottom:1px solid var(--line)}
 .detail-row span:last-child{text-align:right}
+.recent-record-end{display:flex;align-items:center;gap:9px;flex:0 0 auto}
 .trip-totals-section{margin-top:14px}
 .trip-totals-compact{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:8px}
 .trip-totals-compact>div{min-width:0;padding:9px 10px;border:1px solid var(--line);border-radius:7px;background:#252e29}
