@@ -2,6 +2,12 @@
 
 Adventure Hub is Scott and Kayla's private travel companion.
 
+## Version 0.14.1
+
+- Shows the next two trips as smaller side-by-side countdown cards.
+- When a trip is active, it appears as a full-width cranberry card above the upcoming trips.
+- Countdown cards remain tappable and open their trip details.
+
 ## Version 0.14.0
 
 - Compact, clickable countdown cards
