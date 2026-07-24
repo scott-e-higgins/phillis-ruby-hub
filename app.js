@@ -1,4 +1,4 @@
-const APP_VERSION='0.21.1';
+const APP_VERSION='0.21.2';
 const SEED={"tripSummaries":[],"stays":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const $=s=>document.querySelector(s), $$=(s,root=document)=>[...root.querySelectorAll(s)];
@@ -84,10 +84,11 @@ function stayTypeBadges(stay){
   return `${stay.harvestHost||stay.stayType==='harvest-host'?'<span class="stay-badge">Harvest Host</span>':''}${stay.moochdocking||stay.stayType==='moochdocking'?'<span class="stay-badge">Moochdocking</span>':''}${stay.boondocking||stay.stayType==='boondocking'?'<span class="stay-badge">Boondocking</span>':''}`;
 }
 function stayLocationHtml(stay){
-  const location=[stay.address,stay.city,stay.state,stay.zip].filter(Boolean).join(', ');
-  if(!location)return '';
-  const mapsUrl=`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;
-  return `<p><a class="stay-address-link" href="${escapeHtml(mapsUrl)}" target="_blank" rel="noopener" data-map-address="${escapeHtml(location)}" aria-label="Open ${escapeHtml(location)} in Google Maps"><span aria-hidden="true">⌖</span>${escapeHtml(location)}</a></p>`;
+  const mapAddress=[stay.address,stay.city,stay.state,stay.zip].filter(Boolean).join(', ');
+  const cardLocation=[stay.city,stay.state].filter(Boolean).join(', ')||stay.address||'';
+  if(!mapAddress||!cardLocation)return '';
+  const mapsUrl=`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapAddress)}`;
+  return `<p><a class="stay-address-link" href="${escapeHtml(mapsUrl)}" target="_blank" rel="noopener" data-map-address="${escapeHtml(mapAddress)}" aria-label="Open ${escapeHtml(mapAddress)} in Google Maps"><span aria-hidden="true">⌖</span>${escapeHtml(cardLocation)}</a></p>`;
 }
 function stayListing(stay,{viewer=false}={}){
   const index=db.stays.indexOf(stay);

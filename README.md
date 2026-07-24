@@ -13,6 +13,12 @@ Travel Journal is Scott and Kayla's private travel companion.
   read-only calendar subscription remains a fallback if a native companion is
   not pursued.
 
+## Version 0.21.2
+
+- Returns stay cards to their cleaner city-and-state display.
+- Keeps the full street address behind the clickable location so Google Maps
+  still opens the precise destination after confirmation.
+
 ## Version 0.21.1
 
 - Keeps stay addresses clickable and preserves the Google Maps confirmation.
