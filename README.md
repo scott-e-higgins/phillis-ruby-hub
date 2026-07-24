@@ -2,6 +2,12 @@
 
 Travel Journal is Scott and Kayla's private travel companion.
 
+## Version 0.20.7
+
+- Centers the trip-detail photo beside the title and pulls it closer to the title block.
+- Shows the full On the Road Again image without the forced crop.
+- Removes the small caption from this compact header photo so it no longer competes with the picture.
+
 ## Version 0.20.6
 
 - Places the trip dates and rig directly beneath the trip title.

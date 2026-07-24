@@ -1,4 +1,4 @@
-const APP_VERSION='0.20.6';
+const APP_VERSION='0.20.7';
 const SEED={"tripSummaries":[],"stays":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const $=s=>document.querySelector(s), $$=(s,root=document)=>[...root.querySelectorAll(s)];
@@ -70,7 +70,8 @@ function tripPhotoHtml(trip,{detail=false,header=false}={}){
   if(!trip.onRoadPhotoUrl)return '';
   const label=`${trip.name} · On the Road Again`;
   const photoClass=header?'trip-detail-photo':detail?'trip-hero-photo':'trip-card-photo';
-  return `<button class="${photoClass}" type="button" data-photo-url="${escapeHtml(trip.onRoadPhotoUrl)}" data-photo-label="${escapeHtml(label)}" aria-label="Open On the Road Again photo"><img src="${escapeHtml(trip.onRoadPhotoUrl)}" alt="${escapeHtml(`On the Road Again for ${trip.name}`)}" loading="lazy"><span>On the Road Again</span></button>`;
+  const caption=header?'':'<span>On the Road Again</span>';
+  return `<button class="${photoClass}" type="button" data-photo-url="${escapeHtml(trip.onRoadPhotoUrl)}" data-photo-label="${escapeHtml(label)}" aria-label="Open On the Road Again photo"><img src="${escapeHtml(trip.onRoadPhotoUrl)}" alt="${escapeHtml(`On the Road Again for ${trip.name}`)}" loading="lazy">${caption}</button>`;
 }
 function setDetailHeader(kicker,title,trip=null,metaHtml=''){
   $('#detailKicker').textContent=kicker;
