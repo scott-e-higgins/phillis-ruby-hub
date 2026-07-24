@@ -744,24 +744,34 @@ dialog::backdrop{background:rgba(4,9,7,.66)}
   border-color:#c1737f;
 }
 
-/* v0.33.0 — leather-bound journal theme */
+/* v0.33.1 — more visible leather-bound journal texture */
 html{
   background:#281a14;
 }
 body{
   background-color:#281a14;
   background-image:
-    repeating-linear-gradient(117deg,rgba(255,255,255,.014) 0 1px,transparent 1px 4px),
-    repeating-linear-gradient(27deg,rgba(0,0,0,.026) 0 1px,transparent 1px 5px),
+    radial-gradient(ellipse at 22% 34%,transparent 0 34%,rgba(255,255,255,.07) 39% 43%,rgba(0,0,0,.13) 49% 54%,transparent 61%),
+    radial-gradient(ellipse at 74% 68%,transparent 0 32%,rgba(0,0,0,.16) 38% 44%,rgba(255,255,255,.045) 49% 54%,transparent 62%),
+    repeating-linear-gradient(117deg,rgba(255,255,255,.025) 0 1px,transparent 1px 4px),
+    repeating-linear-gradient(27deg,rgba(0,0,0,.055) 0 1px,transparent 1px 5px),
     radial-gradient(circle at 50% -120px,#4a3023 0,#342219 330px,#281a14 760px);
+  background-size:22px 17px,19px 15px,auto,auto,auto;
+  background-position:0 0,8px 6px,0 0,0 0,center;
+  background-blend-mode:soft-light,multiply,soft-light,multiply,normal;
   background-attachment:fixed;
 }
 .topbar{
   background-color:#17392f;
   background-image:
-    repeating-linear-gradient(118deg,rgba(255,255,255,.013) 0 1px,transparent 1px 4px),
-    repeating-linear-gradient(28deg,rgba(0,0,0,.024) 0 1px,transparent 1px 5px),
+    radial-gradient(ellipse at 22% 34%,transparent 0 34%,rgba(255,255,255,.055) 39% 43%,rgba(0,0,0,.1) 49% 54%,transparent 61%),
+    radial-gradient(ellipse at 74% 68%,transparent 0 32%,rgba(0,0,0,.13) 38% 44%,rgba(255,255,255,.035) 49% 54%,transparent 62%),
+    repeating-linear-gradient(118deg,rgba(255,255,255,.018) 0 1px,transparent 1px 4px),
+    repeating-linear-gradient(28deg,rgba(0,0,0,.04) 0 1px,transparent 1px 5px),
     linear-gradient(135deg,#10241d,#1f4437);
+  background-size:22px 17px,19px 15px,auto,auto,auto;
+  background-position:0 0,8px 6px,0 0,0 0,center;
+  background-blend-mode:soft-light,multiply,soft-light,multiply,normal;
 }
 .topbar::before,
 .topbar::after{

@@ -13,6 +13,13 @@ Travel Journal is Scott and Kayla's private travel companion.
   read-only calendar subscription remains a fallback if a native companion is
   not pursued.
 
+## Version 0.33.1
+
+- Strengthened the leather grain so it remains visible on real phone and desktop screens.
+- Added layered pebble embossing and cross-grain variation to the chocolate canvas.
+- Carried a quieter version of the same texture into the forest-green header.
+- Kept the decorative header dots removed and preserved all existing card colors.
+
 ## Version 0.33.0
 
 - Replaced the flat green page canvas with a warm, medium-deep chocolate background.
