@@ -125,6 +125,13 @@ main{max-width:920px;margin:auto;padding:22px 16px 10px}
 .trip-card-title{min-width:0;padding-top:1px;flex:1}
 .trip-top>span{font-size:29px;color:#748079}
 .trip-meta{color:var(--muted);font-size:14px}
+.rig-line{display:flex;align-items:center;gap:7px;margin-top:5px;color:#b9c6bf;font-size:12px;line-height:1.25}
+.rig-line span{color:var(--gold);font-size:9px;font-weight:900;letter-spacing:.12em;text-transform:uppercase}
+.rig-line b{font-weight:750}
+.rig-line-compact{margin-top:4px;font-size:10px;color:#c7d5ce}
+.next-trip .rig-line{color:rgba(255,255,255,.82)}
+.next-trip-current .rig-line span{color:#ffe2ae}
+.list-item .rig-line{margin-top:3px;color:#91bba7}
 .trip-numbers{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
 .trip-numbers>div{min-width:0}
 .trip-numbers small{display:block;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.08em;font-weight:800}

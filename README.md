@@ -2,6 +2,14 @@
 
 Travel Journal is Scott and Kayla's private travel companion.
 
+## Version 0.20.4
+
+- Shows the truck and trailer pairing on countdown cards, upcoming trips,
+  full trip cards, and trip details.
+- Makes each era of the travel history easy to recognize at a glance:
+  F-150 + Phillis, Spruce + Phillis, Spruce + Phillis II.0, and
+  Ruby + Phillis II.0.
+
 ## Version 0.20.3
 
 - Fuel stops now retain the tow vehicle assigned to their trip.
