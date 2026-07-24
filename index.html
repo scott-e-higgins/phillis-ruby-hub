@@ -12,9 +12,13 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
   <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
-  <link rel="stylesheet" href="styles.css?v=0.14.1">
+  <link rel="stylesheet" href="styles.css?v=0.15.0">
 </head>
 <body>
+<div id="pullRefresh" class="pull-refresh" aria-live="polite">
+  <span aria-hidden="true">↓</span>
+  <b>Pull down to refresh</b>
+</div>
 <header class="topbar">
   <div class="brand-lockup">
     <img class="brand-mark" src="icons/icon-192.png" alt="">
@@ -169,8 +173,8 @@
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
 <script src="supabase-config.js" defer></script>
-<script src="cloud.js?v=0.14.1" defer></script>
-<script src="cloud-store.js?v=0.14.1" defer></script>
-<script src="app.js?v=0.14.1" defer></script>
+<script src="cloud.js?v=0.15.0" defer></script>
+<script src="cloud-store.js?v=0.15.0" defer></script>
+<script src="app.js?v=0.15.0" defer></script>
 </body>
 </html>

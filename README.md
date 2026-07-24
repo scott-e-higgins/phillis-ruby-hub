@@ -2,6 +2,12 @@
 
 Adventure Hub is Scott and Kayla's private travel companion.
 
+## Version 0.15.0
+
+- Adds pull-down-to-refresh on touch devices.
+- Reloads shared cloud data without closing the installed app.
+- Shows clear pull, release, refreshing, and completion feedback.
+
 ## Version 0.14.1
 
 - Shows the next two trips as smaller side-by-side countdown cards.

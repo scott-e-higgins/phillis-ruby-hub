@@ -1,4 +1,4 @@
-const SEED={"tripSummaries":[],"stays":[],"fuel":[],"siteFees":[],"electric":[],"meta":{"source":"Supabase","version":"0.14.1"},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
+const SEED={"tripSummaries":[],"stays":[],"fuel":[],"siteFees":[],"electric":[],"meta":{"source":"Supabase","version":"0.15.0"},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const clone=x=>JSON.parse(JSON.stringify(x));
@@ -50,7 +50,7 @@ const clockTime=value=>{
   if(!Number.isFinite(hours)||!Number.isFinite(minutes))return '';
   return new Date(2000,0,1,hours,minutes).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'});
 };
-const TODAY=new Date(); TODAY.setHours(0,0,0,0);
+let TODAY=new Date(); TODAY.setHours(0,0,0,0);
 function tripDates(t){
   const fallback=`${t.year}-12-31`;
   return [t.startDate||fallback,t.endDate||t.startDate||fallback];
@@ -525,15 +525,66 @@ async function loadCloudData(){
   if(status)status.textContent='Loading shared Adventure Hub records…';
   try{
     db=migrate(await window.ADVENTURE_HUB_STORE.load());
+    TODAY=new Date(); TODAY.setHours(0,0,0,0);
     cloudLoaded=true;
     localStorage.setItem(KEY,JSON.stringify(db));
     renderHome();renderTrips();
     if(status&&window.ADVENTURE_HUB_CLOUD)status.textContent=`Connected as ${window.ADVENTURE_HUB_CLOUD.user.email} · Higgins Hub · Cloud sync is on`;
+    return true;
   }catch(error){
     console.error(error);
     if(status)status.textContent='Could not load cloud records. Showing the browser backup.';
+    return false;
   }
+}
+function enablePullToRefresh(){
+  const indicator=$('#pullRefresh');
+  if(!indicator||!('ontouchstart' in window))return;
+  const label=indicator.querySelector('b');
+  const threshold=68;
+  let startY=0,startX=0,distance=0,pulling=false,refreshing=false;
+  const position=value=>{indicator.style.transform=`translate(-50%, ${Math.min(0,value-74)}px)`};
+  const hide=()=>{
+    indicator.classList.remove('ready','refreshing');
+    indicator.style.transform='';
+    label.textContent='Pull down to refresh';
+  };
+  document.addEventListener('touchstart',event=>{
+    if(refreshing||window.scrollY>0||document.querySelector('dialog[open]')||event.touches.length!==1)return;
+    startY=event.touches[0].clientY;
+    startX=event.touches[0].clientX;
+    distance=0;
+    pulling=true;
+  },{passive:true});
+  document.addEventListener('touchmove',event=>{
+    if(!pulling||refreshing||event.touches.length!==1)return;
+    const deltaY=event.touches[0].clientY-startY;
+    const deltaX=Math.abs(event.touches[0].clientX-startX);
+    if(deltaY<=0||deltaX>deltaY){pulling=false;hide();return;}
+    distance=Math.min(96,deltaY*.58);
+    if(distance>8)event.preventDefault();
+    position(distance);
+    const ready=distance>=threshold;
+    indicator.classList.toggle('ready',ready);
+    label.textContent=ready?'Release to refresh':'Pull down to refresh';
+  },{passive:false});
+  document.addEventListener('touchend',async()=>{
+    if(!pulling||refreshing)return;
+    pulling=false;
+    if(distance<threshold){hide();return;}
+    refreshing=true;
+    indicator.classList.remove('ready');
+    indicator.classList.add('refreshing');
+    indicator.style.transform='translate(-50%, 0)';
+    label.textContent='Refreshing trips…';
+    let refreshed=false;
+    if(window.ADVENTURE_HUB_STORE)refreshed=await loadCloudData();
+    label.textContent=refreshed?'Updated just now':'Could not refresh';
+    window.setTimeout(()=>{refreshing=false;hide()},refreshed?800:1500);
+  },{passive:true});
+  document.addEventListener('touchcancel',()=>{if(!refreshing){pulling=false;hide()}},{passive:true});
 }
 window.addEventListener('adventure-store-ready',loadCloudData);
 if(window.ADVENTURE_HUB_STORE)loadCloudData();
+enablePullToRefresh();
 renderHome(); renderTrips();
