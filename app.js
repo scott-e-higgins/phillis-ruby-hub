@@ -1,4 +1,4 @@
-const APP_VERSION='0.20.4';
+const APP_VERSION='0.20.5';
 const SEED={"tripSummaries":[],"stays":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const $=s=>document.querySelector(s), $$=(s,root=document)=>[...root.querySelectorAll(s)];
@@ -66,10 +66,18 @@ function stayPhotoGallery(stay){
   if(!photos.length)return '';
   return `<div class="stay-photo-strip">${photos.map(photo=>`<button class="stay-photo-thumb" type="button" data-photo-url="${escapeHtml(photo.url)}" data-photo-label="${escapeHtml(`${stay.name} · ${photo.label}`)}" aria-label="Open ${escapeHtml(photo.label)} photo"><img src="${escapeHtml(photo.url)}" alt="${escapeHtml(photo.label)}" loading="lazy"><span>${escapeHtml(photo.label)}</span></button>`).join('')}</div>`;
 }
-function tripPhotoHtml(trip,{detail=false}={}){
+function tripPhotoHtml(trip,{detail=false,header=false}={}){
   if(!trip.onRoadPhotoUrl)return '';
   const label=`${trip.name} · On the Road Again`;
-  return `<button class="${detail?'trip-hero-photo':'trip-card-photo'}" type="button" data-photo-url="${escapeHtml(trip.onRoadPhotoUrl)}" data-photo-label="${escapeHtml(label)}" aria-label="Open On the Road Again photo"><img src="${escapeHtml(trip.onRoadPhotoUrl)}" alt="${escapeHtml(`On the Road Again for ${trip.name}`)}" loading="lazy"><span>On the Road Again</span></button>`;
+  const photoClass=header?'trip-detail-photo':detail?'trip-hero-photo':'trip-card-photo';
+  return `<button class="${photoClass}" type="button" data-photo-url="${escapeHtml(trip.onRoadPhotoUrl)}" data-photo-label="${escapeHtml(label)}" aria-label="Open On the Road Again photo"><img src="${escapeHtml(trip.onRoadPhotoUrl)}" alt="${escapeHtml(`On the Road Again for ${trip.name}`)}" loading="lazy"><span>On the Road Again</span></button>`;
+}
+function setDetailHeader(kicker,title,trip=null){
+  $('#detailKicker').textContent=kicker;
+  $('#detailTitle').textContent=title;
+  const media=$('#detailHeaderMedia');
+  media.innerHTML=tripPhotoHtml(trip||{},{header:true});
+  bindStayPhotoButtons(media);
 }
 function stayTypeBadges(stay){
   return `${stay.harvestHost||stay.stayType==='harvest-host'?'<span class="stay-badge">Harvest Host</span>':''}${stay.moochdocking||stay.stayType==='moochdocking'?'<span class="stay-badge">Moochdocking</span>':''}${stay.boondocking||stay.stayType==='boondocking'?'<span class="stay-badge">Boondocking</span>':''}`;
@@ -330,14 +338,14 @@ function bindTripButtons(){$$('[data-trip-index]').forEach(b=>b.onclick=()=>show
 function showTrip(index){
   const t=db.tripSummaries[index]; if(!t)return;
   const [s,e]=tripDates(t), stays=matchingStays(t), fuel=matchingFuel(t);
-  $('#detailKicker').textContent='TRIP'; $('#detailTitle').textContent=t.name;
+  setDetailHeader('TRIP',t.name,t);
   if(window.ADVENTURE_HUB_CLOUD?.role==='viewer'){
-    $('#detailBody').innerHTML=`<div class="trip-detail-top"><p class="intro">${date(s)} – ${date(e)}</p></div>${tripPhotoHtml(t,{detail:true})}${t.destination?`<div class="detail-section"><h3>Destination</h3><p>${escapeHtml(t.destination)}</p></div>`:''}<div class="detail-section"><h3>Itinerary</h3><div class="stay-listing-stack">${stays.map(x=>stayListing(x,{viewer:true})).join('')||'<p class="intro">No campground details have been added yet.</p>'}</div></div>`;
+    $('#detailBody').innerHTML=`<div class="trip-detail-top"><p class="intro">${date(s)} – ${date(e)}</p></div>${t.destination?`<div class="detail-section"><h3>Destination</h3><p>${escapeHtml(t.destination)}</p></div>`:''}<div class="detail-section"><h3>Itinerary</h3><div class="stay-listing-stack">${stays.map(x=>stayListing(x,{viewer:true})).join('')||'<p class="intro">No campground details have been added yet.</p>'}</div></div>`;
     bindStayPhotoButtons($('#detailBody'));
     $('#detailDialog').showModal();
     return;
   }
-  $('#detailBody').innerHTML=`<div class="trip-detail-top"><div><p class="intro">${tripHasDates(t)?`${date(s)} – ${date(e)}`:t.year}</p>${rigLineHtml(t)}</div><button class="primary" id="editTripButton">Edit trip</button></div>${tripPhotoHtml(t,{detail:true})}<div class="detail-section"><h3>Trip totals</h3><div class="detail-row"><span>Miles</span><b>${number(t.distance,1)}</b></div><div class="detail-row"><span>Fuel cost</span><b>${money(t.cost)}</b></div><div class="detail-row"><span>Gallons</span><b>${number(t.gallons,2)}</b></div><div class="detail-row"><span>MPG</span><b>${number(t.mpg,2)}</b></div></div><div class="detail-section"><h3>Campgrounds & hosts</h3><div class="stay-listing-stack">${stays.map(x=>stayListing(x)).join('')||'<p class="intro">No campground stays linked yet.</p>'}</div></div><div class="detail-section"><div class="detail-section-head"><h3>Fuel stops</h3><button class="text-button" id="addTripFuelButton">Add fuel</button></div>${fuel.map(x=>`<div class="detail-row editable-detail-row"><span><b>${escapeHtml(x.station)}</b><br><small>${date(x.date)} · ${escapeHtml(x.vehicle||t.towVehicle||'')} · ${x.fuelType==='diesel'?'Diesel':'Gasoline'} · ${number(x.gallons,2)} gal</small></span><div class="detail-value-actions"><span>${money(x.total)}</span><button class="small-button" data-edit-fuel="${db.fuel.indexOf(x)}">Edit</button></div></div>`).join('')||'<p class="intro">No fuel stops linked yet.</p>'}</div>${t.notes?`<div class="detail-section"><h3>Notes</h3><p>${escapeHtml(t.notes)}</p></div>`:''}<div class="trip-delete-area"><button class="delete-link" id="deleteTripButton">Delete trip</button></div>`;
+  $('#detailBody').innerHTML=`<div class="trip-detail-top"><div><p class="intro">${tripHasDates(t)?`${date(s)} – ${date(e)}`:t.year}</p>${rigLineHtml(t)}</div><button class="primary" id="editTripButton">Edit trip</button></div><div class="detail-section"><h3>Trip totals</h3><div class="detail-row"><span>Miles</span><b>${number(t.distance,1)}</b></div><div class="detail-row"><span>Fuel cost</span><b>${money(t.cost)}</b></div><div class="detail-row"><span>Gallons</span><b>${number(t.gallons,2)}</b></div><div class="detail-row"><span>MPG</span><b>${number(t.mpg,2)}</b></div></div><div class="detail-section"><h3>Campgrounds & hosts</h3><div class="stay-listing-stack">${stays.map(x=>stayListing(x)).join('')||'<p class="intro">No campground stays linked yet.</p>'}</div></div><div class="detail-section"><div class="detail-section-head"><h3>Fuel stops</h3><button class="text-button" id="addTripFuelButton">Add fuel</button></div>${fuel.map(x=>`<div class="detail-row editable-detail-row"><span><b>${escapeHtml(x.station)}</b><br><small>${date(x.date)} · ${escapeHtml(x.vehicle||t.towVehicle||'')} · ${x.fuelType==='diesel'?'Diesel':'Gasoline'} · ${number(x.gallons,2)} gal</small></span><div class="detail-value-actions"><span>${money(x.total)}</span><button class="small-button" data-edit-fuel="${db.fuel.indexOf(x)}">Edit</button></div></div>`).join('')||'<p class="intro">No fuel stops linked yet.</p>'}</div>${t.notes?`<div class="detail-section"><h3>Notes</h3><p>${escapeHtml(t.notes)}</p></div>`:''}<div class="trip-delete-area"><button class="delete-link" id="deleteTripButton">Delete trip</button></div>`;
   $('#editTripButton').onclick=()=>{$('#detailDialog').close();openEntry('trip',index)};
   $('#addTripFuelButton').onclick=()=>{$('#detailDialog').close();openEntry('fuel',null,index)};
   $$('[data-edit-stay]').forEach(button=>button.onclick=()=>{$('#detailDialog').close();openEntry('stay',+button.dataset.editStay,index)});
@@ -360,8 +368,7 @@ function rubyRecordList(items,key,type,page){
 }
 function showRubyRecord(key,index,type,page){
   const record=db[key]?.[index]; if(!record)return;
-  $('#detailKicker').textContent=type==='ruby-upgrade'?'RUBY UPGRADE':'RUBY MAINTENANCE';
-  $('#detailTitle').textContent=record.description||'Record details';
+  setDetailHeader(type==='ruby-upgrade'?'RUBY UPGRADE':'RUBY MAINTENANCE',record.description||'Record details');
   $('#detailBody').innerHTML=`<div class="record-detail-actions"><button class="primary" id="editRubyRecord">Edit entry</button></div><div class="detail-section"><div class="detail-row"><span>Date</span><span>${date(record.date)}</span></div>${record.location?`<div class="detail-row"><span>Vendor / location</span><span>${escapeHtml(record.location)}</span></div>`:''}<div class="detail-row"><span>Cost</span><span>${money(record.price||0)}</span></div>${record.notes?`<div class="record-notes"><small>NOTES</small><p>${escapeHtml(record.notes)}</p></div>`:''}</div><div class="trip-delete-area"><button class="delete-link" id="deleteRubyRecord">Delete entry</button></div>`;
   $('#editRubyRecord').onclick=()=>{$('#detailDialog').close();openEntry(type,index)};
   $('#deleteRubyRecord').onclick=()=>{if(!confirm(`Delete “${record.description||'this record'}”?`))return;db[key].splice(index,1);save();$('#detailDialog').close();renderHome();showPanel(page)};
@@ -372,8 +379,7 @@ function phillisRecordList(items,key,type,page){
 }
 function showPhillisRecord(key,index,type,page){
   const record=db[key]?.[index]; if(!record)return;
-  $('#detailKicker').textContent=type==='phillis-upgrade'?'PHILLIS UPGRADE':'PHILLIS MAINTENANCE';
-  $('#detailTitle').textContent=record.description||'Record details';
+  setDetailHeader(type==='phillis-upgrade'?'PHILLIS UPGRADE':'PHILLIS MAINTENANCE',record.description||'Record details');
   $('#detailBody').innerHTML=`<div class="record-detail-actions"><button class="primary" id="editPhillisRecord">Edit entry</button></div><div class="detail-section"><div class="detail-row"><span>Date</span><span>${date(record.date)}</span></div>${record.location?`<div class="detail-row"><span>Vendor / location</span><span>${escapeHtml(record.location)}</span></div>`:''}<div class="detail-row"><span>Cost</span><span>${money(record.price||0)}</span></div>${record.notes?`<div class="record-notes"><small>NOTES</small><p>${escapeHtml(record.notes)}</p></div>`:''}</div><div class="trip-delete-area"><button class="delete-link" id="deletePhillisRecord">Delete entry</button></div>`;
   $('#editPhillisRecord').onclick=()=>{$('#detailDialog').close();openEntry(type,index)};
   $('#deletePhillisRecord').onclick=()=>{if(!confirm(`Delete “${record.description||'this record'}”?`))return;db[key].splice(index,1);save();$('#detailDialog').close();renderHome();showPanel(page)};
@@ -385,8 +391,7 @@ function fuelRecordList(items){
 }
 function showFuelRecord(index){
   const record=db.fuel?.[index]; if(!record)return;
-  $('#detailKicker').textContent=`${record.vehicle||'TRIP'} FUEL STOP`.toUpperCase();
-  $('#detailTitle').textContent=record.station||'Fuel stop';
+  setDetailHeader(`${record.vehicle||'TRIP'} FUEL STOP`.toUpperCase(),record.station||'Fuel stop');
   $('#detailBody').innerHTML=`<div class="record-detail-actions"><button class="primary" id="editFuelRecord">Edit entry</button></div><div class="detail-section"><div class="detail-row"><span>Date</span><span>${date(record.date)}</span></div>${record.trip?`<div class="detail-row"><span>Trip</span><span>${escapeHtml(record.trip)}</span></div>`:''}${record.vehicle?`<div class="detail-row"><span>Vehicle</span><span>${escapeHtml(record.vehicle)}</span></div>`:''}<div class="detail-row"><span>Fuel</span><span>${record.fuelType==='diesel'?'Diesel':'Gasoline'}</span></div>${record.location?`<div class="detail-row"><span>Location</span><span>${escapeHtml(record.location)}</span></div>`:''}<div class="detail-row"><span>Gallons</span><span>${number(record.gallons,3)}</span></div><div class="detail-row"><span>Total</span><span>${money(record.total||0)}</span></div><div class="detail-row"><span>Price per gallon</span><span>${money(record.price||((record.gallons&&record.total)?record.total/record.gallons:0))}</span></div>${record.odometer?`<div class="detail-row"><span>Odometer</span><span>${number(record.odometer,1)}</span></div>`:''}${record.notes?`<div class="record-notes"><small>NOTES</small><p>${escapeHtml(record.notes)}</p></div>`:''}</div><div class="trip-delete-area"><button class="delete-link" id="deleteFuelRecord">Delete entry</button></div>`;
   $('#editFuelRecord').onclick=()=>{$('#detailDialog').close();openEntry('fuel',index)};
   $('#deleteFuelRecord').onclick=()=>{if(!confirm(`Delete this fuel stop at ${record.station||'this station'}?`))return;db.fuel.splice(index,1);refreshTripFuelSummaries();save();$('#detailDialog').close();renderHome();renderTrips();showPanel('fuel-history')};
@@ -397,8 +402,7 @@ function showSeasonRecord(index){
   const payments=(db.siteFees||[]).filter(x=>+x.year===+record.year).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
   const yearElectric=(db.electric||[]).filter(x=>String(x.date||'').startsWith(String(record.year)));
   const electricTotal=yearElectric.reduce((sum,x)=>sum+(+x.total||0),0);
-  $('#detailKicker').textContent='LEHIGH GORGE SEASON';
-  $('#detailTitle').textContent=String(record.year);
+  setDetailHeader('LEHIGH GORGE SEASON',String(record.year));
   $('#detailBody').innerHTML=`<div class="record-detail-actions"><button class="primary" id="editSeasonRecord">Edit season</button></div><div class="detail-section"><div class="detail-row"><span>Site</span><span>${escapeHtml(record.site||'39')}</span></div><div class="detail-row"><span>Seasonal fee</span><span>${money(record.price||0)}</span></div><div class="detail-row"><span>Electric</span><span>${money(electricTotal)}</span></div><div class="detail-row"><span>Year total</span><span>${money((+record.price||0)+electricTotal)}</span></div>${record.address?`<div class="detail-row"><span>Address</span><span>${escapeHtml([record.address,record.city,record.state,record.zip].filter(Boolean).join(', '))}</span></div>`:''}${payments.length?`<div class="record-notes"><small>PAYMENTS</small>${payments.map(p=>`<p>${date(p.date)} · ${money(p.payment||0)}${p.check?' · check '+escapeHtml(p.check):''}</p>`).join('')}</div>`:''}${record.notes?`<div class="record-notes"><small>NOTES</small><p>${escapeHtml(record.notes)}</p></div>`:''}</div><div class="trip-delete-area"><button class="delete-link" id="deleteSeasonRecord">Delete season</button></div>`;
   $('#editSeasonRecord').onclick=()=>{$('#detailDialog').close();openEntry('sitefee',index)};
   $('#deleteSeasonRecord').onclick=()=>{if(!confirm(`Delete the ${record.year} Lehigh Gorge season and its payment records?`))return;db.stays.splice(index,1);db.siteFees=(db.siteFees||[]).filter(x=>+x.year!==+record.year);save();$('#detailDialog').close();renderHome();showPanel('lehigh')};
@@ -406,8 +410,7 @@ function showSeasonRecord(index){
 }
 function showSitePaymentRecord(index){
   const record=db.siteFees?.[index]; if(!record)return;
-  $('#detailKicker').textContent='LEHIGH GORGE SEASON PAYMENT';
-  $('#detailTitle').textContent=`${record.year} payment`;
+  setDetailHeader('LEHIGH GORGE SEASON PAYMENT',`${record.year} payment`);
   $('#detailBody').innerHTML=`<div class="record-detail-actions"><button class="primary" id="editSitePaymentRecord">Edit payment</button></div><div class="detail-section"><div class="detail-row"><span>Season</span><span>${record.year}</span></div><div class="detail-row"><span>Payment date</span><span>${date(record.date)}</span></div><div class="detail-row"><span>Amount</span><span>${money(record.payment||0)}</span></div>${record.check?`<div class="detail-row"><span>Check</span><span>${escapeHtml(record.check)}</span></div>`:''}${record.notes?`<div class="record-notes"><small>NOTES</small><p>${escapeHtml(record.notes)}</p></div>`:''}</div><div class="trip-delete-area"><button class="delete-link" id="deleteSitePaymentRecord">Delete payment</button></div>`;
   $('#editSitePaymentRecord').onclick=()=>{$('#detailDialog').close();openEntry('sitepayment',index)};
   $('#deleteSitePaymentRecord').onclick=()=>{if(!confirm('Delete this seasonal fee payment?'))return;db.siteFees.splice(index,1);save();$('#detailDialog').close();renderHome();showPanel('lehigh')};
@@ -415,8 +418,7 @@ function showSitePaymentRecord(index){
 }
 function showElectricRecord(index){
   const record=db.electric?.[index]; if(!record)return;
-  $('#detailKicker').textContent='LEHIGH GORGE ELECTRIC';
-  $('#detailTitle').textContent=date(record.date);
+  setDetailHeader('LEHIGH GORGE ELECTRIC',date(record.date));
   $('#detailBody').innerHTML=`<div class="record-detail-actions"><button class="primary" id="editElectricRecord">Edit reading</button></div><div class="detail-section"><div class="detail-row"><span>Reading date</span><span>${date(record.date)}</span></div><div class="detail-row"><span>Previous meter</span><span>${number(record.previous,0)}</span></div><div class="detail-row"><span>Current meter</span><span>${number(record.current,0)}</span></div><div class="detail-row"><span>Usage</span><span>${number(record.usage,0)} kWh</span></div><div class="detail-row"><span>Rate</span><span>${money(record.unitPrice||0)} / kWh</span></div><div class="detail-row"><span>Total</span><span>${money(record.total||0)}</span></div>${record.paid?`<div class="detail-row"><span>Paid</span><span>${date(record.paid)}</span></div>`:''}${record.check?`<div class="detail-row"><span>Check</span><span>${escapeHtml(record.check)}</span></div>`:''}${record.notes?`<div class="record-notes"><small>NOTES</small><p>${escapeHtml(record.notes)}</p></div>`:''}</div><div class="trip-delete-area"><button class="delete-link" id="deleteElectricRecord">Delete reading</button></div>`;
   $('#editElectricRecord').onclick=()=>{$('#detailDialog').close();openEntry('electric',index)};
   $('#deleteElectricRecord').onclick=()=>{if(!confirm('Delete this electric reading?'))return;db.electric.splice(index,1);save();$('#detailDialog').close();renderHome();showPanel('lehigh')};

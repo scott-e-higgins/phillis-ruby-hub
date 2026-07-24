@@ -2,6 +2,12 @@
 
 Travel Journal is Scott and Kayla's private travel companion.
 
+## Version 0.20.5
+
+- Moves the On the Road Again photo into the trip-detail header, to the right
+  of the trip title.
+- Keeps the smaller header photo tappable so it can still be enlarged.
+
 ## Version 0.20.4
 
 - Shows the truck and trailer pairing on countdown cards, upcoming trips,
