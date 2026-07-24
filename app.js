@@ -1,4 +1,4 @@
-const SEED={"tripSummaries":[],"stays":[],"fuel":[],"siteFees":[],"electric":[],"meta":{"source":"Supabase","version":"0.17.2"},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
+const SEED={"tripSummaries":[],"stays":[],"fuel":[],"siteFees":[],"electric":[],"meta":{"source":"Supabase","version":"0.17.3"},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const $=s=>document.querySelector(s), $$=(s,root=document)=>[...root.querySelectorAll(s)];
 const clone=x=>JSON.parse(JSON.stringify(x));
@@ -74,7 +74,7 @@ function stayListing(stay,{viewer=false}={}){
     ?escapeHtml([stay.address,stay.city,stay.state,stay.zip].filter(Boolean).join(', '))
     :escapeHtml([stay.city,stay.state].filter(Boolean).join(', '));
   const index=db.stays.indexOf(stay);
-  return `<article class="stay-listing-card"><div class="stay-listing-main"><div class="stay-listing-copy"><h4>${escapeHtml(stay.name)}</h4><p>${date(stay.arrival)}${stay.checkInTime?` · Check in ${clockTime(stay.checkInTime)}`:''} – ${date(stay.departure)}${stay.checkOutTime?` · Check out ${clockTime(stay.checkOutTime)}`:''}</p>${location?`<p>${location}</p>`:''}${stay.site?`<p>Site ${escapeHtml(stay.site)}</p>`:''}<div class="stay-badges">${stayTypeBadges(stay)}</div></div>${viewer?'':`<div class="detail-value-actions"><span>${money(stay.price)}</span><button class="small-button" data-edit-stay="${index}">Edit</button></div>`}</div>${stayPhotoGallery(stay)}</article>`;
+  return `<article class="stay-listing-card"><div class="stay-listing-main"><div class="stay-listing-copy"><h4>${escapeHtml(stay.name)}</h4><p>${date(stay.arrival)}${stay.checkInTime?` · Check in ${clockTime(stay.checkInTime)}`:''} – ${date(stay.departure)}${stay.checkOutTime?` · Check out ${clockTime(stay.checkOutTime)}`:''}</p>${location?`<p>${location}</p>`:''}${stay.site?`<p>Site ${escapeHtml(stay.site)}</p>`:''}<div class="stay-badges">${stayTypeBadges(stay)}</div></div>${stayPhotoGallery(stay)}${viewer?'':`<div class="detail-value-actions"><span>${money(stay.price)}</span><button class="small-button" data-edit-stay="${index}">Edit</button></div>`}</div></article>`;
 }
 function bindStayPhotoButtons(root=document){
   $$('[data-photo-url]',root).forEach(button=>button.onclick=()=>{
@@ -155,7 +155,7 @@ function tripCardHtml(t){
   const [s,e]=tripDates(t),stays=matchingStays(t),tripIndex=db.tripSummaries.indexOf(t);
   const stayCost=stays.reduce((sum,stay)=>sum+(Number(stay.price)||0),0);
   const nights=stays.reduce((sum,stay)=>sum+tripStayNights(stay),0);
-  return `<article class="trip-item" data-trip-index="${tripIndex}"><div class="trip-top"><div class="trip-card-heading">${tripPhotoHtml(t)}<div class="trip-card-title"><small class="pill">${tripStatus(t)==='planned'?'PLANNED':tripStatus(t)==='current'?'CURRENT':'COMPLETED'}</small><h3>${t.name}</h3><div class="trip-meta">${tripHasDates(t)?`${date(s)} – ${date(e)}`:String(t.year)}</div></div></div><span>›</span></div><div class="trip-numbers"><div><small>Miles</small><b>${number(t.distance,1)}</b></div><div><small>Fuel</small><b>${money(t.cost)}</b></div><div><small>MPG</small><b>${number(t.mpg,2)}</b></div><div><small>Stay cost</small><b>${money(stayCost)}</b></div><div><small>Nights</small><b>${nights}</b></div><div><small>Stays</small><b>${stays.length}</b></div></div></article>`;
+  return `<article class="trip-item" data-trip-index="${tripIndex}"><div class="trip-top"><div class="trip-card-heading"><div class="trip-card-title"><small class="pill">${tripStatus(t)==='planned'?'PLANNED':tripStatus(t)==='current'?'CURRENT':'COMPLETED'}</small><h3>${t.name}</h3><div class="trip-meta">${tripHasDates(t)?`${date(s)} – ${date(e)}`:String(t.year)}</div></div>${tripPhotoHtml(t)}</div><span>›</span></div><div class="trip-numbers"><div><small>Miles</small><b>${number(t.distance,1)}</b></div><div><small>Fuel</small><b>${money(t.cost)}</b></div><div><small>MPG</small><b>${number(t.mpg,2)}</b></div><div><small>Stay cost</small><b>${money(stayCost)}</b></div><div><small>Nights</small><b>${nights}</b></div><div><small>Stays</small><b>${stays.length}</b></div></div></article>`;
 }
 function yearTotals(trips){
   const allStays=trips.flatMap(matchingStays);

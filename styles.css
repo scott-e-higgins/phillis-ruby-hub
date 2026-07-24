@@ -117,8 +117,8 @@ main{max-width:920px;margin:auto;padding:22px 16px 10px}
 .trip-card-photo:hover img,.trip-hero-photo:hover img{transform:scale(1.02);filter:brightness(1.06)}
 .trip-card-photo span,.trip-hero-photo span{display:block;padding:6px 8px;background:#29332e;color:#c9d3ce;font-size:9px;font-weight:850;text-align:left;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap}
 .trip-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
-.trip-card-heading{display:flex;align-items:flex-start;gap:13px;min-width:0}
-.trip-card-title{min-width:0;padding-top:1px}
+.trip-card-heading{display:flex;align-items:flex-start;gap:13px;min-width:0;flex:1}
+.trip-card-title{min-width:0;padding-top:1px;flex:1}
 .trip-top>span{font-size:29px;color:#748079}
 .trip-meta{color:var(--muted);font-size:14px}
 .trip-numbers{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
@@ -183,16 +183,15 @@ label textarea{resize:vertical}
 .stay-badges{display:flex;flex-wrap:wrap;gap:6px}
 .stay-listing-stack{display:grid;gap:12px;margin-top:9px}
 .stay-listing-card{overflow:hidden;border:1px solid var(--line);border-radius:8px;background:#2a332e;box-shadow:var(--shadow-sm)}
-.stay-listing-main{display:flex;align-items:flex-start;justify-content:space-between;gap:15px;padding:15px}
+.stay-listing-main{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:start;gap:12px;padding:15px}
 .stay-listing-copy{min-width:0}
 .stay-listing-copy h4{margin:0 0 5px;font-size:17px;letter-spacing:-.012em}
 .stay-listing-copy p{margin:2px 0;color:var(--muted);font-size:13px}
-.stay-photo-strip{display:grid;grid-template-columns:repeat(2,minmax(0,180px));gap:11px;padding:0 15px 15px;background:transparent}
-.stay-photo-strip:has(.stay-photo-thumb:only-child){grid-template-columns:minmax(0,180px)}
-.stay-photo-thumb{position:relative;display:block;min-width:0;height:108px;padding:0;border:1px solid #536159;border-radius:8px;background:#202722;color:#fff;overflow:hidden;box-shadow:0 7px 18px rgba(0,0,0,.22)}
-.stay-photo-thumb img{display:block;width:100%;height:100%;object-fit:cover;transition:transform .24s var(--ease),filter .24s var(--ease)}
+.stay-photo-strip{display:flex;align-items:flex-start;gap:8px;padding:0;background:transparent}
+.stay-photo-thumb{display:block;min-width:0;width:78px;flex:0 0 78px;height:auto;padding:0;border:1px solid #536159;border-radius:8px;background:#202722;color:#fff;overflow:hidden;box-shadow:0 7px 18px rgba(0,0,0,.22)}
+.stay-photo-thumb img{display:block;width:100%;height:52px;object-fit:cover;transition:transform .24s var(--ease),filter .24s var(--ease)}
 .stay-photo-thumb:hover img{transform:scale(1.025);filter:brightness(1.06)}
-.stay-photo-thumb span{position:absolute;left:0;right:0;bottom:0;padding:22px 9px 8px;background:linear-gradient(transparent,rgba(5,10,8,.86));font-size:10px;font-weight:800;text-align:left;letter-spacing:.02em}
+.stay-photo-thumb span{display:block;padding:5px 6px;background:#29332e;color:#c9d3ce;font-size:9px;font-weight:850;text-align:left;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap}
 .stay-photo-editors{display:grid;gap:11px;margin-top:19px;padding-top:17px;border-top:1px solid var(--line)}
 .stay-photo-editors-heading b{font-size:15px}
 .stay-photo-editors-heading p,.stay-photo-editor-copy p{margin:3px 0 0;color:var(--muted);font-size:13px}
@@ -255,9 +254,10 @@ fieldset legend{font-weight:850;padding:0 7px}
   .stay-type-options{grid-template-columns:1fr}
   .trip-stays-heading{display:grid}
   .small-add{width:100%}
-  .stay-photo-strip{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;padding:0 13px 13px}
-  .stay-photo-strip:has(.stay-photo-thumb:only-child){grid-template-columns:minmax(0,52%)}
-  .stay-photo-thumb{height:104px}
+  .stay-listing-main{gap:10px;padding:13px}
+  .stay-photo-strip{gap:7px}
+  .stay-photo-thumb{width:72px;flex-basis:72px}
+  .stay-photo-thumb img{height:48px}
   .trip-card-photo{width:102px;flex-basis:102px}
   .trip-card-photo img{height:67px}
   .trip-card-heading{gap:11px}
@@ -271,8 +271,10 @@ fieldset legend{font-weight:850;padding:0 7px}
   .editable-detail-row{align-items:flex-start}
   .detail-value-actions{flex-direction:column;align-items:flex-end;gap:6px}
   .detail-value-actions .small-button{min-width:58px}
-  .stay-listing-main{display:grid}
-  .stay-listing-main .detail-value-actions{width:100%;flex-direction:row;justify-content:space-between;align-items:center}
+  .stay-listing-main{grid-template-columns:minmax(0,1fr) auto}
+  .stay-listing-copy{grid-column:1/-1}
+  .stay-photo-strip{grid-column:1}
+  .stay-listing-main .detail-value-actions{grid-column:2;width:auto;flex-direction:column;justify-content:flex-start;align-items:flex-end}
   .stay-photo-editor{grid-template-columns:1fr}
   .stay-photo-preview{grid-column:1;grid-row:auto;width:100%;height:160px}
   .trip-photo-editor{grid-template-columns:1fr}
