@@ -2,6 +2,12 @@
 
 Adventure Hub is Scott and Kayla's private travel companion.
 
+## Version 0.17.4
+
+- Adds iPhone safe-area spacing so the header clears the camera cutout.
+- Keeps form fields at an iPhone-friendly size to prevent automatic page zoom.
+- Prevents accidental horizontal page expansion on narrow phone screens.
+
 ## Version 0.17.3
 
 - Moves each trip’s On the Road Again thumbnail to the right of its title.
