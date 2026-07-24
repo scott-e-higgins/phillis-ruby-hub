@@ -1,4 +1,4 @@
-const SEED={"tripSummaries":[],"stays":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"meta":{"source":"Supabase","version":"0.18.1"},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
+const SEED={"tripSummaries":[],"stays":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"meta":{"source":"Supabase","version":"0.18.2"},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const $=s=>document.querySelector(s), $$=(s,root=document)=>[...root.querySelectorAll(s)];
 const clone=x=>JSON.parse(JSON.stringify(x));
@@ -504,12 +504,12 @@ function bindTripPhotoEditor(trip={}){
 function openEntry(type,index=null,returnTripIndex=null){
   const titles={'hub-note':index===null?'Add note':'Edit note',trip:index===null?'Add trip':'Edit trip',fuel:index===null?'Add fuel':'Edit fuel stop',stay:index===null?'Add campground':'Edit stay','phillis-maint':index===null?'Add Phillis maintenance':'Edit Phillis maintenance','phillis-upgrade':index===null?'Add Phillis upgrade':'Edit Phillis upgrade','ruby-maint':index===null?'Add Ruby maintenance':'Edit Ruby maintenance','ruby-upgrade':index===null?'Add Ruby upgrade':'Edit Ruby upgrade',electric:index===null?'Add electric reading':'Edit electric reading',sitepayment:index===null?'Add seasonal payment':'Edit seasonal payment',sitefee:index===null?'Add season':'Edit season'};
   $('#entryType').value=type; $('#entryIndex').value=index===null?'':index; $('#entryStayIndex').value=returnTripIndex===null?'':returnTripIndex;
-  $('#entryTitle').textContent=titles[type]; $('#entryFields').innerHTML=fields(type); $('#notes').value='';
+  $('#entryTitle').textContent=titles[type]; $('#entryFields').innerHTML=fields(type); $('#entryNotes').value='';
   $('#entryNotesLabel').textContent=type==='hub-note'?'Note':'Notes';
   const today=new Date().toISOString().slice(0,10), d=$('#date')||$('#arrival')||$('#startDate'); if(d)d.value=today; if(type==='trip')$('#endDate').value=$('#startDate').value;
   if(type==='hub-note'&&index!==null){
     const note=db.sharedNotes?.[index];
-    if(note){$('#name').value=note.title||'';$('#notes').value=note.body||'';}
+    if(note){$('#name').value=note.title||'';$('#entryNotes').value=note.body||'';}
   }
   if(index===null && returnTripIndex!==null && (type==='sitepayment'||type==='electric')){const year=+returnTripIndex;if($('#year'))$('#year').value=year;if($('#date'))$('#date').value=`${year}-${type==='electric'?'06':'01'}-01`;if(type==='electric'&&$('#paid'))$('#paid').value='';}
   if(type==='stay'){
@@ -542,7 +542,7 @@ function openEntry(type,index=null,returnTripIndex=null){
       const fuel=db.fuel[index];
       if(fuel){
         $('#date').value=fuel.date||today; $('#tripName').value=fuel.trip||''; $('#station').value=fuel.station||''; $('#location').value=fuel.location||'';
-        $('#gallons').value=fuel.gallons??''; $('#total').value=fuel.total??''; $('#fuelType').value=fuel.fuelType||(+String(fuel.date||'').slice(0,4)>=2025?'diesel':'gasoline'); $('#tripMeter').value=fuel.tripMiles??''; $('#odometer').value=fuel.odometer??''; $('#notes').value=fuel.notes||'';
+        $('#gallons').value=fuel.gallons??''; $('#total').value=fuel.total??''; $('#fuelType').value=fuel.fuelType||(+String(fuel.date||'').slice(0,4)>=2025?'diesel':'gasoline'); $('#tripMeter').value=fuel.tripMiles??''; $('#odometer').value=fuel.odometer??''; $('#entryNotes').value=fuel.notes||'';
       }
     }else if(returnTripIndex!==null){
       $('#tripName').value=db.tripSummaries[returnTripIndex]?.name||'';
@@ -565,7 +565,7 @@ function openEntry(type,index=null,returnTripIndex=null){
       $('#arrival').value=stay.arrival||today; $('#departure').value=stay.departure||''; $('#name').value=stay.name||''; $('#address').value=stay.address||'';
       $('#checkInTime').value=String(stay.checkInTime||'').slice(0,5); $('#checkOutTime').value=String(stay.checkOutTime||'').slice(0,5);
       $('#city').value=stay.city||''; $('#state').value=stay.state||''; $('#site').value=stay.site||''; $('#total').value=stay.price??'';
-      $('#harvestHost').checked=Boolean(stay.harvestHost||stay.stayType==='harvest-host'); $('#moochdocking').checked=Boolean(stay.moochdocking||stay.stayType==='moochdocking'); $('#boondocking').checked=Boolean(stay.boondocking||stay.stayType==='boondocking'); $('#notes').value=stay.notes||'';
+      $('#harvestHost').checked=Boolean(stay.harvestHost||stay.stayType==='harvest-host'); $('#moochdocking').checked=Boolean(stay.moochdocking||stay.stayType==='moochdocking'); $('#boondocking').checked=Boolean(stay.boondocking||stay.stayType==='boondocking'); $('#entryNotes').value=stay.notes||'';
       const selected=[$('#harvestHost'),$('#moochdocking'),$('#boondocking')].filter(x=>x.checked); if(selected.length>1) selected.slice(1).forEach(x=>x.checked=false);
       $('#harvestHost').dispatchEvent(new Event('change'));
     }
@@ -573,25 +573,25 @@ function openEntry(type,index=null,returnTripIndex=null){
   if(type==='stay')bindStayPhotoEditor(index===null?{}:db.stays[index]);
   if(type==='sitepayment' && index!==null){
     const record=db.siteFees?.[index];
-    if(record){$('#year').value=record.year||new Date().getFullYear();$('#date').value=record.date||today;$('#payment').value=record.payment??'';$('#check').value=record.check||'';$('#notes').value=record.notes||'';}
+    if(record){$('#year').value=record.year||new Date().getFullYear();$('#date').value=record.date||today;$('#payment').value=record.payment??'';$('#check').value=record.check||'';$('#entryNotes').value=record.notes||'';}
   }
   if(type==='electric' && index!==null){
     const record=db.electric?.[index];
-    if(record){$('#date').value=record.date||today;$('#paid').value=record.paid||'';$('#previous').value=record.previous??'';$('#current').value=record.current??'';$('#rate').value=record.unitPrice??.16;$('#check').value=record.check||'';$('#notes').value=record.notes||'';}
+    if(record){$('#date').value=record.date||today;$('#paid').value=record.paid||'';$('#previous').value=record.previous??'';$('#current').value=record.current??'';$('#rate').value=record.unitPrice??.16;$('#check').value=record.check||'';$('#entryNotes').value=record.notes||'';}
   }
   if(type==='sitefee' && index!==null){
     const record=db.stays?.[index];
-    if(record){$('#year').value=record.year||new Date().getFullYear();$('#total').value=record.price??'';$('#site').value=record.site||'';$('#address').value=record.address||'';$('#city').value=record.city||'';$('#state').value=record.state||'';$('#zip').value=record.zip||'';$('#notes').value=record.notes||'';}
+    if(record){$('#year').value=record.year||new Date().getFullYear();$('#total').value=record.price??'';$('#site').value=record.site||'';$('#address').value=record.address||'';$('#city').value=record.city||'';$('#state').value=record.state||'';$('#zip').value=record.zip||'';$('#entryNotes').value=record.notes||'';}
   }
   if(['phillis-maint','phillis-upgrade','ruby-maint','ruby-upgrade'].includes(type) && index!==null){
     const key=type==='phillis-maint'?'phillisMaintenance':type==='phillis-upgrade'?'phillisUpgrades':type==='ruby-maint'?'rubyMaintenance':'rubyUpgrades';
     const record=db[key]?.[index];
-    if(record){$('#date').value=record.date||today;$('#description').value=record.description||'';$('#location').value=record.location||'';$('#total').value=record.price??'';$('#notes').value=record.notes||'';}
+    if(record){$('#date').value=record.date||today;$('#description').value=record.description||'';$('#location').value=record.location||'';$('#total').value=record.price??'';$('#entryNotes').value=record.notes||'';}
   }
   if(type==='trip'){
     if(index!==null){
       const t=db.tripSummaries[index], [start,end]=tripDates(t), stays=matchingStays(t);
-      $('#name').value=t.name||''; $('#startDate').value=start; $('#endDate').value=end; $('#notes').value=t.notes||'';
+      $('#name').value=t.name||''; $('#startDate').value=start; $('#endDate').value=end; $('#entryNotes').value=t.notes||'';
       tripStayEditorItems=stays.length?stays.map(stay=>({...stay,dbIndex:db.stays.indexOf(stay)})):[blankTripStay(start,end)];
     } else tripStayEditorItems=[blankTripStay($('#startDate').value,$('#endDate').value)];
     renderTripStayEditor();
@@ -610,7 +610,7 @@ $$('dialog .close').forEach(b=>b.onclick=()=>{const dialog=b.closest('dialog');d
 $$('dialog').forEach(dialog=>dialog.addEventListener('mousedown',event=>{const box=dialog.getBoundingClientRect();const outside=event.clientX<box.left||event.clientX>box.right||event.clientY<box.top||event.clientY>box.bottom;if(outside){dialog.close();if(dialog.id==='entryDialog')clearStayPhotoPreviewUrls()}}));
 bindOpeners();
 $('#entryForm').onsubmit=async e=>{
-  e.preventDefault(); const type=$('#entryType').value, notes=$('#notes').value;
+  e.preventDefault(); const type=$('#entryType').value, notes=$('#entryNotes').value;
   const submitButton=$('#entryForm').querySelector('.form-actions .primary');
   const originalButtonText=submitButton.textContent;
   let savedStay=null;
