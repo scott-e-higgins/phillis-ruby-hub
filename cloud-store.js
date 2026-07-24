@@ -298,7 +298,7 @@
         client.from('seasonal_payments').select('*'),
         client.from('electric_bills').select('*'),
         client.from('hub_notes').select('*').eq('household_id', householdId),
-        client.from('vehicle_private_details').select('vehicle_id, vin').eq('household_id', householdId)
+        client.from('vehicle_private_details').select('vehicle_id, vin, license_plate').eq('household_id', householdId)
       ]);
       const [trips, stays, fuel, vehicles, maintenance, sites, seasons, payments, electric, notes, privateVehicleDetails] = results.map(assert);
       known = {
@@ -494,6 +494,7 @@
         vehicleDetails: vehicles.map(vehicle => ({
           _cloudId: vehicle.id,
           name: vehicle.name,
+          licensePlate: privateVehicleById.get(vehicle.id)?.license_plate || '',
           vin: privateVehicleById.get(vehicle.id)?.vin || ''
         })),
         ...maintenanceGroups,

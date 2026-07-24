@@ -1,4 +1,4 @@
-const APP_VERSION='0.30.3';
+const APP_VERSION='0.30.4';
 const SEED={"tripSummaries":[],"stays":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"vehicleDetails":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const $=s=>document.querySelector(s), $$=(s,root=document)=>[...root.querySelectorAll(s)];
@@ -178,16 +178,18 @@ $$('[data-view]').forEach(b=>b.addEventListener('click',()=>go(b.dataset.view)))
 
 function renderVehicleDetails(){
   const details=new Map((db.vehicleDetails||[]).map(vehicle=>[vehicle.name,vehicle]));
-  const showVin=(selector,name)=>{
+  const showDetail=(selector,name,key)=>{
     const host=$(selector);
     if(!host)return;
-    const vin=details.get(name)?.vin||'';
-    host.hidden=!vin;
+    const value=details.get(name)?.[key]||'';
+    host.hidden=!value;
     const code=host.querySelector('code');
-    if(code)code.textContent=vin;
+    if(code)code.textContent=value;
   };
-  showVin('#phillisVin','Phillis II.0');
-  showVin('#rubyVin','Ruby');
+  showDetail('#phillisPlate','Phillis II.0','licensePlate');
+  showDetail('#phillisVin','Phillis II.0','vin');
+  showDetail('#rubyPlate','Ruby','licensePlate');
+  showDetail('#rubyVin','Ruby','vin');
 }
 
 function noteWhen(value){

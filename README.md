@@ -13,6 +13,14 @@ Travel Journal is Scott and Kayla's private travel companion.
   read-only calendar subscription remains a fallback if a native companion is
   not pursued.
 
+## Version 0.30.4
+
+- Adds Ruby's and Phillis II.0's license plates directly above their VINs on
+  the Rig page.
+- Keeps license plates in the same owner/editor-only Supabase record as the
+  VINs instead of embedding them in the public app source.
+- Keeps Family Viewer accounts from receiving either private identifier.
+
 ## Version 0.30.3
 
 - Styles state dropdowns to match the height, border, background, and spacing
