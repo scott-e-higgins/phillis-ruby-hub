@@ -781,3 +781,9 @@ body{
   background-position:center,bottom center;
   background-repeat:repeat,no-repeat;
 }
+.ruby-truck-icon{display:block;width:29px;height:21px}
+.ruby-truck-body{fill:#a93743;stroke:#e5a3aa;stroke-width:1}
+.ruby-truck-window{fill:#bcd1d9;stroke:#dce8eb;stroke-width:.7}
+.ruby-truck-detail{fill:none;stroke:#78252e;stroke-width:1;stroke-linecap:round}
+.ruby-truck-wheel{fill:#111714;stroke:#7a8480;stroke-width:.8}
+.ruby-truck-hub{fill:#c1c9c5}
