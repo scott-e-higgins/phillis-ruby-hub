@@ -2,6 +2,12 @@
 
 Travel Journal is Scott and Kayla's private travel companion.
 
+## Version 0.20.1
+
+- Keeps the note itself as the primary content on every note card.
+- Moves attached picture thumbnails below the note text or checklist on both the
+  Notes page and Home screen.
+
 ## Version 0.20.0
 
 - Adds up to six private pictures to every shared note.

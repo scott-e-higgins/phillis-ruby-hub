@@ -1,4 +1,4 @@
-const APP_VERSION='0.20.0';
+const APP_VERSION='0.20.1';
 const SEED={"tripSummaries":[],"stays":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const $=s=>document.querySelector(s), $$=(s,root=document)=>[...root.querySelectorAll(s)];
@@ -207,7 +207,7 @@ function noteCardHtml(note,compact=false){
   const content=checklist
     ?`<div class="note-checklist-preview">${checklist.slice(0,previewLimit).map(item=>`<span><i class="${item.checked?'checked':''}">${item.checked?'✓':''}</i><b class="${item.checked?'completed':''}">${escapeHtml(item.text)}</b></span>`).join('')}${checklist.length>previewLimit?`<em>+${checklist.length-previewLimit} more</em>`:''}</div>`
     :preview?`<p>${escapeHtml(preview)}</p>`:'<p class="note-empty-copy">No text yet.</p>';
-  return `<button class="note-card${compact?' home-note-card':''}" type="button" data-note-index="${index}"><div class="note-card-top"><h3>${escapeHtml(note.title||'Untitled note')}</h3><span>Edit ›</span></div>${photoContent}${content}<small>${noteWhen(note.updatedAt||note.createdAt)?`Updated ${noteWhen(note.updatedAt||note.createdAt)}`:'Shared note'}</small></button>`;
+  return `<button class="note-card${compact?' home-note-card':''}" type="button" data-note-index="${index}"><div class="note-card-top"><h3>${escapeHtml(note.title||'Untitled note')}</h3><span>Edit ›</span></div>${content}${photoContent}<small>${noteWhen(note.updatedAt||note.createdAt)?`Updated ${noteWhen(note.updatedAt||note.createdAt)}`:'Shared note'}</small></button>`;
 }
 function bindNoteCards(host){
   $$('[data-note-index]',host).forEach(button=>button.onclick=()=>openEntry('hub-note',+button.dataset.noteIndex));
