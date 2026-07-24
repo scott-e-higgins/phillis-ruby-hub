@@ -3,16 +3,26 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#111714">
+  <meta name="theme-color" content="#173d32">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Adventure Hub">
+  <meta name="description" content="The private travel, maintenance and seasonal-site hub for Phillis & Ruby.">
   <title>Phillis & Ruby Adventure Hub</title>
-  <link rel="stylesheet" href="styles.css">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="styles.css?v=0.13.0">
 </head>
 <body>
 <header class="topbar">
-  <div>
-    <small class="brand-kicker">PHILLIS & RUBY</small>
-    <h1>Adventure Hub</h1>
-    <p class="brand-subtitle">Our miles, stays & memories</p>
+  <div class="brand-lockup">
+    <img class="brand-mark" src="icons/icon-192.png" alt="">
+    <div>
+      <small class="brand-kicker">PHILLIS & RUBY</small>
+      <h1>Adventure Hub</h1>
+      <p class="brand-subtitle">Our miles, stays & memories</p>
+    </div>
   </div>
   <button class="icon-button" data-view="more" aria-label="Open more options"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
 </header>
@@ -132,6 +142,7 @@
 </dialog>
 <div id="authGate" class="auth-gate" hidden>
   <section class="auth-card">
+    <img class="auth-brand-mark" src="icons/icon-192.png" alt="">
     <small class="brand-kicker">PHILLIS & RUBY</small>
     <h2>Adventure Hub</h2>
     <p>Private access for approved Higgins Hub family members.</p>
@@ -158,8 +169,8 @@
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
 <script src="supabase-config.js" defer></script>
-<script src="cloud.js" defer></script>
-<script src="cloud-store.js" defer></script>
-<script src="app.js" defer></script>
+<script src="cloud.js?v=0.13.0" defer></script>
+<script src="cloud-store.js?v=0.13.0" defer></script>
+<script src="app.js?v=0.13.0" defer></script>
 </body>
 </html>
