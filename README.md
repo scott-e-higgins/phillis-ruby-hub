@@ -2,6 +2,17 @@
 
 Travel Journal is Scott and Kayla's private travel companion.
 
+## Version 0.20.0
+
+- Adds up to six private pictures to every shared note.
+- Shows note-picture thumbnails on the Notes page and Home's recent notes.
+- Lets Scott and Kayla add, preview, enlarge, and remove note pictures.
+- Compresses large phone photos before uploading them to secure Supabase
+  Storage.
+- Keeps note pictures hidden from Family Viewer accounts.
+
+Run `database-add-note-photos.sql` in Supabase before publishing this version.
+
 ## Version 0.19.4
 
 - Makes the document itself the explicit vertical scroll area.

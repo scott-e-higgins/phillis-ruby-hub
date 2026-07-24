@@ -13,6 +13,7 @@
     let syncing = Promise.resolve();
     const photoBucket = client.storage.from('stay-photos');
     const tripPhotoBucket = client.storage.from('trip-photos');
+    const notePhotoBucket = client.storage.from('note-photos');
 
     async function signedPhotoUrl(bucket, path) {
       if (!path) return '';
@@ -39,6 +40,13 @@
           : null
       ).filter(Boolean));
       return trips;
+    }
+
+    async function hydrateNotePhotoUrls(notes) {
+      await Promise.all(notes.map(async note => {
+        note.photoUrls = await Promise.all((note.photoPaths || []).map(path => signedPhotoUrl(notePhotoBucket, path)));
+      }));
+      return notes;
     }
 
     async function preparePhoto(file) {
@@ -156,6 +164,58 @@
       trip.onRoadPhotoPath = path;
       trip.onRoadPhotoUrl = await signedPhotoUrl(tripPhotoBucket, path);
       return trip;
+    }
+
+    async function setNotePhotos(note, { addFiles = [], removePaths = [] } = {}) {
+      if (role === 'viewer') throw new Error('Family Viewer accounts cannot change note pictures.');
+      if (!note?._cloudId) throw new Error('Save this note before adding pictures.');
+      const removeSet = new Set(removePaths);
+      const existingPaths = (note.photoPaths || []).filter(path => !removeSet.has(path));
+      const existingUrls = (note.photoUrls || []).filter((_, index) => !removeSet.has((note.photoPaths || [])[index]));
+      const allowedFiles = addFiles.slice(0, Math.max(0, 6 - existingPaths.length));
+      const uploaded = [];
+
+      try {
+        for (const file of allowedFiles) {
+          const prepared = await preparePhoto(file);
+          const path = `${householdId}/${note._cloudId}/note-${Date.now()}-${uuid()}.${prepared.extension}`;
+          const upload = await notePhotoBucket.upload(path, prepared.blob, {
+            cacheControl: '3600',
+            contentType: prepared.contentType,
+            upsert: false
+          });
+          if (upload.error) throw upload.error;
+          uploaded.push({
+            path,
+            url: await signedPhotoUrl(notePhotoBucket, path)
+          });
+        }
+
+        const nextPaths = [...existingPaths, ...uploaded.map(photo => photo.path)];
+        const update = await client.from('hub_notes').update({ photo_paths: nextPaths }).eq('id', note._cloudId);
+        if (update.error) throw update.error;
+
+        if (removePaths.length) {
+          const removed = await notePhotoBucket.remove(removePaths);
+          if (removed.error) console.warn('Some removed note pictures could not be deleted.', removed.error);
+        }
+        note.photoPaths = nextPaths;
+        note.photoUrls = [...existingUrls, ...uploaded.map(photo => photo.url)];
+        return note;
+      } catch (error) {
+        if (uploaded.length) await notePhotoBucket.remove(uploaded.map(photo => photo.path));
+        throw error;
+      }
+    }
+
+    async function deleteNotePhotos(note) {
+      if (role === 'viewer') throw new Error('Family Viewer accounts cannot delete note pictures.');
+      const paths = note?.photoPaths || [];
+      if (!paths.length) return;
+      const removed = await notePhotoBucket.remove(paths);
+      if (removed.error) throw removed.error;
+      note.photoPaths = [];
+      note.photoUrls = [];
     }
 
     async function load() {
@@ -386,6 +446,17 @@
         };
       });
 
+      const localNotes = notes.map(row=>({
+        _cloudId:row.id,
+        title:row.title,
+        body:row.body||'',
+        photoPaths:Array.isArray(row.photo_paths)?row.photo_paths:[],
+        photoUrls:[],
+        createdAt:row.created_at,
+        updatedAt:row.updated_at
+      }));
+      await hydrateNotePhotoUrls(localNotes);
+
       return {
         tripSummaries,
         stays: localStays,
@@ -406,13 +477,7 @@
         })),
         siteFees,
         electric: localElectric,
-        sharedNotes: notes.map(row=>({
-          _cloudId:row.id,
-          title:row.title,
-          body:row.body||'',
-          createdAt:row.created_at,
-          updatedAt:row.updated_at
-        })),
+        sharedNotes: localNotes,
         ...maintenanceGroups,
         meta: { cloud: true }
       };
@@ -533,6 +598,7 @@
         household_id:householdId,
         title:x.title,
         body:x.body||null,
+        photo_paths:Array.isArray(x.photoPaths)?x.photoPaths:[],
         updated_at:x.updatedAt||x.createdAt||new Date().toISOString()
       }));
       if(noteRows.length)assert(await client.from('hub_notes').upsert(noteRows));
@@ -564,7 +630,9 @@
         return syncing;
       },
       setStayPhoto,
-      setTripPhoto
+      setTripPhoto,
+      setNotePhotos,
+      deleteNotePhotos
     };
   }
 

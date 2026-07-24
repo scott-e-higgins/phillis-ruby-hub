@@ -243,12 +243,18 @@ fieldset legend{font-weight:850;padding:0 7px}
 .note-card p{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;white-space:pre-wrap;margin:7px 0 10px;color:#c3cdc8;font-size:14px;line-height:1.45}
 .note-card .note-empty-copy{color:var(--muted);font-style:italic}
 .note-card small{color:var(--muted);font-size:11px;font-weight:750;letter-spacing:.02em}
+.note-card-photo-strip{position:relative;display:flex;gap:7px;margin:11px 0 8px}
+.note-card-photo{display:block;width:76px;height:58px;border:1px solid #536159;border-radius:6px;overflow:hidden;background:#161d19}
+.note-card-photo img{display:block;width:100%;height:100%;object-fit:cover}
+.note-card-photo-count{align-self:center;display:grid;place-items:center;min-width:34px;height:34px;padding:0 7px;border-radius:17px;background:#36443d;color:#dce6e1;font-size:11px;font-weight:850}
 .home-note-card{min-width:0;padding:14px}
 .home-note-card h3{font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .home-note-card .note-card-top span{display:none}
 .home-note-card p{-webkit-line-clamp:2;font-size:13px}
 .home-note-card .note-checklist-preview{margin:8px 0 10px}
 .home-note-card .note-checklist-preview span:nth-child(n+4){display:none}
+.home-note-card .note-card-photo-strip{margin:9px 0 8px}
+.home-note-card .note-card-photo{width:100%;height:72px}
 .note-body{min-height:120px;margin-top:16px;padding:17px;border:1px solid var(--line);border-radius:8px;background:#202823;color:#e1e9e5;white-space:pre-wrap;overflow-wrap:anywhere}
 .note-detail-updated{margin:10px 2px 0;color:var(--muted);font-size:12px}
 .note-checklist-preview{display:grid;gap:6px;margin:10px 0 12px}
@@ -266,6 +272,17 @@ fieldset legend{font-weight:850;padding:0 7px}
 .checklist-editor-row input[type="text"]{margin:0}
 .remove-checklist-item{height:36px;border:0;background:transparent;color:#b8c1bc;font-size:24px;line-height:1}
 .add-checklist-item{margin:0 0 14px}
+.note-photo-editor{margin:17px 0;padding:14px;border:1px solid var(--line);border-radius:8px;background:#202823}
+.note-photo-editor-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.note-photo-editor-heading b{font-size:15px}
+.note-photo-editor-heading p{margin:3px 0 0;color:var(--muted);font-size:13px}
+.note-photo-editor-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin:13px 0 9px}
+.note-photo-editor-item{min-width:0;border:1px solid #46534c;border-radius:7px;overflow:hidden;background:#171f1b}
+.note-photo-preview-button,.note-photo-missing{display:grid;width:100%;height:86px;padding:0;border:0;background:#111714;place-items:center;color:var(--muted);font-size:12px}
+.note-photo-preview-button img{display:block;width:100%;height:100%;object-fit:cover}
+.remove-note-photo{width:100%;padding:7px;border:0;border-top:1px solid #39463f;background:#252f2a;color:var(--danger);font-size:11px;font-weight:850}
+.note-photo-empty{grid-column:1/-1;padding:14px;border:1px dashed #4c5a53;border-radius:7px;color:var(--muted);font-size:13px;text-align:center}
+.note-photo-editor>small{color:var(--muted);font-size:11px;font-weight:750}
 .form-actions #deleteEntryNote{margin-right:auto}
 .record-notes p{margin:6px 0 0;white-space:pre-wrap;color:var(--ink)}
 .fuel-calculations{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:13px}
@@ -284,6 +301,9 @@ fieldset legend{font-weight:850;padding:0 7px}
   .quick-actions{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
   .quick-actions button{padding-left:5px;padding-right:5px;font-size:13px}
   .home-note-list{grid-template-columns:1fr}
+  .note-photo-editor-heading{display:grid}
+  .note-photo-editor-heading .photo-picker{width:max-content}
+  .note-photo-editor-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .filters{grid-template-columns:1fr}
   .two,.three{grid-template-columns:1fr}
   .topbar{padding-left:max(18px,env(safe-area-inset-left));padding-right:max(18px,env(safe-area-inset-right))}

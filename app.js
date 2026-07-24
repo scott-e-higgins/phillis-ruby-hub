@@ -1,4 +1,4 @@
-const APP_VERSION='0.19.4';
+const APP_VERSION='0.20.0';
 const SEED={"tripSummaries":[],"stays":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const $=s=>document.querySelector(s), $$=(s,root=document)=>[...root.querySelectorAll(s)];
@@ -9,6 +9,10 @@ function migrate(x){
   if(x.maintenance&&!x.phillisMaintenance) x.phillisMaintenance=x.maintenance;
   delete x.maintenance;
   for(const k of ['phillisMaintenance','phillisUpgrades','rubyMaintenance','rubyUpgrades','fuel','electric','siteFees','stays','tripSummaries','sharedNotes']) x[k]=x[k]||[];
+  x.sharedNotes.forEach(note=>{
+    note.photoPaths=Array.isArray(note.photoPaths)?note.photoPaths:[];
+    note.photoUrls=Array.isArray(note.photoUrls)?note.photoUrls:[];
+  });
   return x;
 }
 let db=migrate(JSON.parse(localStorage.getItem(KEY)||localStorage.getItem(OLDKEY)||'null'))||clone(SEED);
@@ -195,10 +199,15 @@ function noteCardHtml(note,compact=false){
   const preview=(note.body||'').trim();
   const checklist=parseChecklist(preview);
   const previewLimit=compact?3:4;
+  const photos=(note.photoUrls||[]).filter(Boolean);
+  const shownPhotos=photos.slice(0,compact?1:3);
+  const photoContent=shownPhotos.length
+    ?`<span class="note-card-photo-strip">${shownPhotos.map((url,i)=>`<span class="note-card-photo"><img src="${escapeHtml(url)}" alt="Picture ${i+1} attached to ${escapeHtml(note.title||'note')}" loading="lazy"></span>`).join('')}${photos.length>shownPhotos.length?`<span class="note-card-photo-count">+${photos.length-shownPhotos.length}</span>`:''}</span>`
+    :'';
   const content=checklist
     ?`<div class="note-checklist-preview">${checklist.slice(0,previewLimit).map(item=>`<span><i class="${item.checked?'checked':''}">${item.checked?'✓':''}</i><b class="${item.checked?'completed':''}">${escapeHtml(item.text)}</b></span>`).join('')}${checklist.length>previewLimit?`<em>+${checklist.length-previewLimit} more</em>`:''}</div>`
     :preview?`<p>${escapeHtml(preview)}</p>`:'<p class="note-empty-copy">No text yet.</p>';
-  return `<button class="note-card${compact?' home-note-card':''}" type="button" data-note-index="${index}"><div class="note-card-top"><h3>${escapeHtml(note.title||'Untitled note')}</h3><span>Edit ›</span></div>${content}<small>${noteWhen(note.updatedAt||note.createdAt)?`Updated ${noteWhen(note.updatedAt||note.createdAt)}`:'Shared note'}</small></button>`;
+  return `<button class="note-card${compact?' home-note-card':''}" type="button" data-note-index="${index}"><div class="note-card-top"><h3>${escapeHtml(note.title||'Untitled note')}</h3><span>Edit ›</span></div>${photoContent}${content}<small>${noteWhen(note.updatedAt||note.createdAt)?`Updated ${noteWhen(note.updatedAt||note.createdAt)}`:'Shared note'}</small></button>`;
 }
 function bindNoteCards(host){
   $$('[data-note-index]',host).forEach(button=>button.onclick=()=>openEntry('hub-note',+button.dataset.noteIndex));
@@ -451,7 +460,7 @@ function stayPhotoEditorSlot(kind,title,help){
   return `<article class="stay-photo-editor"><div class="stay-photo-editor-copy"><b>${title}</b><p>${help}</p></div><div class="stay-photo-preview" id="${kind}PhotoPreview"><span>No photo yet</span></div><div class="stay-photo-actions"><label class="secondary photo-picker">Choose photo<input id="${kind}PhotoFile" type="file" accept="image/*" hidden></label><button class="delete-link remove-stay-photo" id="remove${kind[0].toUpperCase()+kind.slice(1)}Photo" type="button" hidden>Remove</button></div></article>`;
 }
 function fields(type){
-  if(type==='hub-note') return `<label>Title<input id="name" required maxlength="120"></label><label class="note-checklist-toggle"><input id="noteChecklist" type="checkbox"> Use checkboxes</label><div class="checklist-editor" id="checklistEditor" hidden></div><button type="button" class="secondary add-checklist-item" id="addChecklistItem" hidden>+ Add item</button>`;
+  if(type==='hub-note') return `<label>Title<input id="name" required maxlength="120"></label><label class="note-checklist-toggle"><input id="noteChecklist" type="checkbox"> Use checkboxes</label><div class="checklist-editor" id="checklistEditor" hidden></div><button type="button" class="secondary add-checklist-item" id="addChecklistItem" hidden>+ Add item</button><section class="note-photo-editor"><div class="note-photo-editor-heading"><div><b>Pictures</b><p>Add up to six pictures from your phone.</p></div><label class="secondary photo-picker">Choose pictures<input id="notePhotoFiles" type="file" accept="image/*" multiple hidden></label></div><div id="notePhotoEditorGrid" class="note-photo-editor-grid"></div><small id="notePhotoCount">0 of 6 pictures</small></section>`;
   if(type==='trip') return `<label>Trip name<input id="name" required></label><div class="two"><label>Start date<input id="startDate" type="date" required></label><label>End date<input id="endDate" type="date" required></label></div><section class="trip-photo-editor"><div class="stay-photo-editors-heading"><b>On the Road Again</b><p>The photo you take near the start of this trip. It becomes the cover of the trip card.</p></div><div class="trip-photo-preview" id="onRoadPhotoPreview"><span>No photo yet</span></div><div class="stay-photo-actions"><label class="secondary photo-picker">Choose photo<input id="onRoadPhotoFile" type="file" accept="image/*" hidden></label><button class="delete-link remove-stay-photo" id="removeOnRoadPhoto" type="button" hidden>Remove</button></div></section><div class="trip-stays-heading"><div><b>Places you are staying</b><p class="field-help">Add and edit every stop for this trip.</p></div><button type="button" class="secondary small-add" id="addTripStay">Add another stay</button></div><div id="tripStaysEditor" class="trip-stays-editor"></div>`;
   if(type==='fuel'){
     const options=db.tripSummaries.slice().sort((a,b)=>tripStamp(b).localeCompare(tripStamp(a))).map(t=>`<option value="${escapeHtml(t.name)}">${escapeHtml(t.name)}</option>`).join('');
@@ -569,6 +578,59 @@ function bindTripPhotoEditor(trip={}){
     show('');
   });
 }
+let notePhotoEditorState={existing:[],pending:[],removedPaths:new Set()};
+function clearNotePhotoEditor(){
+  notePhotoEditorState.pending.forEach(photo=>URL.revokeObjectURL(photo.url));
+  notePhotoEditorState={existing:[],pending:[],removedPaths:new Set()};
+}
+function renderNotePhotoEditor(){
+  const host=$('#notePhotoEditorGrid');
+  const count=$('#notePhotoCount');
+  if(!host||!count)return;
+  const existing=notePhotoEditorState.existing.filter(photo=>!notePhotoEditorState.removedPaths.has(photo.path));
+  const pending=notePhotoEditorState.pending;
+  const items=[
+    ...existing.map(photo=>`<article class="note-photo-editor-item">${photo.url?`<button class="note-photo-preview-button" type="button" data-photo-url="${escapeHtml(photo.url)}" data-photo-label="Note picture"><img src="${escapeHtml(photo.url)}" alt="Picture attached to this note"></button>`:'<span class="note-photo-missing">Picture</span>'}<button class="remove-note-photo" type="button" data-remove-note-photo="${escapeHtml(photo.path)}">Remove</button></article>`),
+    ...pending.map((photo,index)=>`<article class="note-photo-editor-item"><span class="note-photo-preview-button"><img src="${escapeHtml(photo.url)}" alt="New picture for this note"></span><button class="remove-note-photo" type="button" data-remove-pending-photo="${index}">Remove</button></article>`)
+  ];
+  host.innerHTML=items.join('')||'<div class="note-photo-empty">No pictures attached yet.</div>';
+  count.textContent=`${existing.length+pending.length} of 6 pictures`;
+  $$('[data-remove-note-photo]',host).forEach(button=>button.onclick=()=>{
+    notePhotoEditorState.removedPaths.add(button.dataset.removeNotePhoto);
+    renderNotePhotoEditor();
+  });
+  $$('[data-remove-pending-photo]',host).forEach(button=>button.onclick=()=>{
+    const index=+button.dataset.removePendingPhoto;
+    const [removed]=notePhotoEditorState.pending.splice(index,1);
+    if(removed)URL.revokeObjectURL(removed.url);
+    renderNotePhotoEditor();
+  });
+  bindStayPhotoButtons(host);
+}
+function bindNotePhotoEditor(note={}){
+  clearNotePhotoEditor();
+  const paths=Array.isArray(note.photoPaths)?note.photoPaths:[];
+  const urls=Array.isArray(note.photoUrls)?note.photoUrls:[];
+  notePhotoEditorState.existing=paths.map((path,index)=>({path,url:urls[index]||''}));
+  renderNotePhotoEditor();
+  const input=$('#notePhotoFiles');
+  if(!input)return;
+  input.addEventListener('change',()=>{
+    const existingCount=notePhotoEditorState.existing.filter(photo=>!notePhotoEditorState.removedPaths.has(photo.path)).length;
+    const available=Math.max(0,6-existingCount-notePhotoEditorState.pending.length);
+    const chosen=[...(input.files||[])];
+    if(chosen.length>available)alert(`You can attach up to six pictures. ${available||'No'} more can be added to this note.`);
+    chosen.slice(0,available).forEach(file=>notePhotoEditorState.pending.push({file,url:URL.createObjectURL(file)}));
+    input.value='';
+    renderNotePhotoEditor();
+  });
+}
+function notePhotoChanges(){
+  return {
+    addFiles:notePhotoEditorState.pending.map(photo=>photo.file),
+    removePaths:[...notePhotoEditorState.removedPaths]
+  };
+}
 function openEntry(type,index=null,returnTripIndex=null){
   const titles={'hub-note':index===null?'Add note':'Edit note',trip:index===null?'Add trip':'Edit trip',fuel:index===null?'Add fuel':'Edit fuel stop',stay:index===null?'Add campground':'Edit stay','phillis-maint':index===null?'Add Phillis maintenance':'Edit Phillis maintenance','phillis-upgrade':index===null?'Add Phillis upgrade':'Edit Phillis upgrade','ruby-maint':index===null?'Add Ruby maintenance':'Edit Ruby maintenance','ruby-upgrade':index===null?'Add Ruby upgrade':'Edit Ruby upgrade',electric:index===null?'Add electric reading':'Edit electric reading',sitepayment:index===null?'Add seasonal payment':'Edit seasonal payment',sitefee:index===null?'Add season':'Edit season'};
   $('#entryType').value=type; $('#entryIndex').value=index===null?'':index; $('#entryStayIndex').value=returnTripIndex===null?'':returnTripIndex;
@@ -582,15 +644,25 @@ function openEntry(type,index=null,returnTripIndex=null){
     const note=index===null?null:db.sharedNotes?.[index];
     if(note){$('#name').value=note.title||'';$('#entryNotes').value=note.body||'';}
     setupNoteEditor(note?.body||'');
+    bindNotePhotoEditor(note||{});
     if(note){
       deleteNote.hidden=false;
-      deleteNote.onclick=()=>{
+      deleteNote.onclick=async()=>{
         if(!confirm(`Delete “${note.title||'this note'}”?`))return;
-        db.sharedNotes.splice(index,1);
-        save();
-        $('#entryDialog').close();
-        renderHome();
-        renderNotes();
+        deleteNote.disabled=true;
+        try{
+          if(window.ADVENTURE_HUB_STORE&&note._cloudId)await window.ADVENTURE_HUB_STORE.deleteNotePhotos(note);
+          db.sharedNotes.splice(index,1);
+          await save();
+          clearNotePhotoEditor();
+          $('#entryDialog').close();
+          renderHome();
+          renderNotes();
+        }catch(error){
+          console.error(error);
+          alert(`The note could not be deleted.\n\n${error.message}`);
+          deleteNote.disabled=false;
+        }
       };
     }
   }
@@ -689,8 +761,8 @@ function openEntry(type,index=null,returnTripIndex=null){
   }
   $('#entryDialog').showModal();
 }
-$$('dialog .close').forEach(b=>b.onclick=()=>{const dialog=b.closest('dialog');dialog.close();if(dialog.id==='entryDialog')clearStayPhotoPreviewUrls()});
-$$('dialog').forEach(dialog=>dialog.addEventListener('mousedown',event=>{const box=dialog.getBoundingClientRect();const outside=event.clientX<box.left||event.clientX>box.right||event.clientY<box.top||event.clientY>box.bottom;if(outside){dialog.close();if(dialog.id==='entryDialog')clearStayPhotoPreviewUrls()}}));
+$$('dialog .close').forEach(b=>b.onclick=()=>{const dialog=b.closest('dialog');dialog.close();if(dialog.id==='entryDialog'){clearStayPhotoPreviewUrls();clearNotePhotoEditor();}});
+$$('dialog').forEach(dialog=>dialog.addEventListener('mousedown',event=>{const box=dialog.getBoundingClientRect();const outside=event.clientX<box.left||event.clientX>box.right||event.clientY<box.top||event.clientY>box.bottom;if(outside){dialog.close();if(dialog.id==='entryDialog'){clearStayPhotoPreviewUrls();clearNotePhotoEditor();}}}));
 bindOpeners();
 $('#entryForm').onsubmit=async e=>{
   e.preventDefault(); const type=$('#entryType').value;
@@ -699,6 +771,8 @@ $('#entryForm').onsubmit=async e=>{
   const originalButtonText=submitButton.textContent;
   let savedStay=null;
   let savedTrip=null;
+  let savedNote=null;
+  const pendingNotePhotoChanges=type==='hub-note'?notePhotoChanges():{addFiles:[],removePaths:[]};
   const stayPhotoChanges=type==='stay'?[
     {kind:'site',file:$('#sitePhotoFile')?.files?.[0]||null,remove:$('#sitePhotoFile')?.dataset.remove==='true'},
     {kind:'sign',file:$('#signPhotoFile')?.files?.[0]||null,remove:$('#signPhotoFile')?.dataset.remove==='true'}
@@ -710,8 +784,17 @@ $('#entryForm').onsubmit=async e=>{
     const index=$('#entryIndex').value===''?null:+$('#entryIndex').value;
     const prior=index===null?null:db.sharedNotes[index];
     const now=new Date().toISOString();
-    const record={...(prior||{}),title:$('#name').value.trim(),body:notes,createdAt:prior?.createdAt||now,updatedAt:now};
+    const record={
+      ...(prior||{}),
+      title:$('#name').value.trim(),
+      body:notes,
+      photoPaths:[...(prior?.photoPaths||[])],
+      photoUrls:[...(prior?.photoUrls||[])],
+      createdAt:prior?.createdAt||now,
+      updatedAt:now
+    };
     if(index===null)db.sharedNotes.push(record);else db.sharedNotes[index]=record;
+    savedNote=record;
   }
   else if(type==='trip'){
     const s=$('#startDate').value,eDate=$('#endDate').value,name=$('#name').value.trim(),index=$('#entryIndex').value===''?null:+$('#entryIndex').value;
@@ -755,7 +838,7 @@ $('#entryForm').onsubmit=async e=>{
   else {const obj={date:$('#date').value,description:$('#description').value,location:$('#location').value,price:+$('#total').value||0,notes},key=type==='phillis-maint'?'phillisMaintenance':type==='phillis-upgrade'?'phillisUpgrades':type==='ruby-maint'?'rubyMaintenance':'rubyUpgrades',index=$('#entryIndex').value===''?null:+$('#entryIndex').value;if(index===null)db[key].push(obj);else db[key][index]={...db[key][index],...obj}}
   const returnTripIndex=$('#entryStayIndex').value===''?null:+$('#entryStayIndex').value;
   submitButton.disabled=true;
-  submitButton.textContent=stayPhotoChanges.length?'Saving stay…':tripPhotoChange?'Saving trip…':'Saving…';
+  submitButton.textContent=stayPhotoChanges.length?'Saving stay…':tripPhotoChange?'Saving trip…':pendingNotePhotoChanges.addFiles.length||pendingNotePhotoChanges.removePaths.length?'Saving note…':'Saving…';
   const cloudSaved=await save();
   if(savedStay&&stayPhotoChanges.length&&cloudSaved&&window.ADVENTURE_HUB_STORE){
     try{
@@ -779,9 +862,20 @@ $('#entryForm').onsubmit=async e=>{
       alert(`The trip details were saved, but the On the Road Again photo could not be uploaded.\n\n${error.message}`);
     }
   }
+  if(savedNote&&(pendingNotePhotoChanges.addFiles.length||pendingNotePhotoChanges.removePaths.length)&&cloudSaved&&window.ADVENTURE_HUB_STORE){
+    try{
+      submitButton.textContent='Uploading note pictures…';
+      await window.ADVENTURE_HUB_STORE.setNotePhotos(savedNote,pendingNotePhotoChanges);
+      localStorage.setItem(KEY,JSON.stringify(db));
+    }catch(error){
+      console.error(error);
+      alert(`The note was saved, but its pictures could not be updated.\n\n${error.message}`);
+    }
+  }
   submitButton.disabled=false;
   submitButton.textContent=originalButtonText;
   clearStayPhotoPreviewUrls();
+  clearNotePhotoEditor();
   $('#entryDialog').close(); renderHome(); renderTrips(); renderNotes();
   if(type==='fuel' && returnTripIndex===null) showPanel('fuel-history');
   if(type==='phillis-maint') showPanel('phillis-maintenance');
