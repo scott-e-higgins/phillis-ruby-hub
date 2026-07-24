@@ -17,7 +17,7 @@
       document.documentElement.classList.add('standalone-app');
     }
   </script>
-  <link rel="stylesheet" href="styles.css?v=0.18.2">
+  <link rel="stylesheet" href="styles.css?v=0.19.0">
 </head>
 <body>
 <div id="pullRefresh" class="pull-refresh" aria-live="polite">
@@ -152,8 +152,8 @@
     <input id="entryIndex" type="hidden">
     <input id="entryStayIndex" type="hidden">
     <div id="entryFields"></div>
-    <label><span id="entryNotesLabel">Notes</span><textarea id="entryNotes" rows="5"></textarea></label>
-    <div class="form-actions"><button class="primary">Save</button><button type="button" class="secondary close">Cancel</button></div>
+    <label id="entryNotesField"><span id="entryNotesLabel">Notes</span><textarea id="entryNotes" rows="5"></textarea></label>
+    <div class="form-actions"><button type="button" class="delete-link" id="deleteEntryNote" hidden>Delete note</button><button class="primary">Save</button><button type="button" class="secondary close">Cancel</button></div>
   </form>
 </dialog>
 
@@ -194,8 +194,8 @@
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
 <script src="supabase-config.js" defer></script>
-<script src="cloud.js?v=0.18.2" defer></script>
-<script src="cloud-store.js?v=0.18.2" defer></script>
-<script src="app.js?v=0.18.2" defer></script>
+<script src="cloud.js?v=0.19.0" defer></script>
+<script src="cloud-store.js?v=0.19.0" defer></script>
+<script src="app.js?v=0.19.0" defer></script>
 </body>
 </html>

@@ -2,6 +2,13 @@
 
 Adventure Hub is Scott and Kayla's private travel companion.
 
+## Version 0.19.0
+
+- Added an optional checklist mode to shared notes.
+- Checklist items can be checked, edited, added, and removed before saving.
+- Tapping a note card now opens the editor immediately.
+- Note deletion is available directly from the editor.
+
 ## Version 0.18.2
 
 - Fixed note text saving and display by separating the Notes page from the form's note-text field.

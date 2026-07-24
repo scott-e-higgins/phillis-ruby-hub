@@ -1,4 +1,4 @@
-const SEED={"tripSummaries":[],"stays":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"meta":{"source":"Supabase","version":"0.18.2"},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
+const SEED={"tripSummaries":[],"stays":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"meta":{"source":"Supabase","version":"0.19.0"},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const $=s=>document.querySelector(s), $$=(s,root=document)=>[...root.querySelectorAll(s)];
 const clone=x=>JSON.parse(JSON.stringify(x));
@@ -125,25 +125,81 @@ function noteWhen(value){
   if(Number.isNaN(stamp.getTime()))return '';
   return stamp.toLocaleString(undefined,{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'});
 }
+const checklistPattern=/^\s*-\s*\[([ xX])\]\s*(.*)$/;
+function parseChecklist(body=''){
+  const lines=String(body).split(/\r?\n/).filter(line=>line.trim());
+  if(!lines.length)return null;
+  const matches=lines.map(line=>line.match(checklistPattern));
+  if(matches.some(match=>!match))return null;
+  return matches.map(match=>({checked:match[1].toLowerCase()==='x',text:match[2]}));
+}
+function checklistBody(items=[]){
+  return items.filter(item=>item.text.trim()).map(item=>`- [${item.checked?'x':' '}] ${item.text.trim()}`).join('\n');
+}
+let noteChecklistItems=[];
+function readChecklistEditor(){
+  return $$('[data-checklist-row]').map(row=>({
+    checked:Boolean(row.querySelector('[data-checklist-checked]')?.checked),
+    text:row.querySelector('[data-checklist-text]')?.value||''
+  }));
+}
+function renderChecklistEditor(){
+  const host=$('#checklistEditor'); if(!host)return;
+  if(!noteChecklistItems.length)noteChecklistItems=[{checked:false,text:''}];
+  host.innerHTML=noteChecklistItems.map((item,index)=>`<div class="checklist-editor-row" data-checklist-row="${index}"><input data-checklist-checked type="checkbox" ${item.checked?'checked':''} aria-label="Mark item complete"><input data-checklist-text value="${escapeHtml(item.text)}" placeholder="Checklist item" aria-label="Checklist item ${index+1}"><button type="button" class="remove-checklist-item" data-remove-checklist="${index}" aria-label="Remove checklist item">×</button></div>`).join('');
+  $$('[data-remove-checklist]',host).forEach(button=>button.onclick=()=>{
+    noteChecklistItems=readChecklistEditor();
+    noteChecklistItems.splice(+button.dataset.removeChecklist,1);
+    renderChecklistEditor();
+  });
+}
+function setupNoteEditor(body=''){
+  const toggle=$('#noteChecklist'),textField=$('#entryNotesField'),editor=$('#checklistEditor'),add=$('#addChecklistItem');
+  const parsed=parseChecklist(body);
+  toggle.checked=Boolean(parsed);
+  noteChecklistItems=parsed||String(body).split(/\r?\n/).filter(line=>line.trim()).map(text=>({checked:false,text}));
+  if(!noteChecklistItems.length)noteChecklistItems=[{checked:false,text:''}];
+  const sync=()=>{
+    const checklistMode=toggle.checked;
+    textField.hidden=checklistMode;
+    editor.hidden=!checklistMode;
+    add.hidden=!checklistMode;
+    if(checklistMode)renderChecklistEditor();
+  };
+  toggle.onchange=()=>{
+    if(toggle.checked){
+      const text=$('#entryNotes').value;
+      noteChecklistItems=String(text).split(/\r?\n/).filter(line=>line.trim()).map(line=>({checked:false,text:line}));
+      if(!noteChecklistItems.length)noteChecklistItems=[{checked:false,text:''}];
+    }else{
+      noteChecklistItems=readChecklistEditor();
+      $('#entryNotes').value=noteChecklistItems.map(item=>item.text).filter(Boolean).join('\n');
+    }
+    sync();
+  };
+  add.onclick=()=>{
+    noteChecklistItems=readChecklistEditor();
+    noteChecklistItems.push({checked:false,text:''});
+    renderChecklistEditor();
+    const inputs=$$('[data-checklist-text]');
+    inputs[inputs.length-1]?.focus();
+  };
+  sync();
+}
 function renderNotes(){
   const host=$('#noteList'); if(!host)return;
   const notes=[...(db.sharedNotes||[])].sort((a,b)=>String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||'')));
   host.innerHTML=notes.map(note=>{
     const index=db.sharedNotes.indexOf(note);
     const preview=(note.body||'').trim();
-    return `<button class="note-card" type="button" data-note-index="${index}"><div class="note-card-top"><h3>${escapeHtml(note.title||'Untitled note')}</h3><span>›</span></div>${preview?`<p>${escapeHtml(preview)}</p>`:'<p class="note-empty-copy">No text yet.</p>'}<small>${noteWhen(note.updatedAt||note.createdAt)?`Updated ${noteWhen(note.updatedAt||note.createdAt)}`:'Shared note'}</small></button>`;
+    const checklist=parseChecklist(preview);
+    const content=checklist
+      ?`<div class="note-checklist-preview">${checklist.slice(0,4).map(item=>`<span><i class="${item.checked?'checked':''}">${item.checked?'✓':''}</i><b class="${item.checked?'completed':''}">${escapeHtml(item.text)}</b></span>`).join('')}${checklist.length>4?`<em>+${checklist.length-4} more</em>`:''}</div>`
+      :preview?`<p>${escapeHtml(preview)}</p>`:'<p class="note-empty-copy">No text yet.</p>';
+    return `<button class="note-card" type="button" data-note-index="${index}"><div class="note-card-top"><h3>${escapeHtml(note.title||'Untitled note')}</h3><span>Edit ›</span></div>${content}<small>${noteWhen(note.updatedAt||note.createdAt)?`Updated ${noteWhen(note.updatedAt||note.createdAt)}`:'Shared note'}</small></button>`;
   }).join('')||'<div class="empty">No shared notes yet. Add your first list, reminder, or idea.</div>';
-  $$('[data-note-index]',host).forEach(button=>button.onclick=()=>showNote(+button.dataset.noteIndex));
+  $$('[data-note-index]',host).forEach(button=>button.onclick=()=>openEntry('hub-note',+button.dataset.noteIndex));
   bindOpeners();
-}
-function showNote(index){
-  const note=db.sharedNotes?.[index]; if(!note)return;
-  $('#detailKicker').textContent='SHARED NOTE';
-  $('#detailTitle').textContent=note.title||'Untitled note';
-  $('#detailBody').innerHTML=`<div class="record-detail-actions"><button class="primary" id="editHubNote">Edit note</button></div><div class="note-body">${escapeHtml(note.body||'')}</div>${note.updatedAt?`<p class="note-detail-updated">Last updated ${noteWhen(note.updatedAt)}</p>`:''}<div class="trip-delete-area"><button class="delete-link" id="deleteHubNote">Delete note</button></div>`;
-  $('#editHubNote').onclick=()=>{$('#detailDialog').close();openEntry('hub-note',index)};
-  $('#deleteHubNote').onclick=()=>{if(!confirm(`Delete “${note.title||'this note'}”?`))return;db.sharedNotes.splice(index,1);save();$('#detailDialog').close();renderNotes()};
-  $('#detailDialog').showModal();
 }
 
 function renderHome(){
@@ -383,7 +439,7 @@ function stayPhotoEditorSlot(kind,title,help){
   return `<article class="stay-photo-editor"><div class="stay-photo-editor-copy"><b>${title}</b><p>${help}</p></div><div class="stay-photo-preview" id="${kind}PhotoPreview"><span>No photo yet</span></div><div class="stay-photo-actions"><label class="secondary photo-picker">Choose photo<input id="${kind}PhotoFile" type="file" accept="image/*" hidden></label><button class="delete-link remove-stay-photo" id="remove${kind[0].toUpperCase()+kind.slice(1)}Photo" type="button" hidden>Remove</button></div></article>`;
 }
 function fields(type){
-  if(type==='hub-note') return `<label>Title<input id="name" required maxlength="120"></label>`;
+  if(type==='hub-note') return `<label>Title<input id="name" required maxlength="120"></label><label class="note-checklist-toggle"><input id="noteChecklist" type="checkbox"> Use checkboxes</label><div class="checklist-editor" id="checklistEditor" hidden></div><button type="button" class="secondary add-checklist-item" id="addChecklistItem" hidden>+ Add item</button>`;
   if(type==='trip') return `<label>Trip name<input id="name" required></label><div class="two"><label>Start date<input id="startDate" type="date" required></label><label>End date<input id="endDate" type="date" required></label></div><section class="trip-photo-editor"><div class="stay-photo-editors-heading"><b>On the Road Again</b><p>The photo you take near the start of this trip. It becomes the cover of the trip card.</p></div><div class="trip-photo-preview" id="onRoadPhotoPreview"><span>No photo yet</span></div><div class="stay-photo-actions"><label class="secondary photo-picker">Choose photo<input id="onRoadPhotoFile" type="file" accept="image/*" hidden></label><button class="delete-link remove-stay-photo" id="removeOnRoadPhoto" type="button" hidden>Remove</button></div></section><div class="trip-stays-heading"><div><b>Places you are staying</b><p class="field-help">Add and edit every stop for this trip.</p></div><button type="button" class="secondary small-add" id="addTripStay">Add another stay</button></div><div id="tripStaysEditor" class="trip-stays-editor"></div>`;
   if(type==='fuel'){
     const options=db.tripSummaries.slice().sort((a,b)=>tripStamp(b).localeCompare(tripStamp(a))).map(t=>`<option value="${escapeHtml(t.name)}">${escapeHtml(t.name)}</option>`).join('');
@@ -506,10 +562,24 @@ function openEntry(type,index=null,returnTripIndex=null){
   $('#entryType').value=type; $('#entryIndex').value=index===null?'':index; $('#entryStayIndex').value=returnTripIndex===null?'':returnTripIndex;
   $('#entryTitle').textContent=titles[type]; $('#entryFields').innerHTML=fields(type); $('#entryNotes').value='';
   $('#entryNotesLabel').textContent=type==='hub-note'?'Note':'Notes';
+  const deleteNote=$('#deleteEntryNote');
+  deleteNote.hidden=true;
+  deleteNote.onclick=null;
   const today=new Date().toISOString().slice(0,10), d=$('#date')||$('#arrival')||$('#startDate'); if(d)d.value=today; if(type==='trip')$('#endDate').value=$('#startDate').value;
-  if(type==='hub-note'&&index!==null){
-    const note=db.sharedNotes?.[index];
+  if(type==='hub-note'){
+    const note=index===null?null:db.sharedNotes?.[index];
     if(note){$('#name').value=note.title||'';$('#entryNotes').value=note.body||'';}
+    setupNoteEditor(note?.body||'');
+    if(note){
+      deleteNote.hidden=false;
+      deleteNote.onclick=()=>{
+        if(!confirm(`Delete “${note.title||'this note'}”?`))return;
+        db.sharedNotes.splice(index,1);
+        save();
+        $('#entryDialog').close();
+        renderNotes();
+      };
+    }
   }
   if(index===null && returnTripIndex!==null && (type==='sitepayment'||type==='electric')){const year=+returnTripIndex;if($('#year'))$('#year').value=year;if($('#date'))$('#date').value=`${year}-${type==='electric'?'06':'01'}-01`;if(type==='electric'&&$('#paid'))$('#paid').value='';}
   if(type==='stay'){
@@ -610,7 +680,8 @@ $$('dialog .close').forEach(b=>b.onclick=()=>{const dialog=b.closest('dialog');d
 $$('dialog').forEach(dialog=>dialog.addEventListener('mousedown',event=>{const box=dialog.getBoundingClientRect();const outside=event.clientX<box.left||event.clientX>box.right||event.clientY<box.top||event.clientY>box.bottom;if(outside){dialog.close();if(dialog.id==='entryDialog')clearStayPhotoPreviewUrls()}}));
 bindOpeners();
 $('#entryForm').onsubmit=async e=>{
-  e.preventDefault(); const type=$('#entryType').value, notes=$('#entryNotes').value;
+  e.preventDefault(); const type=$('#entryType').value;
+  const notes=type==='hub-note'&&$('#noteChecklist')?.checked?checklistBody(readChecklistEditor()):$('#entryNotes').value;
   const submitButton=$('#entryForm').querySelector('.form-actions .primary');
   const originalButtonText=submitButton.textContent;
   let savedStay=null;
