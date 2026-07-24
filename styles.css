@@ -211,7 +211,6 @@ label textarea{resize:vertical}
 .stay-listing-copy p{margin:2px 0;color:var(--muted);font-size:13px}
 .stay-address-link{display:inline-flex;align-items:center;gap:5px;max-width:100%;color:#b9d8ca;text-decoration:none;font-weight:750;line-height:1.35}
 .stay-address-link>span{flex:0 0 auto;color:#e3aaab;font-size:15px}
-.stay-address-link small{flex:0 0 auto;margin-left:3px;color:#d89a9d;font-size:10px;font-weight:850;letter-spacing:.04em;text-transform:uppercase}
 .stay-address-link:hover,.stay-address-link:focus-visible{color:#d9eee5;text-decoration:underline;text-underline-offset:3px}
 .stay-address-link:focus-visible{outline:2px solid #d89a9d;outline-offset:3px;border-radius:3px}
 .stay-photo-strip{display:flex;align-items:flex-start;gap:8px;padding:0;background:transparent}

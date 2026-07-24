@@ -1,4 +1,4 @@
-const APP_VERSION='0.21.0';
+const APP_VERSION='0.21.1';
 const SEED={"tripSummaries":[],"stays":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const $=s=>document.querySelector(s), $$=(s,root=document)=>[...root.querySelectorAll(s)];
@@ -87,7 +87,7 @@ function stayLocationHtml(stay){
   const location=[stay.address,stay.city,stay.state,stay.zip].filter(Boolean).join(', ');
   if(!location)return '';
   const mapsUrl=`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;
-  return `<p><a class="stay-address-link" href="${escapeHtml(mapsUrl)}" target="_blank" rel="noopener" data-map-address="${escapeHtml(location)}" aria-label="Open ${escapeHtml(location)} in Google Maps"><span aria-hidden="true">⌖</span>${escapeHtml(location)}<small>Open in Maps</small></a></p>`;
+  return `<p><a class="stay-address-link" href="${escapeHtml(mapsUrl)}" target="_blank" rel="noopener" data-map-address="${escapeHtml(location)}" aria-label="Open ${escapeHtml(location)} in Google Maps"><span aria-hidden="true">⌖</span>${escapeHtml(location)}</a></p>`;
 }
 function stayListing(stay,{viewer=false}={}){
   const index=db.stays.indexOf(stay);
