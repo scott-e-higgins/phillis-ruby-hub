@@ -1,14 +1,22 @@
-const APP_VERSION='0.26.0';
+const APP_VERSION='0.27.0';
 const SEED={"tripSummaries":[],"stays":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const $=s=>document.querySelector(s), $$=(s,root=document)=>[...root.querySelectorAll(s)];
 const clone=x=>JSON.parse(JSON.stringify(x));
 const escapeHtml=value=>String(value).replace(/[&<>\"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[ch]));
+let migratedTrailerAssignments=false;
 function migrate(x){
   if(!x) return null;
+  migratedTrailerAssignments=false;
   if(x.maintenance&&!x.phillisMaintenance) x.phillisMaintenance=x.maintenance;
   delete x.maintenance;
   for(const k of ['phillisMaintenance','phillisUpgrades','rubyMaintenance','rubyUpgrades','fuel','electric','siteFees','stays','tripSummaries','sharedNotes']) x[k]=x[k]||[];
+  for(const key of ['phillisMaintenance','phillisUpgrades']){
+    x[key].forEach(record=>{
+      const trailer=Number(String(record.date||'').slice(0,4))>=2026?'Phillis II.0':'Phillis';
+      if(record.trailer!==trailer){record.trailer=trailer;migratedTrailerAssignments=true;}
+    });
+  }
   x.sharedNotes.forEach(note=>{
     note.photoPaths=Array.isArray(note.photoPaths)?note.photoPaths:[];
     note.photoUrls=Array.isArray(note.photoUrls)?note.photoUrls:[];
@@ -292,7 +300,7 @@ function renderHome(){
   bindNoteCards($('#recentNotes'));
   const recent=[];
   db.fuel.forEach((x,index)=>recent.push({type:'Fuel',kind:'fuel',index,icon:'⛽',title:x.station||'Fuel stop',sub:`${date(x.date)} · ${money(x.total)}`,stamp:x.date||''}));
-  db.phillisMaintenance.forEach((x,index)=>recent.push({type:'Phillis',kind:'phillis',index,icon:'🔧',title:x.description||'Maintenance',sub:`${date(x.date)} · ${money(x.price)}`,stamp:x.date||''}));
+  db.phillisMaintenance.forEach((x,index)=>recent.push({type:'Phillis',kind:'phillis',index,icon:'🔧',title:x.description||'Maintenance',sub:`${date(x.date)} · ${escapeHtml(x.trailer||'Phillis')} · ${money(x.price)}`,stamp:x.date||''}));
   db.rubyMaintenance.forEach((x,index)=>recent.push({type:'Ruby',kind:'ruby',index,icon:'🛻',title:x.description||'Maintenance',sub:`${date(x.date)} · ${money(x.price)}`,stamp:x.date||''}));
   $('#recentRecords').innerHTML=recent.sort((a,b)=>b.stamp.localeCompare(a.stamp)).slice(0,3).map(r=>`<button class="record-item record-link" type="button" data-recent-record-kind="${r.kind}" data-recent-record-index="${r.index}" aria-label="Open ${escapeHtml(r.title)}"><span class="record-icon">${r.icon}</span><div class="item-copy"><h3>${escapeHtml(r.title)}</h3><p>${r.sub}</p></div><span class="recent-record-end"><span class="pill">${r.type}</span><span class="record-chevron">›</span></span></button>`).join('')||'<div class="empty">New entries will appear here.</div>';
   $$('[data-recent-record-kind]',$('#recentRecords')).forEach(button=>button.onclick=()=>{
@@ -451,12 +459,12 @@ function showRubyRecord(key,index,type,page){
   $('#detailDialog').showModal();
 }
 function phillisRecordList(items,key,type,page){
-  return items.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(x=>`<button class="record-item record-link" type="button" data-record-key="${key}" data-record-index="${items.indexOf(x)}" data-record-type="${type}" data-record-page="${page}"><div class="item-copy"><h3>${x.description||'Record'}</h3><p>${date(x.date)}${x.location?' · '+x.location:''}${x.price?' · '+money(x.price):''}</p></div><span class="record-chevron">›</span></button>`).join('')||'<div class="empty">No records yet.</div>'
+  return items.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(x=>`<button class="record-item record-link" type="button" data-record-key="${key}" data-record-index="${items.indexOf(x)}" data-record-type="${type}" data-record-page="${page}"><div class="item-copy"><span class="record-asset">${escapeHtml(x.trailer||'Phillis')}</span><h3>${x.description||'Record'}</h3><p>${date(x.date)}${x.location?' · '+x.location:''}${x.price?' · '+money(x.price):''}</p></div><span class="record-chevron">›</span></button>`).join('')||'<div class="empty">No records yet.</div>'
 }
 function showPhillisRecord(key,index,type,page){
   const record=db[key]?.[index]; if(!record)return;
   setDetailHeader(type==='phillis-upgrade'?'PHILLIS UPGRADE':'PHILLIS MAINTENANCE',record.description||'Record details');
-  $('#detailBody').innerHTML=`<div class="record-detail-actions"><button class="primary" id="editPhillisRecord">Edit entry</button></div><div class="detail-section"><div class="detail-row"><span>Date</span><span>${date(record.date)}</span></div>${record.location?`<div class="detail-row"><span>Vendor / location</span><span>${escapeHtml(record.location)}</span></div>`:''}<div class="detail-row"><span>Cost</span><span>${money(record.price||0)}</span></div>${record.notes?`<div class="record-notes"><small>NOTES</small><p>${escapeHtml(record.notes)}</p></div>`:''}</div><div class="trip-delete-area"><button class="delete-link" id="deletePhillisRecord">Delete entry</button></div>`;
+  $('#detailBody').innerHTML=`<div class="record-detail-actions"><button class="primary" id="editPhillisRecord">Edit entry</button></div><div class="detail-section"><div class="detail-row"><span>Trailer</span><span>${escapeHtml(record.trailer||'Phillis')}</span></div><div class="detail-row"><span>Date</span><span>${date(record.date)}</span></div>${record.location?`<div class="detail-row"><span>Vendor / location</span><span>${escapeHtml(record.location)}</span></div>`:''}<div class="detail-row"><span>Cost</span><span>${money(record.price||0)}</span></div>${record.notes?`<div class="record-notes"><small>NOTES</small><p>${escapeHtml(record.notes)}</p></div>`:''}</div><div class="trip-delete-area"><button class="delete-link" id="deletePhillisRecord">Delete entry</button></div>`;
   $('#editPhillisRecord').onclick=()=>{$('#detailDialog').close();openEntry(type,index)};
   $('#deletePhillisRecord').onclick=()=>{if(!confirm(`Delete “${record.description||'this record'}”?`))return;db[key].splice(index,1);save();$('#detailDialog').close();renderHome();showPanel(page)};
   $('#detailDialog').showModal();
@@ -559,7 +567,8 @@ function fields(type){
     const currentSite=db.stays.find(x=>x.arrival==='Season')||{};
     return `<div class="three"><label>Year<input id="year" type="number" value="${new Date().getFullYear()}" required></label><label>Seasonal fee<input id="total" type="number" step=".01"></label><label>Site<input id="site" value="${escapeHtml(currentSite.site||'')}"></label></div><label>Address<input id="address" value="${escapeHtml(currentSite.address||'')}"></label><div class="three"><label>City<input id="city" value="${escapeHtml(currentSite.city||'')}"></label><label>State<input id="state" value="${escapeHtml(currentSite.state||'')}"></label><label>ZIP<input id="zip" value="${escapeHtml(currentSite.zip||'')}"></label></div>`;
   }
-  return `<label>Date<input id="date" type="date" required></label><label>${type.includes('upgrade')?'Upgrade':'Work performed'}<input id="description" required></label><div class="two"><label>Vendor / location<input id="location"></label><label>Cost<input id="total" type="number" step=".01"></label></div>`;
+  const trailerField=type.startsWith('phillis-')?`<label>Trailer<select id="trailer" required><option value="Phillis II.0">Phillis II.0 · 2026 Brinkley Model I265</option><option value="Phillis">Phillis · 2020 Kodiak Ultralite 289BHSL</option></select></label>`:'';
+  return `${trailerField}<label>Date<input id="date" type="date" required></label><label>${type.includes('upgrade')?'Upgrade':'Work performed'}<input id="description" required></label><div class="two"><label>Vendor / location<input id="location"></label><label>Cost<input id="total" type="number" step=".01"></label></div>`;
 }
 function bindOpeners(){$$('[data-open]').forEach(b=>b.onclick=()=>openEntry(b.dataset.open))}
 let tripStayEditorItems=[];
@@ -833,7 +842,7 @@ function openEntry(type,index=null,returnTripIndex=null){
   if(['phillis-maint','phillis-upgrade','ruby-maint','ruby-upgrade'].includes(type) && index!==null){
     const key=type==='phillis-maint'?'phillisMaintenance':type==='phillis-upgrade'?'phillisUpgrades':type==='ruby-maint'?'rubyMaintenance':'rubyUpgrades';
     const record=db[key]?.[index];
-    if(record){$('#date').value=record.date||today;$('#description').value=record.description||'';$('#location').value=record.location||'';$('#total').value=record.price??'';$('#entryNotes').value=record.notes||'';}
+    if(record){if($('#trailer'))$('#trailer').value=record.trailer||'Phillis II.0';$('#date').value=record.date||today;$('#description').value=record.description||'';$('#location').value=record.location||'';$('#total').value=record.price??'';$('#entryNotes').value=record.notes||'';}
   }
   if(type==='trip'){
     if(index!==null){
@@ -927,7 +936,7 @@ $('#entryForm').onsubmit=async e=>{
   else if(type==='sitepayment'){const index=$('#entryIndex').value===''?null:+$('#entryIndex').value,record={...(index===null?{}:db.siteFees[index]),year:+$('#year').value,date:$('#date').value,payment:+$('#payment').value||0,check:$('#check').value,notes};if(index===null)db.siteFees.push(record);else db.siteFees[index]=record}
   else if(type==='electric'){const p=+$('#previous').value,c=+$('#current').value,r=+$('#rate').value||.16,u=c-p,index=$('#entryIndex').value===''?null:+$('#entryIndex').value,record={...(index===null?{}:db.electric[index]),date:$('#date').value,previous:p,current:c,usage:u,unitPrice:r,total:u*r,paid:$('#paid').value,check:$('#check').value,notes};if(index===null)db.electric.push(record);else db.electric[index]=record}
   else if(type==='sitefee'){const y=+$('#year').value,total=+$('#total').value||0,index=$('#entryIndex').value===''?null:+$('#entryIndex').value,record={...(index===null?{}:db.stays[index]),year:y,arrival:'Season',departure:'Season',nights:null,name:'Lehigh Gorge Campground',address:$('#address').value,city:$('#city').value,state:$('#state').value,zip:$('#zip').value,site:$('#site').value||'39',price:total,harvestHost:false,notes};if(index===null)db.stays.push(record);else db.stays[index]=record;const annual=(db.siteFees||[]).find(x=>+x.year===y&&x.yearTotal!=null);if(annual)annual.yearTotal=total}
-  else {const obj={date:$('#date').value,description:$('#description').value,location:$('#location').value,price:+$('#total').value||0,notes},key=type==='phillis-maint'?'phillisMaintenance':type==='phillis-upgrade'?'phillisUpgrades':type==='ruby-maint'?'rubyMaintenance':'rubyUpgrades',index=$('#entryIndex').value===''?null:+$('#entryIndex').value;if(index===null)db[key].push(obj);else db[key][index]={...db[key][index],...obj}}
+  else {const obj={date:$('#date').value,description:$('#description').value,location:$('#location').value,price:+$('#total').value||0,notes,...(type.startsWith('phillis-')?{trailer:$('#trailer').value}:{})},key=type==='phillis-maint'?'phillisMaintenance':type==='phillis-upgrade'?'phillisUpgrades':type==='ruby-maint'?'rubyMaintenance':'rubyUpgrades',index=$('#entryIndex').value===''?null:+$('#entryIndex').value;if(index===null)db[key].push(obj);else db[key][index]={...db[key][index],...obj}}
   const returnTripIndex=$('#entryStayIndex').value===''?null:+$('#entryStayIndex').value;
   submitButton.disabled=true;
   submitButton.textContent=stayPhotoChanges.length?'Saving stay…':tripPhotoChange?'Saving trip…':pendingNotePhotoChanges.addFiles.length||pendingNotePhotoChanges.removePaths.length?'Saving note…':'Saving…';
@@ -982,8 +991,10 @@ async function loadCloudData(){
   if(status)status.textContent='Loading shared Travel Journal records…';
   try{
     db=migrate(await window.ADVENTURE_HUB_STORE.load());
+    const shouldSaveTrailerAssignments=migratedTrailerAssignments;
     TODAY=new Date(); TODAY.setHours(0,0,0,0);
     cloudLoaded=true;
+    if(shouldSaveTrailerAssignments)await save();
     localStorage.setItem(KEY,JSON.stringify(db));
     renderHome();renderTrips();renderNotes();
     if(status&&window.ADVENTURE_HUB_CLOUD)status.textContent=`Connected as ${window.ADVENTURE_HUB_CLOUD.user.email} · Higgins Hub · Cloud sync is on · v${APP_VERSION}`;

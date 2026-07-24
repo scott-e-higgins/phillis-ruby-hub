@@ -13,6 +13,15 @@ Travel Journal is Scott and Kayla's private travel companion.
   read-only calendar subscription remains a fallback if a native companion is
   not pursued.
 
+## Version 0.27.0
+
+- Identifies every Phillis maintenance, repair, and upgrade record by trailer.
+- Assigns all 2026 records to Phillis II.0 and earlier records to Phillis.
+- Shows the trailer on record lists, recent Home records, and record details.
+- Adds a trailer selector when adding or editing Phillis records.
+- Saves each record against the corresponding trailer already stored in
+  Supabase.
+
 ## Version 0.26.0
 
 - Replaces Home's two-card countdown with three compact trip cards.

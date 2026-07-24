@@ -414,6 +414,7 @@
         maintenanceGroups[prefix + suffix].push({
           _cloudId: row.id,
           _vehicleId: row.vehicle_id,
+          trailer: prefix === 'phillis' ? (vehicle?.name || '') : undefined,
           date: row.date,
           description: row.description,
           location: row.vendor || '',
@@ -502,6 +503,13 @@
       const vehicles = assert(await client.from('vehicles').select('*').eq('household_id', householdId));
       const ruby = vehicles.find(x => x.vehicle_type === 'truck' && x.is_active) || vehicles.find(x => x.name === 'Ruby');
       const phillis = vehicles.find(x => x.vehicle_type === 'rv' && x.is_active) || vehicles.find(x => x.name === 'Phillis II.0') || vehicles.find(x => x.name === 'Phillis');
+      const originalPhillis = vehicles.find(x => x.name === 'Phillis') || phillis;
+      const phillisTwo = vehicles.find(x => x.name === 'Phillis II.0') || phillis;
+      const trailerForRecord = record => record.trailer === 'Phillis'
+        ? originalPhillis
+        : record.trailer === 'Phillis II.0'
+          ? phillisTwo
+          : Number(String(record.date || '').slice(0, 4)) >= 2026 ? phillisTwo : originalPhillis;
       const siteRows = assert(await client.from('seasonal_sites').select('*').eq('household_id', householdId));
       const seasonalSite = siteRows[0];
       if (!ruby || !phillis || !seasonalSite) throw new Error('Ruby, Phillis, or Lehigh Gorge is missing.');
@@ -548,12 +556,13 @@
       if (fuelRows.length) assert(await client.from('trip_fuel').upsert(fuelRows));
 
       const maintSets = [
-        ['phillisMaintenance', phillis.id, 'maintenance'], ['phillisUpgrades', phillis.id, 'upgrade'],
+        ['phillisMaintenance', null, 'maintenance'], ['phillisUpgrades', null, 'upgrade'],
         ['rubyMaintenance', ruby.id, 'maintenance'], ['rubyUpgrades', ruby.id, 'upgrade']
       ];
       const maintRows = maintSets.flatMap(([key, vehicleId, recordType]) => snapshot[key].map(x => {
+        const assignedVehicleId=key.startsWith('phillis')?trailerForRecord(x).id:vehicleId;
         return { ...(x._cloudId != null ? { id: x._cloudId } : {}), _local: x,
-          vehicle_id: vehicleId, date: x.date, description: x.description,
+          vehicle_id: assignedVehicleId, date: x.date, description: x.description,
           cost: x.price || 0, vendor: x.location || null, notes: x.notes || null, record_type: recordType };
       }));
       const existingMaint = maintRows.filter(x => x.id != null).map(({ _local, ...row }) => row);
