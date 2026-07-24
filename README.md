@@ -13,6 +13,10 @@ Travel Journal is Scott and Kayla's private travel companion.
   read-only calendar subscription remains a fallback if a native companion is
   not pursued.
 
+## Version 0.23.1
+
+- Moves the Recent Updates card to the bottom of the More page.
+
 ## Version 0.23.0
 
 - Adds a compact Recent Updates card to the More page.

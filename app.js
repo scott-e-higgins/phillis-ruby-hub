@@ -1,4 +1,4 @@
-const APP_VERSION='0.23.0';
+const APP_VERSION='0.23.1';
 const SEED={"tripSummaries":[],"stays":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const $=s=>document.querySelector(s), $$=(s,root=document)=>[...root.querySelectorAll(s)];
