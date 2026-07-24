@@ -119,7 +119,7 @@ main{max-width:920px;margin:auto;padding:22px 16px 10px}
 .trip-card-photo img,.trip-hero-photo img,.trip-detail-photo img{display:block;width:100%;object-fit:cover;transition:transform .25s var(--ease),filter .25s var(--ease)}
 .trip-card-photo img{height:76px}
 .trip-hero-photo img{height:170px}
-.trip-detail-photo img{height:82px;object-fit:cover;object-position:center}
+.trip-detail-photo img{height:82px;object-fit:contain;object-position:center;background:#101512}
 .trip-card-photo:hover img,.trip-hero-photo:hover img,.trip-detail-photo:hover img{transform:scale(1.02);filter:brightness(1.06)}
 .trip-card-photo span,.trip-hero-photo span,.trip-detail-photo span{display:block;padding:6px 8px;background:#29332e;color:#c9d3ce;font-size:9px;font-weight:850;text-align:left;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap}
 .trip-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
