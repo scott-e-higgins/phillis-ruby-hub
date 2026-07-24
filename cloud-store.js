@@ -222,6 +222,7 @@
           phillisUpgrades: [],
           rubyMaintenance: [],
           rubyUpgrades: [],
+          sharedNotes: [],
           meta: { cloud: true, viewer: true }
         };
       }
@@ -234,9 +235,10 @@
         client.from('seasonal_sites').select('*').eq('household_id', householdId),
         client.from('site_seasons').select('*'),
         client.from('seasonal_payments').select('*'),
-        client.from('electric_bills').select('*')
+        client.from('electric_bills').select('*'),
+        client.from('hub_notes').select('*').eq('household_id', householdId)
       ]);
-      const [trips, stays, fuel, vehicles, maintenance, sites, seasons, payments, electric] = results.map(assert);
+      const [trips, stays, fuel, vehicles, maintenance, sites, seasons, payments, electric, notes] = results.map(assert);
       known = {
         trips: new Set(trips.map(x => x.id)),
         campground_stays: new Set(stays.map(x => x.id)),
@@ -244,7 +246,8 @@
         maintenance: new Set(maintenance.map(x => x.id)),
         site_seasons: new Set(seasons.map(x => x.id)),
         seasonal_payments: new Set(payments.map(x => x.id)),
-        electric_bills: new Set(electric.map(x => x.id))
+        electric_bills: new Set(electric.map(x => x.id)),
+        hub_notes: new Set(notes.map(x => x.id))
       };
 
       const tripById = new Map(trips.map(x => [x.id, x]));
@@ -403,6 +406,13 @@
         })),
         siteFees,
         electric: localElectric,
+        sharedNotes: notes.map(row=>({
+          _cloudId:row.id,
+          title:row.title,
+          body:row.body||'',
+          createdAt:row.created_at,
+          updatedAt:row.updated_at
+        })),
         ...maintenanceGroups,
         meta: { cloud: true }
       };
@@ -517,12 +527,23 @@
       }).filter(x => x.season_id);
       if (electricRows.length) assert(await client.from('electric_bills').upsert(electricRows));
 
+      snapshot.sharedNotes.forEach(x => { if (!x._cloudId) x._cloudId = uuid(); });
+      const noteRows = snapshot.sharedNotes.map(x => ({
+        id:x._cloudId,
+        household_id:householdId,
+        title:x.title,
+        body:x.body||null,
+        updated_at:x.updatedAt||x.createdAt||new Date().toISOString()
+      }));
+      if(noteRows.length)assert(await client.from('hub_notes').upsert(noteRows));
+
       await removeMissing('campground_stays', new Set(ordinaryStays.map(x => x._cloudId)));
       await removeMissing('trip_fuel', new Set(snapshot.fuel.map(x => x._cloudId)));
       await removeMissing('maintenance', new Set(maintRows.map(x => x.id)));
       await removeMissing('seasonal_payments', new Set(snapshot.siteFees.map(x => x._cloudId)));
       await removeMissing('electric_bills', new Set(snapshot.electric.map(x => x._cloudId)));
       await removeMissing('site_seasons', new Set(seasonEntries.map(x => x._cloudId)));
+      await removeMissing('hub_notes', new Set(snapshot.sharedNotes.map(x => x._cloudId)));
       await removeMissing('trips', new Set(snapshot.tripSummaries.map(x => x._cloudId)));
       Object.keys(known).forEach(table => {
         const source = table === 'campground_stays' ? ordinaryStays :
@@ -530,7 +551,8 @@
           table === 'maintenance' ? maintRows.map(x => ({ _cloudId: x.id })) :
           table === 'site_seasons' ? seasonEntries :
           table === 'seasonal_payments' ? snapshot.siteFees :
-          table === 'electric_bills' ? snapshot.electric : snapshot.tripSummaries;
+          table === 'electric_bills' ? snapshot.electric :
+          table === 'hub_notes' ? snapshot.sharedNotes : snapshot.tripSummaries;
         known[table] = new Set(source.map(x => x._cloudId));
       });
     }

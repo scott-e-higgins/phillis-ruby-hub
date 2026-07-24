@@ -2,6 +2,13 @@
 
 Adventure Hub is Scott and Kayla's private travel companion.
 
+## Version 0.18.0
+
+- Replaces the bottom More tab with private shared Notes for Scott and Kayla.
+- Adds cloud-synced note creation, editing, deletion, and newest-first sorting.
+- Keeps More available from the header menu.
+- Hides shared Notes from Family Viewer accounts.
+
 ## Version 0.17.6
 
 - Detects the installed iPhone Home Screen app directly.

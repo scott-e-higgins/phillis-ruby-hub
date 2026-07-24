@@ -232,6 +232,18 @@ fieldset legend{font-weight:850;padding:0 7px}
 .record-detail-actions{display:flex;justify-content:flex-end;margin-bottom:8px}
 .record-notes{margin-top:19px;padding:15px;border-radius:11px;background:#202a25}
 .record-notes small{font-size:11px;letter-spacing:.12em;font-weight:850;color:var(--muted)}
+.notes-intro{margin-top:-5px;margin-bottom:18px}
+.note-list{display:grid;gap:12px}
+.note-card{display:block;width:100%;padding:17px;border:1px solid var(--line);border-radius:8px;background:linear-gradient(145deg,#2a342f,#232c28);color:var(--ink);text-align:left;box-shadow:var(--shadow-sm);transition:.2s var(--ease)}
+.note-card:hover{transform:translateY(-1px);border-color:#536159;background:#303b35}
+.note-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.note-card h3{margin:0;font-size:18px;letter-spacing:-.015em}
+.note-card-top span{font-size:27px;line-height:1;color:#7f8a84}
+.note-card p{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;white-space:pre-wrap;margin:7px 0 10px;color:#c3cdc8;font-size:14px;line-height:1.45}
+.note-card .note-empty-copy{color:var(--muted);font-style:italic}
+.note-card small{color:var(--muted);font-size:11px;font-weight:750;letter-spacing:.02em}
+.note-body{min-height:120px;margin-top:16px;padding:17px;border:1px solid var(--line);border-radius:8px;background:#202823;color:#e1e9e5;white-space:pre-wrap;overflow-wrap:anywhere}
+.note-detail-updated{margin:10px 2px 0;color:var(--muted);font-size:12px}
 .record-notes p{margin:6px 0 0;white-space:pre-wrap;color:var(--ink)}
 .fuel-calculations{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:13px}
 .fuel-calculations span{display:flex;justify-content:space-between;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:#171f1b;color:var(--muted);font-size:13px}
@@ -501,6 +513,7 @@ dialog::backdrop{background:rgba(4,9,7,.66)}
 .viewer-mode #backupCard,
 .viewer-mode #householdAccessCard,
 .viewer-mode .bottom-nav [data-view="phillis"],
-.viewer-mode .bottom-nav [data-view="ruby"]{display:none!important}
-.viewer-mode .bottom-nav{grid-template-columns:repeat(3,1fr)}
+.viewer-mode .bottom-nav [data-view="ruby"],
+.viewer-mode .bottom-nav [data-view="notes"]{display:none!important}
+.viewer-mode .bottom-nav{grid-template-columns:repeat(2,1fr)}
 .viewer-mode .trip-year-content{margin-top:12px}

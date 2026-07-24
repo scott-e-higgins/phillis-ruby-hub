@@ -17,7 +17,7 @@
       document.documentElement.classList.add('standalone-app');
     }
   </script>
-  <link rel="stylesheet" href="styles.css?v=0.17.6">
+  <link rel="stylesheet" href="styles.css?v=0.18.0">
 </head>
 <body>
 <div id="pullRefresh" class="pull-refresh" aria-live="polite">
@@ -94,6 +94,15 @@
     <div id="rubyPanel"></div>
   </section>
 
+  <section id="notes" class="view">
+    <div class="page-title">
+      <div><small>SCOTT & KAYLA</small><h2>Notes</h2></div>
+      <button class="primary" data-open="hub-note">Add note</button>
+    </div>
+    <p class="intro notes-intro">Shared lists, reminders, ideas, and anything else you both want close at hand.</p>
+    <div id="noteList" class="note-list"></div>
+  </section>
+
   <section id="more" class="view">
     <div class="page-title"><div><small>ADVENTURE HUB</small><h2>More</h2></div></div>
     <article class="card" id="cloudAccountCard">
@@ -133,7 +142,7 @@
   <button data-view="trips"><span>◇</span>Trips</button>
   <button data-view="phillis"><span>△</span>Phillis</button>
   <button data-view="ruby"><span>▰</span>Ruby</button>
-  <button data-view="more"><span>•••</span>More</button>
+  <button data-view="notes"><span>✎</span>Notes</button>
 </nav>
 
 <dialog id="entryDialog">
@@ -143,7 +152,7 @@
     <input id="entryIndex" type="hidden">
     <input id="entryStayIndex" type="hidden">
     <div id="entryFields"></div>
-    <label>Notes<textarea id="notes" rows="3"></textarea></label>
+    <label><span id="entryNotesLabel">Notes</span><textarea id="notes" rows="5"></textarea></label>
     <div class="form-actions"><button class="primary">Save</button><button type="button" class="secondary close">Cancel</button></div>
   </form>
 </dialog>
@@ -185,8 +194,8 @@
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
 <script src="supabase-config.js" defer></script>
-<script src="cloud.js?v=0.17.6" defer></script>
-<script src="cloud-store.js?v=0.17.6" defer></script>
-<script src="app.js?v=0.17.6" defer></script>
+<script src="cloud.js?v=0.18.0" defer></script>
+<script src="cloud-store.js?v=0.18.0" defer></script>
+<script src="app.js?v=0.18.0" defer></script>
 </body>
 </html>

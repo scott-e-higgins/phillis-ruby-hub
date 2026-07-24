@@ -1,4 +1,4 @@
-const SEED={"tripSummaries":[],"stays":[],"fuel":[],"siteFees":[],"electric":[],"meta":{"source":"Supabase","version":"0.17.6"},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
+const SEED={"tripSummaries":[],"stays":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"meta":{"source":"Supabase","version":"0.18.0"},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const $=s=>document.querySelector(s), $$=(s,root=document)=>[...root.querySelectorAll(s)];
 const clone=x=>JSON.parse(JSON.stringify(x));
@@ -7,7 +7,7 @@ function migrate(x){
   if(!x) return null;
   if(x.maintenance&&!x.phillisMaintenance) x.phillisMaintenance=x.maintenance;
   delete x.maintenance;
-  for(const k of ['phillisMaintenance','phillisUpgrades','rubyMaintenance','rubyUpgrades','fuel','electric','siteFees','stays','tripSummaries']) x[k]=x[k]||[];
+  for(const k of ['phillisMaintenance','phillisUpgrades','rubyMaintenance','rubyUpgrades','fuel','electric','siteFees','stays','tripSummaries','sharedNotes']) x[k]=x[k]||[];
   return x;
 }
 let db=migrate(JSON.parse(localStorage.getItem(KEY)||localStorage.getItem(OLDKEY)||'null'))||clone(SEED);
@@ -109,13 +109,42 @@ function tripProgress(t){
   return {day:Math.max(1,elapsed),length:Math.max(1,length)};
 }
 function go(view){
+  if(view==='notes'&&window.ADVENTURE_HUB_CLOUD?.role==='viewer')view='home';
   $$('.view').forEach(v=>v.classList.toggle('active',v.id===view));
   $$('.bottom-nav [data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
   window.scrollTo(0,0);
   if(view==='home') renderHome();
   if(view==='trips') renderTrips();
+  if(view==='notes') renderNotes();
 }
 $$('[data-view]').forEach(b=>b.addEventListener('click',()=>go(b.dataset.view)));
+
+function noteWhen(value){
+  if(!value)return '';
+  const stamp=new Date(value);
+  if(Number.isNaN(stamp.getTime()))return '';
+  return stamp.toLocaleString(undefined,{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'});
+}
+function renderNotes(){
+  const host=$('#noteList'); if(!host)return;
+  const notes=[...(db.sharedNotes||[])].sort((a,b)=>String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||'')));
+  host.innerHTML=notes.map(note=>{
+    const index=db.sharedNotes.indexOf(note);
+    const preview=(note.body||'').trim();
+    return `<button class="note-card" type="button" data-note-index="${index}"><div class="note-card-top"><h3>${escapeHtml(note.title||'Untitled note')}</h3><span>›</span></div>${preview?`<p>${escapeHtml(preview)}</p>`:'<p class="note-empty-copy">No text yet.</p>'}<small>${noteWhen(note.updatedAt||note.createdAt)?`Updated ${noteWhen(note.updatedAt||note.createdAt)}`:'Shared note'}</small></button>`;
+  }).join('')||'<div class="empty">No shared notes yet. Add your first list, reminder, or idea.</div>';
+  $$('[data-note-index]',host).forEach(button=>button.onclick=()=>showNote(+button.dataset.noteIndex));
+  bindOpeners();
+}
+function showNote(index){
+  const note=db.sharedNotes?.[index]; if(!note)return;
+  $('#detailKicker').textContent='SHARED NOTE';
+  $('#detailTitle').textContent=note.title||'Untitled note';
+  $('#detailBody').innerHTML=`<div class="record-detail-actions"><button class="primary" id="editHubNote">Edit note</button></div><div class="note-body">${escapeHtml(note.body||'')}</div>${note.updatedAt?`<p class="note-detail-updated">Last updated ${noteWhen(note.updatedAt)}</p>`:''}<div class="trip-delete-area"><button class="delete-link" id="deleteHubNote">Delete note</button></div>`;
+  $('#editHubNote').onclick=()=>{$('#detailDialog').close();openEntry('hub-note',index)};
+  $('#deleteHubNote').onclick=()=>{if(!confirm(`Delete “${note.title||'this note'}”?`))return;db.sharedNotes.splice(index,1);save();$('#detailDialog').close();renderNotes()};
+  $('#detailDialog').showModal();
+}
 
 function renderHome(){
   const upcoming=db.tripSummaries.filter(isUpcoming).sort((a,b)=>{
@@ -354,6 +383,7 @@ function stayPhotoEditorSlot(kind,title,help){
   return `<article class="stay-photo-editor"><div class="stay-photo-editor-copy"><b>${title}</b><p>${help}</p></div><div class="stay-photo-preview" id="${kind}PhotoPreview"><span>No photo yet</span></div><div class="stay-photo-actions"><label class="secondary photo-picker">Choose photo<input id="${kind}PhotoFile" type="file" accept="image/*" hidden></label><button class="delete-link remove-stay-photo" id="remove${kind[0].toUpperCase()+kind.slice(1)}Photo" type="button" hidden>Remove</button></div></article>`;
 }
 function fields(type){
+  if(type==='hub-note') return `<label>Title<input id="name" required maxlength="120"></label>`;
   if(type==='trip') return `<label>Trip name<input id="name" required></label><div class="two"><label>Start date<input id="startDate" type="date" required></label><label>End date<input id="endDate" type="date" required></label></div><section class="trip-photo-editor"><div class="stay-photo-editors-heading"><b>On the Road Again</b><p>The photo you take near the start of this trip. It becomes the cover of the trip card.</p></div><div class="trip-photo-preview" id="onRoadPhotoPreview"><span>No photo yet</span></div><div class="stay-photo-actions"><label class="secondary photo-picker">Choose photo<input id="onRoadPhotoFile" type="file" accept="image/*" hidden></label><button class="delete-link remove-stay-photo" id="removeOnRoadPhoto" type="button" hidden>Remove</button></div></section><div class="trip-stays-heading"><div><b>Places you are staying</b><p class="field-help">Add and edit every stop for this trip.</p></div><button type="button" class="secondary small-add" id="addTripStay">Add another stay</button></div><div id="tripStaysEditor" class="trip-stays-editor"></div>`;
   if(type==='fuel'){
     const options=db.tripSummaries.slice().sort((a,b)=>tripStamp(b).localeCompare(tripStamp(a))).map(t=>`<option value="${escapeHtml(t.name)}">${escapeHtml(t.name)}</option>`).join('');
@@ -472,10 +502,15 @@ function bindTripPhotoEditor(trip={}){
   });
 }
 function openEntry(type,index=null,returnTripIndex=null){
-  const titles={trip:index===null?'Add trip':'Edit trip',fuel:index===null?'Add fuel':'Edit fuel stop',stay:index===null?'Add campground':'Edit stay','phillis-maint':index===null?'Add Phillis maintenance':'Edit Phillis maintenance','phillis-upgrade':index===null?'Add Phillis upgrade':'Edit Phillis upgrade','ruby-maint':index===null?'Add Ruby maintenance':'Edit Ruby maintenance','ruby-upgrade':index===null?'Add Ruby upgrade':'Edit Ruby upgrade',electric:index===null?'Add electric reading':'Edit electric reading',sitepayment:index===null?'Add seasonal payment':'Edit seasonal payment',sitefee:index===null?'Add season':'Edit season'};
+  const titles={'hub-note':index===null?'Add note':'Edit note',trip:index===null?'Add trip':'Edit trip',fuel:index===null?'Add fuel':'Edit fuel stop',stay:index===null?'Add campground':'Edit stay','phillis-maint':index===null?'Add Phillis maintenance':'Edit Phillis maintenance','phillis-upgrade':index===null?'Add Phillis upgrade':'Edit Phillis upgrade','ruby-maint':index===null?'Add Ruby maintenance':'Edit Ruby maintenance','ruby-upgrade':index===null?'Add Ruby upgrade':'Edit Ruby upgrade',electric:index===null?'Add electric reading':'Edit electric reading',sitepayment:index===null?'Add seasonal payment':'Edit seasonal payment',sitefee:index===null?'Add season':'Edit season'};
   $('#entryType').value=type; $('#entryIndex').value=index===null?'':index; $('#entryStayIndex').value=returnTripIndex===null?'':returnTripIndex;
   $('#entryTitle').textContent=titles[type]; $('#entryFields').innerHTML=fields(type); $('#notes').value='';
+  $('#entryNotesLabel').textContent=type==='hub-note'?'Note':'Notes';
   const today=new Date().toISOString().slice(0,10), d=$('#date')||$('#arrival')||$('#startDate'); if(d)d.value=today; if(type==='trip')$('#endDate').value=$('#startDate').value;
+  if(type==='hub-note'&&index!==null){
+    const note=db.sharedNotes?.[index];
+    if(note){$('#name').value=note.title||'';$('#notes').value=note.body||'';}
+  }
   if(index===null && returnTripIndex!==null && (type==='sitepayment'||type==='electric')){const year=+returnTripIndex;if($('#year'))$('#year').value=year;if($('#date'))$('#date').value=`${year}-${type==='electric'?'06':'01'}-01`;if(type==='electric'&&$('#paid'))$('#paid').value='';}
   if(type==='stay'){
     const cost=$('#total'),checks=[$('#harvestHost'),$('#moochdocking'),$('#boondocking')];
@@ -553,7 +588,14 @@ function openEntry(type,index=null,returnTripIndex=null){
     const record=db[key]?.[index];
     if(record){$('#date').value=record.date||today;$('#description').value=record.description||'';$('#location').value=record.location||'';$('#total').value=record.price??'';$('#notes').value=record.notes||'';}
   }
-  if(type==='trip'){
+  if(type==='hub-note'){
+    const index=$('#entryIndex').value===''?null:+$('#entryIndex').value;
+    const prior=index===null?null:db.sharedNotes[index];
+    const now=new Date().toISOString();
+    const record={...(prior||{}),title:$('#name').value.trim(),body:notes,createdAt:prior?.createdAt||now,updatedAt:now};
+    if(index===null)db.sharedNotes.push(record);else db.sharedNotes[index]=record;
+  }
+  else if(type==='trip'){
     if(index!==null){
       const t=db.tripSummaries[index], [start,end]=tripDates(t), stays=matchingStays(t);
       $('#name').value=t.name||''; $('#startDate').value=start; $('#endDate').value=end; $('#notes').value=t.notes||'';
@@ -656,7 +698,7 @@ $('#entryForm').onsubmit=async e=>{
   submitButton.disabled=false;
   submitButton.textContent=originalButtonText;
   clearStayPhotoPreviewUrls();
-  $('#entryDialog').close(); renderHome(); renderTrips();
+  $('#entryDialog').close(); renderHome(); renderTrips(); renderNotes();
   if(type==='fuel' && returnTripIndex===null) showPanel('fuel-history');
   if(type==='phillis-maint') showPanel('phillis-maintenance');
   if(type==='phillis-upgrade') showPanel('phillis-upgrades');
@@ -664,7 +706,7 @@ $('#entryForm').onsubmit=async e=>{
   if(returnTripIndex!==null && !['sitepayment','electric'].includes(type)) showTrip(returnTripIndex);
 };
 $('#export').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(db,null,2)],{type:'application/json'}));a.download='adventure-hub-backup.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500)};
-$('#importFile').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{db=migrate(JSON.parse(r.result));applyDataMigrations();save();renderHome();renderTrips();alert('Backup imported.')}catch{alert('That file could not be imported.')}};r.readAsText(f)};
+$('#importFile').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{db=migrate(JSON.parse(r.result));applyDataMigrations();save();renderHome();renderTrips();renderNotes();alert('Backup imported.')}catch{alert('That file could not be imported.')}};r.readAsText(f)};
 async function loadCloudData(){
   const status=$('#cloudAccountStatus');
   if(status)status.textContent='Loading shared Adventure Hub records…';
@@ -673,7 +715,7 @@ async function loadCloudData(){
     TODAY=new Date(); TODAY.setHours(0,0,0,0);
     cloudLoaded=true;
     localStorage.setItem(KEY,JSON.stringify(db));
-    renderHome();renderTrips();
+    renderHome();renderTrips();renderNotes();
     if(status&&window.ADVENTURE_HUB_CLOUD)status.textContent=`Connected as ${window.ADVENTURE_HUB_CLOUD.user.email} · Higgins Hub · Cloud sync is on`;
     return true;
   }catch(error){
@@ -745,4 +787,4 @@ function enablePullToRefresh(){
 window.addEventListener('adventure-store-ready',loadCloudData);
 if(window.ADVENTURE_HUB_STORE)loadCloudData();
 enablePullToRefresh();
-renderHome(); renderTrips();
+renderHome(); renderTrips(); renderNotes();
