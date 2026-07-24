@@ -1,4 +1,4 @@
-const APP_VERSION='0.28.1';
+const APP_VERSION='0.29.0';
 const SEED={"tripSummaries":[],"stays":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"vehicleDetails":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const $=s=>document.querySelector(s), $$=(s,root=document)=>[...root.querySelectorAll(s)];
@@ -523,7 +523,16 @@ function showElectricRecord(index){
   $('#detailDialog').showModal();
 }
 
-function showPanel(page){
+function showPanel(page,{toggle=false}={}){
+  const target=$(`[data-page-panel="${page}"]`);
+  const trigger=$(`[data-page="${page}"]`);
+  if(!target||!trigger)return;
+  if(toggle&&!target.hidden){
+    target.hidden=true;
+    target.innerHTML='';
+    trigger.setAttribute('aria-expanded','false');
+    return;
+  }
   let title='',html='';
   if(page==='phillis-maintenance'){title='Maintenance & repairs';html=`<div class="section-row"><h2>${title}</h2><button class="text-button" data-open="phillis-maint">Add</button></div><div class="stack">${phillisRecordList(db.phillisMaintenance,'phillisMaintenance','phillis-maint','phillis-maintenance')}</div>`}
   if(page==='phillis-upgrades'){title='Upgrades';html=`<div class="section-row"><h2>${title}</h2><button class="text-button" data-open="phillis-upgrade">Add</button></div><div class="stack">${phillisRecordList(db.phillisUpgrades,'phillisUpgrades','phillis-upgrade','phillis-upgrades')}</div>`}
@@ -549,7 +558,10 @@ function showPanel(page){
     const seasonalAddress=[seasonalSite.address,seasonalSite.city,seasonalSite.state,seasonalSite.zip].filter(Boolean).join(', ');
     html=`<div class="section-row"><h2>${escapeHtml(seasonalTitle)}${seasonalSite.site?` · Site ${escapeHtml(seasonalSite.site)}`:''}</h2></div><article class="card">${seasonalAddress?`<b>${escapeHtml(seasonalAddress)}</b>`:''}<p>Phillis's seasonal home.</p><div class="trip-stat-grid lehigh-summary"><div><span>Years</span><strong>${seasonal.length}</strong></div><div><span>Season fees</span><strong>${money(seasonalTotal)}</strong></div><div><span>Electric</span><strong>${money(electricTotal)}</strong></div><div><span>Grand total</span><strong>${money(seasonalTotal+electricTotal)}</strong></div></div><div class="button-row"><button class="primary" data-open="sitefee">Add season</button></div></article><div class="lehigh-year-list">${seasonCards||'<div class="empty">No seasonal records yet.</div>'}</div>`
   }
-  const target=page.startsWith('ruby')||page==='fuel-history'?$('#rubyPanel'):$('#phillisPanel'); target.innerHTML=html; bindOpeners(); bindDeletes();
+  target.innerHTML=html;
+  target.hidden=false;
+  trigger.setAttribute('aria-expanded','true');
+  bindOpeners(); bindDeletes();
   $$('[data-fuel-record-index]',target).forEach(button=>button.onclick=()=>showFuelRecord(+button.dataset.fuelRecordIndex));
   $$('[data-record-key]',target).forEach(button=>button.onclick=()=>showPhillisRecord(button.dataset.recordKey,+button.dataset.recordIndex,button.dataset.recordType,button.dataset.recordPage));
   $$('[data-ruby-record-key]',target).forEach(button=>button.onclick=()=>showRubyRecord(button.dataset.rubyRecordKey,+button.dataset.rubyRecordIndex,button.dataset.rubyRecordType,button.dataset.rubyRecordPage));
@@ -559,8 +571,8 @@ function showPanel(page){
   $$('[data-add-site-payment]',target).forEach(button=>button.onclick=()=>openEntry('sitepayment',null,+button.dataset.addSitePayment));
   $$('[data-add-electric-year]',target).forEach(button=>button.onclick=()=>openEntry('electric',null,+button.dataset.addElectricYear));
 }
-$$('[data-page]').forEach(b=>b.onclick=()=>showPanel(b.dataset.page));
-function bindDeletes(){$$('[data-delete]').forEach(b=>b.onclick=()=>{if(confirm('Delete this record?')){db[b.dataset.delete].splice(+b.dataset.index,1);save();showPanel(b.closest('#rubyPanel')?'ruby-maintenance':'phillis-maintenance');renderHome()}})}
+$$('[data-page]').forEach(b=>b.onclick=()=>showPanel(b.dataset.page,{toggle:true}));
+function bindDeletes(){$$('[data-delete]').forEach(b=>b.onclick=()=>{if(confirm('Delete this record?')){const panel=b.closest('[data-page-panel]');db[b.dataset.delete].splice(+b.dataset.index,1);save();if(panel)showPanel(panel.dataset.pagePanel);renderHome()}})}
 function stayPhotoEditorSlot(kind,title,help){
   return `<article class="stay-photo-editor"><div class="stay-photo-editor-copy"><b>${title}</b><p>${help}</p></div><div class="stay-photo-preview" id="${kind}PhotoPreview"><span>No photo yet</span></div><div class="stay-photo-actions"><label class="secondary photo-picker">Choose photo<input id="${kind}PhotoFile" type="file" accept="image/*" hidden></label><button class="delete-link remove-stay-photo" id="remove${kind[0].toUpperCase()+kind.slice(1)}Photo" type="button" hidden>Remove</button></div></article>`;
 }

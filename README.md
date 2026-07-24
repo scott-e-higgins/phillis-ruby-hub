@@ -13,6 +13,14 @@ Travel Journal is Scott and Kayla's private travel companion.
   read-only calendar subscription remains a fallback if a native companion is
   not pursued.
 
+## Version 0.29.0
+
+- Turns every Rig menu item into an inline expanding section.
+- Opens maintenance, upgrades, fuel history, and Lehigh Gorge records directly
+  beneath the item that was tapped instead of placing them below the entire
+  Phillis or Ruby card.
+- Keeps each expanded section independently collapsible.
+
 ## Version 0.28.1
 
 - Adds the VIN for Phillis II.0 and Ruby beneath each vehicle's identifying

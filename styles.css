@@ -153,9 +153,10 @@ main{max-width:920px;margin:auto;padding:22px 16px 10px}
 .trip-numbers b{font-size:15px}
 
 .menu-list{display:grid;gap:11px;margin-bottom:20px}
-.menu-list>button{display:grid;grid-template-columns:44px 1fr 24px;align-items:center;text-align:left;gap:12px;border:1px solid var(--line);background:var(--paper);border-radius:9px;padding:15px;color:var(--ink);box-shadow:var(--shadow-sm);transition:.2s var(--ease)}
-.menu-list>button:hover{transform:translateY(-2px);border-color:#4d665b;box-shadow:0 12px 26px rgba(0,0,0,.28)}
-.menu-list>button>span{width:42px;height:42px;display:grid;place-items:center;border-radius:10px;background:var(--pine-3);font-size:22px}
+.rig-menu-item{display:grid}
+.rig-menu-button{display:grid;width:100%;grid-template-columns:44px 1fr 24px;align-items:center;text-align:left;gap:12px;border:1px solid var(--line);background:var(--paper);border-radius:9px;padding:15px;color:var(--ink);box-shadow:var(--shadow-sm);transition:.2s var(--ease)}
+.rig-menu-button:hover{transform:translateY(-2px);border-color:#4d665b;box-shadow:0 12px 26px rgba(0,0,0,.28)}
+.rig-menu-button>span{width:42px;height:42px;display:grid;place-items:center;border-radius:10px;background:var(--pine-3);font-size:22px}
 .menu-list b,.menu-list small{display:block}
 .menu-list small{color:var(--muted);margin-top:2px}
 .menu-list i{font-size:27px;color:#748079;font-style:normal}
@@ -364,7 +365,11 @@ fieldset legend{font-weight:850;padding:0 7px}
 .vehicle-section-icon{display:grid;width:46px;height:46px;flex:0 0 46px;place-items:center;border:1px solid #536159;border-radius:8px;background:#25322c;color:#b8e5cf;font-size:22px}
 .vehicle-section-ruby .vehicle-section-icon{background:#3a292d;border-color:#6d444c;color:#e9b4bb}
 .vehicle-section .menu-list{margin:0}
-.vehicle-panel:not(:empty){margin-top:18px;padding-top:16px;border-top:1px solid #4b5851}
+.rig-menu-button[aria-expanded="true"]{border-color:#6f927f;border-radius:9px 9px 0 0;background:linear-gradient(145deg,#3b4941,#334039);box-shadow:none}
+.rig-menu-button i{transition:transform .2s var(--ease)}
+.rig-menu-button[aria-expanded="true"] i{transform:rotate(180deg);color:var(--gold)}
+.vehicle-panel{margin:-1px 0 4px;padding:16px 13px 13px;border:1px solid #4b5851;border-top:0;border-radius:0 0 9px 9px;background:#222b26}
+.vehicle-panel[hidden]{display:none}
 .fuel-calculations{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:13px}
 .fuel-calculations span{display:flex;justify-content:space-between;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:#171f1b;color:var(--muted);font-size:13px}
 .fuel-calculations b{color:var(--ink);font-variant-numeric:tabular-nums}
@@ -458,10 +463,10 @@ fieldset legend{font-weight:850;padding:0 7px}
 ::selection{background:rgba(103,169,140,.32);color:#fff}
 .topbar{border-bottom:1px solid rgba(255,255,255,.05)}
 .topbar::before,.topbar::after{opacity:.18}
-.quick-actions button,.list-item,.trip-item,.record-item,.card,.menu-list>button{backdrop-filter:blur(10px)}
-.quick-actions button,.menu-list>button,.list-item,.trip-item,.record-item,.card{border-color:#303b35}
-.quick-actions button:hover,.menu-list>button:hover,.list-item:hover,.trip-item:hover,.record-link:hover{background:#202a25}
-.quick-actions span,.record-icon,.menu-list>button>span{background:linear-gradient(145deg,#244137,#1d332b);color:#dcece4;border:1px solid rgba(119,181,153,.12)}
+.quick-actions button,.list-item,.trip-item,.record-item,.card,.rig-menu-button{backdrop-filter:blur(10px)}
+.quick-actions button,.rig-menu-button,.list-item,.trip-item,.record-item,.card{border-color:#303b35}
+.quick-actions button:hover,.rig-menu-button:hover,.list-item:hover,.trip-item:hover,.record-link:hover{background:#202a25}
+.quick-actions span,.record-icon,.rig-menu-button>span{background:linear-gradient(145deg,#244137,#1d332b);color:#dcece4;border:1px solid rgba(119,181,153,.12)}
 .primary{background:linear-gradient(135deg,#3d775f,#579878);box-shadow:0 9px 22px rgba(0,0,0,.28)}
 .primary:hover{box-shadow:0 12px 26px rgba(0,0,0,.36)}
 .secondary{color:#e5ede9}
@@ -513,16 +518,16 @@ main{padding-top:26px}
 .trip-item,
 .record-item,
 .card,
-.menu-list>button{
+.rig-menu-button{
   background:linear-gradient(145deg,#343e38,#2e3732);
   border-color:#4b5851;
   box-shadow:var(--shadow-sm);
 }
 .list-item,.trip-item,.record-item,.card{padding:19px}
-.menu-list>button{padding:18px}
+.rig-menu-button{padding:18px}
 .quick-actions button{padding:18px 9px 17px}
 .quick-actions button:hover,
-.menu-list>button:hover,
+.rig-menu-button:hover,
 .list-item:hover,
 .trip-item:hover,
 .record-link:hover{
@@ -530,7 +535,7 @@ main{padding-top:26px}
   border-color:#668072;
   box-shadow:0 14px 32px rgba(0,0,0,.34);
 }
-.quick-actions span,.record-icon,.menu-list>button>span{
+.quick-actions span,.record-icon,.rig-menu-button>span{
   background:linear-gradient(145deg,#315849,#26463b);
   border-color:rgba(151,214,183,.18);
 }
