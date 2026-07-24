@@ -13,6 +13,19 @@ Travel Journal is Scott and Kayla's private travel companion.
   read-only calendar subscription remains a fallback if a native companion is
   not pursued.
 
+## Version 0.30.0
+
+- Opens each trip stay in a focused popup instead of stacking full stay forms
+  inside the trip form.
+- Returns every saved stop to the trip as a compact, clickable card.
+- Prefills the first stay with the trip dates.
+- Starts each additional stay on the prior stay's departure date and initially
+  ends it on the trip's end date.
+- Defaults check-in and check-out times to noon while keeping them editable.
+- Automatically fills the site as `HH`, `MD`, or `BD` when Harvest Host,
+  moochdocking, or boondocking is selected.
+- Keeps free-stay costs at zero and all generated values editable.
+
 ## Version 0.29.0
 
 - Turns every Rig menu item into an inline expanding section.

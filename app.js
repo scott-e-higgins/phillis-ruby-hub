@@ -1,4 +1,4 @@
-const APP_VERSION='0.29.0';
+const APP_VERSION='0.30.0';
 const SEED={"tripSummaries":[],"stays":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"vehicleDetails":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const $=s=>document.querySelector(s), $$=(s,root=document)=>[...root.querySelectorAll(s)];
@@ -581,12 +581,12 @@ function notePhotoFields(){
 }
 function fields(type){
   if(type==='hub-note') return `<label>Title<input id="name" required maxlength="120"></label><label class="note-checklist-toggle"><input id="noteChecklist" type="checkbox"> Use checkboxes</label><div class="checklist-editor" id="checklistEditor" hidden></div><button type="button" class="secondary add-checklist-item" id="addChecklistItem" hidden>+ Add item</button>`;
-  if(type==='trip') return `<label>Trip name<input id="name" required></label><div class="two"><label>Start date<input id="startDate" type="date" required></label><label>End date<input id="endDate" type="date" required></label></div><section class="trip-photo-editor"><div class="stay-photo-editors-heading"><b>On the Road Again</b><p>The photo you take near the start of this trip. It becomes the cover of the trip card.</p></div><div class="trip-photo-preview" id="onRoadPhotoPreview"><span>No photo yet</span></div><div class="stay-photo-actions"><label class="secondary photo-picker">Choose photo<input id="onRoadPhotoFile" type="file" accept="image/*" hidden></label><button class="delete-link remove-stay-photo" id="removeOnRoadPhoto" type="button" hidden>Remove</button></div></section><div class="trip-stays-heading"><div><b>Places you are staying</b><p class="field-help">Add and edit every stop for this trip.</p></div><button type="button" class="secondary small-add" id="addTripStay">Add another stay</button></div><div id="tripStaysEditor" class="trip-stays-editor"></div>`;
+  if(type==='trip') return `<label>Trip name<input id="name" required></label><div class="two"><label>Start date<input id="startDate" type="date" required></label><label>End date<input id="endDate" type="date" required></label></div><section class="trip-photo-editor"><div class="stay-photo-editors-heading"><b>On the Road Again</b><p>The photo you take near the start of this trip. It becomes the cover of the trip card.</p></div><div class="trip-photo-preview" id="onRoadPhotoPreview"><span>No photo yet</span></div><div class="stay-photo-actions"><label class="secondary photo-picker">Choose photo<input id="onRoadPhotoFile" type="file" accept="image/*" hidden></label><button class="delete-link remove-stay-photo" id="removeOnRoadPhoto" type="button" hidden>Remove</button></div></section><div class="trip-stays-heading"><div><b>Places you are staying</b><p class="field-help">Each stop opens in its own window, then appears here as a card.</p></div><button type="button" class="secondary small-add" id="addTripStay">Add stay</button></div><div id="tripStaysEditor" class="trip-stays-editor"></div>`;
   if(type==='fuel'){
     const options=db.tripSummaries.slice().sort((a,b)=>tripStamp(b).localeCompare(tripStamp(a))).map(t=>`<option value="${escapeHtml(t.name)}">${escapeHtml(t.name)}</option>`).join('');
     return `<div class="two"><label>Date<input id="date" type="date" required></label><label>Trip<select id="tripName" required><option value="">Choose a trip</option>${options}</select></label></div><label>Station<input id="station" required></label><label>Location<input id="location"></label><div class="three"><label>Gallons<input id="gallons" type="number" min=".001" step=".001" required></label><label>Total<input id="total" type="number" min="0" step=".01" required></label><label>Fuel type<select id="fuelType" required><option value="diesel">Diesel</option><option value="gasoline">Gasoline</option></select></label></div><div class="two"><label>Trip meter<input id="tripMeter" type="number" min="0" step=".1" required></label><label>Odometer<input id="odometer" type="number" min="0" step=".1"></label></div><div class="fuel-calculations" id="fuelCalculations"><span>MPG <b>—</b></span><span>Price / gallon <b>—</b></span></div>`;
   }
-  if(type==='stay') return `<div class="two"><label>Arrival<input id="arrival" type="date" required></label><label>Departure<input id="departure" type="date"></label></div><div class="two"><label>Check-in time<input id="checkInTime" type="time"></label><label>Check-out time<input id="checkOutTime" type="time"></label></div><label>Campground<input id="name" required></label><label>Address<input id="address"></label><div class="three"><label>City<input id="city"></label><label>State<input id="state"></label><label>Site<input id="site"></label></div><label>Total cost<input id="total" type="number" step=".01"></label><div class="stay-type-options"><label><input id="harvestHost" type="checkbox"> Harvest Host</label><label><input id="moochdocking" type="checkbox"> Moochdocking</label><label><input id="boondocking" type="checkbox"> Boondocking</label></div><section class="stay-photo-editors"><div class="stay-photo-editors-heading"><b>Stay photos</b><p>Add these from Kayla’s photo library now or come back later.</p></div>${stayPhotoEditorSlot('site','Campsite','The campsite photo you take at nearly every stop.')}${stayPhotoEditorSlot('sign','Sign','The entrance, campground, winery, farm, or host sign.')}</section>`;
+  if(type==='stay') return `<div class="two"><label>Arrival<input id="arrival" type="date" required></label><label>Departure<input id="departure" type="date"></label></div><div class="two"><label>Check-in time<input id="checkInTime" type="time" value="12:00"></label><label>Check-out time<input id="checkOutTime" type="time" value="12:00"></label></div><label>Campground<input id="name" required></label><label>Address<input id="address"></label><div class="three"><label>City<input id="city"></label><label>State<input id="state"></label><label>Site<input id="site"></label></div><label>Total cost<input id="total" type="number" step=".01"></label><div class="stay-type-options"><label><input id="harvestHost" type="checkbox"> Harvest Host</label><label><input id="moochdocking" type="checkbox"> Moochdocking</label><label><input id="boondocking" type="checkbox"> Boondocking</label></div><section class="stay-photo-editors"><div class="stay-photo-editors-heading"><b>Stay photos</b><p>Add these from Kayla’s photo library now or come back later.</p></div>${stayPhotoEditorSlot('site','Campsite','The campsite photo you take at nearly every stop.')}${stayPhotoEditorSlot('sign','Sign','The entrance, campground, winery, farm, or host sign.')}</section>`;
   if(type==='electric') return `<div class="two"><label>Reading date<input id="date" type="date" required></label><label>Paid date<input id="paid" type="date"></label></div><div class="three"><label>Previous meter<input id="previous" type="number" required></label><label>Current meter<input id="current" type="number" required></label><label>Rate / kWh<input id="rate" type="number" step=".001" value=".16"></label></div><label>Check number<input id="check"></label>`;
   if(type==='sitepayment') return `<div class="three"><label>Season year<input id="year" type="number" value="${new Date().getFullYear()}" required></label><label>Payment date<input id="date" type="date" required></label><label>Amount<input id="payment" type="number" step=".01" required></label></div><label>Check number<input id="check"></label>`;
   if(type==='sitefee'){
@@ -598,44 +598,78 @@ function fields(type){
 }
 function bindOpeners(){$$('[data-open]').forEach(b=>b.onclick=()=>openEntry(b.dataset.open))}
 let tripStayEditorItems=[];
+let tripOriginalStayIndices=new Set();
+let tripStayModalIndex=null;
 function blankTripStay(start='',end=''){
-  return {dbIndex:null,arrival:start,departure:end,checkInTime:'',checkOutTime:'',name:'',address:'',city:'',state:'',site:'',price:'',harvestHost:false,moochdocking:false,boondocking:false,stayType:'campground',notes:''};
+  return {dbIndex:null,arrival:start,departure:end,checkInTime:'12:00',checkOutTime:'12:00',name:'',address:'',city:'',state:'',site:'',price:'',harvestHost:false,moochdocking:false,boondocking:false,stayType:'campground',notes:''};
 }
 function renderTripStayEditor(){
   const host=$('#tripStaysEditor'); if(!host)return;
-  host.innerHTML=tripStayEditorItems.map((stay,i)=>`<fieldset class="trip-stay-card" data-stay-card="${i}"><div class="trip-stay-card-head"><legend>Stay ${i+1}</legend>${tripStayEditorItems.length>1?`<button type="button" class="remove-stay" data-remove-stay="${i}">Remove</button>`:''}</div><div class="two"><label>Arrival<input data-stay-field="arrival" type="date" value="${stay.arrival||''}" required></label><label>Departure<input data-stay-field="departure" type="date" value="${stay.departure||''}"></label></div><div class="two"><label>Check-in time<input data-stay-field="checkInTime" type="time" value="${String(stay.checkInTime||'').slice(0,5)}"></label><label>Check-out time<input data-stay-field="checkOutTime" type="time" value="${String(stay.checkOutTime||'').slice(0,5)}"></label></div><label>Campground or location<input data-stay-field="name" value="${escapeHtml(stay.name||'')}" required></label><label>Address<input data-stay-field="address" value="${escapeHtml(stay.address||'')}"></label><div class="three"><label>City<input data-stay-field="city" value="${escapeHtml(stay.city||'')}"></label><label>State<input data-stay-field="state" value="${escapeHtml(stay.state||'')}"></label><label>Site<input data-stay-field="site" value="${escapeHtml(stay.site||'')}"></label></div><label>Total cost<input data-stay-field="price" type="number" step=".01" value="${stay.price??''}"></label><div class="stay-type-options"><label><input data-stay-check="harvestHost" type="checkbox" ${stay.harvestHost||stay.stayType==='harvest-host'?'checked':''}> Harvest Host</label><label><input data-stay-check="moochdocking" type="checkbox" ${stay.moochdocking||stay.stayType==='moochdocking'?'checked':''}> Moochdocking</label><label><input data-stay-check="boondocking" type="checkbox" ${stay.boondocking||stay.stayType==='boondocking'?'checked':''}> Boondocking</label></div></fieldset>`).join('');
+  host.innerHTML=tripStayEditorItems.map((stay,i)=>{
+    const type=stay.harvestHost||stay.stayType==='harvest-host'?'Harvest Host':stay.moochdocking||stay.stayType==='moochdocking'?'Moochdocking':stay.boondocking||stay.stayType==='boondocking'?'Boondocking':'Campground';
+    const location=[stay.city,stay.state].filter(Boolean).join(', ');
+    return `<article class="trip-stay-summary"><button type="button" class="trip-stay-summary-main" data-edit-trip-stay="${i}"><span class="trip-stay-order">${i+1}</span><span class="trip-stay-summary-copy"><small>${escapeHtml(type)}</small><b>${escapeHtml(stay.name||'Unnamed stay')}</b><span>${date(stay.arrival)} – ${date(stay.departure)}${stay.site?` · Site ${escapeHtml(stay.site)}`:''}${location?` · ${escapeHtml(location)}`:''}</span></span><span class="record-chevron">›</span></button><button type="button" class="remove-stay" data-remove-stay="${i}">Remove</button></article>`;
+  }).join('')||'<div class="empty compact-empty">No stays added yet.</div>';
+  $$('[data-edit-trip-stay]',host).forEach(button=>button.onclick=()=>openTripStayEditor(+button.dataset.editTripStay));
   $$('[data-remove-stay]',host).forEach(button=>button.onclick=()=>{tripStayEditorItems.splice(+button.dataset.removeStay,1);renderTripStayEditor()});
-  $$('[data-stay-card]',host).forEach(card=>{
-    const cost=card.querySelector('[data-stay-field="price"]');
-    const checks=[...card.querySelectorAll('[data-stay-check]')];
-    const syncCost=()=>{
-      const freeStay=checks.some(check=>check.checked);
-      if(freeStay){
-        if(cost.value && +cost.value!==0) cost.dataset.previousCost=cost.value;
-        cost.value='0';
-        cost.disabled=true;
-      }else{
-        cost.disabled=false;
-        if(cost.dataset.previousCost!==undefined){cost.value=cost.dataset.previousCost;delete cost.dataset.previousCost;}
-      }
-    };
-    checks.forEach(check=>check.addEventListener('change',()=>{
-      if(check.checked) checks.forEach(other=>{if(other!==check) other.checked=false;});
-      syncCost();
-    }));
-    const initiallyChecked=checks.filter(check=>check.checked);
-    if(initiallyChecked.length>1) initiallyChecked.slice(1).forEach(check=>check.checked=false);
-    syncCost();
-  });
 }
 function readTripStayCards(){
-  return $$('[data-stay-card]').map((card,i)=>{
-    const original=tripStayEditorItems[i]||{};
-    const value=name=>card.querySelector(`[data-stay-field="${name}"]`)?.value||'';
-    const checked=name=>Boolean(card.querySelector(`[data-stay-check="${name}"]`)?.checked);
-    const harvestHost=checked('harvestHost'),moochdocking=checked('moochdocking'),boondocking=checked('boondocking');
-    return {...original,arrival:value('arrival'),departure:value('departure'),checkInTime:value('checkInTime'),checkOutTime:value('checkOutTime'),name:value('name').trim(),address:value('address'),city:value('city'),state:value('state'),site:value('site'),price:+value('price')||0,harvestHost,moochdocking,boondocking,stayType:harvestHost?'harvest-host':moochdocking?'moochdocking':boondocking?'boondocking':'campground'};
-  }).filter(stay=>stay.name);
+  return tripStayEditorItems.filter(stay=>stay.name).map(stay=>({...stay}));
+}
+function nextTripStayDates(){
+  const start=$('#startDate')?.value||'';
+  const end=$('#endDate')?.value||start;
+  const last=tripStayEditorItems[tripStayEditorItems.length-1];
+  return {start:last?.departure||start,end};
+}
+function syncTripStayTypeFields(){
+  const cost=$('#tripStayCost');
+  const site=$('#tripStaySite');
+  const checks=[
+    {input:$('#tripStayHarvestHost'),code:'HH'},
+    {input:$('#tripStayMoochdocking'),code:'MD'},
+    {input:$('#tripStayBoondocking'),code:'BD'}
+  ];
+  const selected=checks.find(item=>item.input.checked);
+  if(selected){
+    if(cost.value&&+cost.value!==0)cost.dataset.previousCost=cost.value;
+    cost.value='0';
+    cost.disabled=true;
+  }else{
+    cost.disabled=false;
+    if(cost.dataset.previousCost!==undefined){cost.value=cost.dataset.previousCost;delete cost.dataset.previousCost;}
+  }
+  checks.forEach(item=>item.input.onchange=()=>{
+    if(item.input.checked){
+      checks.forEach(other=>{if(other!==item)other.input.checked=false;});
+      site.value=item.code;
+    }
+    syncTripStayTypeFields();
+  });
+}
+function openTripStayEditor(index=null){
+  const dates=nextTripStayDates();
+  const stay=index===null?blankTripStay(dates.start,dates.end):tripStayEditorItems[index];
+  tripStayModalIndex=index;
+  $('#tripStayDialogTitle').textContent=index===null?'Add stay':'Edit stay';
+  $('#tripStayArrival').value=stay.arrival||dates.start;
+  $('#tripStayDeparture').value=stay.departure||dates.end;
+  $('#tripStayCheckIn').value=String(stay.checkInTime||'12:00').slice(0,5);
+  $('#tripStayCheckOut').value=String(stay.checkOutTime||'12:00').slice(0,5);
+  $('#tripStayName').value=stay.name||'';
+  $('#tripStayAddress').value=stay.address||'';
+  $('#tripStayCity').value=stay.city||'';
+  $('#tripStayState').value=stay.state||'';
+  $('#tripStaySite').value=stay.site||'';
+  $('#tripStayCost').value=stay.price??'';
+  $('#tripStayHarvestHost').checked=Boolean(stay.harvestHost||stay.stayType==='harvest-host');
+  $('#tripStayMoochdocking').checked=Boolean(stay.moochdocking||stay.stayType==='moochdocking');
+  $('#tripStayBoondocking').checked=Boolean(stay.boondocking||stay.stayType==='boondocking');
+  $('#tripStayNotes').value=stay.notes||'';
+  $('#tripStayCost').disabled=false;
+  delete $('#tripStayCost').dataset.previousCost;
+  syncTripStayTypeFields();
+  $('#tripStayDialog').showModal();
 }
 let stayPhotoPreviewUrls=[];
 function clearStayPhotoPreviewUrls(){
@@ -790,6 +824,8 @@ function openEntry(type,index=null,returnTripIndex=null){
   if(index===null && returnTripIndex!==null && (type==='sitepayment'||type==='electric')){const year=+returnTripIndex;if($('#year'))$('#year').value=year;if($('#date'))$('#date').value=`${year}-${type==='electric'?'06':'01'}-01`;if(type==='electric'&&$('#paid'))$('#paid').value='';}
   if(type==='stay'){
     const cost=$('#total'),checks=[$('#harvestHost'),$('#moochdocking'),$('#boondocking')];
+    const site=$('#site');
+    const siteCodes=new Map([[$('#harvestHost'),'HH'],[$('#moochdocking'),'MD'],[$('#boondocking'),'BD']]);
     const syncCost=()=>{
       const freeStay=checks.some(check=>check?.checked);
       if(freeStay){
@@ -803,6 +839,7 @@ function openEntry(type,index=null,returnTripIndex=null){
     };
     checks.forEach(check=>check?.addEventListener('change',()=>{
       if(check.checked) checks.forEach(other=>{if(other&&other!==check) other.checked=false;});
+      if(check.checked&&site)site.value=siteCodes.get(check);
       syncCost();
     }));
     syncCost();
@@ -874,22 +911,49 @@ function openEntry(type,index=null,returnTripIndex=null){
     if(index!==null){
       const t=db.tripSummaries[index], [start,end]=tripDates(t), stays=matchingStays(t);
       $('#name').value=t.name||''; $('#startDate').value=start; $('#endDate').value=end; $('#entryNotes').value=t.notes||'';
-      tripStayEditorItems=stays.length?stays.map(stay=>({...stay,dbIndex:db.stays.indexOf(stay)})):[blankTripStay(start,end)];
-    } else tripStayEditorItems=[blankTripStay($('#startDate').value,$('#endDate').value)];
+      tripStayEditorItems=stays.map(stay=>({...stay,dbIndex:db.stays.indexOf(stay)}));
+      tripOriginalStayIndices=new Set(tripStayEditorItems.map(stay=>stay.dbIndex));
+    } else {
+      tripStayEditorItems=[];
+      tripOriginalStayIndices=new Set();
+    }
     renderTripStayEditor();
     bindTripPhotoEditor(index===null?{}:db.tripSummaries[index]);
-    $('#addTripStay').onclick=()=>{
-      const current=readTripStayCards();
-      tripStayEditorItems=current.length?current:tripStayEditorItems;
-      const last=tripStayEditorItems[tripStayEditorItems.length-1]||{};
-      tripStayEditorItems.push(blankTripStay(last.departure||$('#startDate').value,$('#endDate').value));
-      renderTripStayEditor();
-    };
+    $('#addTripStay').onclick=()=>openTripStayEditor();
   }
   $('#entryDialog').showModal();
 }
 $$('dialog .close').forEach(b=>b.onclick=()=>{const dialog=b.closest('dialog');dialog.close();if(dialog.id==='entryDialog'){clearStayPhotoPreviewUrls();clearNotePhotoEditor();}});
 $$('dialog').forEach(dialog=>dialog.addEventListener('mousedown',event=>{const box=dialog.getBoundingClientRect();const outside=event.clientX<box.left||event.clientX>box.right||event.clientY<box.top||event.clientY>box.bottom;if(outside){dialog.close();if(dialog.id==='entryDialog'){clearStayPhotoPreviewUrls();clearNotePhotoEditor();}}}));
+$('#tripStayForm').onsubmit=event=>{
+  event.preventDefault();
+  const prior=tripStayModalIndex===null?{}:tripStayEditorItems[tripStayModalIndex];
+  const harvestHost=$('#tripStayHarvestHost').checked;
+  const moochdocking=$('#tripStayMoochdocking').checked;
+  const boondocking=$('#tripStayBoondocking').checked;
+  const record={
+    ...prior,
+    arrival:$('#tripStayArrival').value,
+    departure:$('#tripStayDeparture').value,
+    checkInTime:$('#tripStayCheckIn').value||'12:00',
+    checkOutTime:$('#tripStayCheckOut').value||'12:00',
+    name:$('#tripStayName').value.trim(),
+    address:$('#tripStayAddress').value.trim(),
+    city:$('#tripStayCity').value.trim(),
+    state:$('#tripStayState').value.trim(),
+    site:$('#tripStaySite').value.trim(),
+    price:+$('#tripStayCost').value||0,
+    harvestHost,
+    moochdocking,
+    boondocking,
+    stayType:harvestHost?'harvest-host':moochdocking?'moochdocking':boondocking?'boondocking':'campground',
+    notes:$('#tripStayNotes').value
+  };
+  if(tripStayModalIndex===null)tripStayEditorItems.push(record);
+  else tripStayEditorItems[tripStayModalIndex]=record;
+  $('#tripStayDialog').close();
+  renderTripStayEditor();
+};
 bindOpeners();
 $('#entryForm').onsubmit=async e=>{
   e.preventDefault(); const type=$('#entryType').value;
@@ -938,8 +1002,7 @@ $('#entryForm').onsubmit=async e=>{
     if(index===null) db.tripSummaries.push(trip); else db.tripSummaries[index]=trip;
     savedTrip=trip;
     const editedStays=readTripStayCards();
-    const originalIndices=new Set(tripStayEditorItems.map(x=>x.dbIndex).filter(x=>x!==null&&x!==undefined));
-    db.stays=db.stays.filter((_,i)=>!originalIndices.has(i));
+    db.stays=db.stays.filter((_,i)=>!tripOriginalStayIndices.has(i));
     editedStays.forEach(stay=>{
       const arrival=stay.arrival||s,departure=stay.departure||eDate;
       db.stays.push({...stay,dbIndex:undefined,year:+arrival.slice(0,4),arrival,departure,nights:departure?Math.round((new Date(departure)-new Date(arrival))/86400000):null,notes:stay.notes||''});
