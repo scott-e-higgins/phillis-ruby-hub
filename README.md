@@ -13,6 +13,15 @@ Travel Journal is Scott and Kayla's private travel companion.
   read-only calendar subscription remains a fallback if a native companion is
   not pursued.
 
+## Version 0.31.2
+
+- Makes every fuel stop listed inside a trip tappable, matching campground
+  stays and other records.
+- Opens a dedicated fuel-stop detail view instead of showing a separate Edit
+  button in the trip list.
+- Adds **Back to trip**, **Edit fuel stop**, and **Delete fuel stop** actions
+  inside that detail view.
+
 ## Version 0.31.1
 
 - Replaces the incorrect **Delete note** button in an edited fuel stop with

@@ -305,6 +305,12 @@ fieldset legend{font-weight:850;padding:0 7px}
 .editable-detail-row{align-items:center}
 .detail-value-actions{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex:0 0 auto}
 .detail-value-actions>span{text-align:right;min-width:64px}
+.trip-fuel-record{width:100%;border:0;border-bottom:1px solid var(--line);background:transparent;color:var(--ink);font:inherit;text-align:left;cursor:pointer}
+.trip-fuel-record:hover{background:#202a25}
+.trip-fuel-record:focus-visible{outline:3px solid rgba(108,160,132,.35);outline-offset:2px}
+.trip-fuel-record-end{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex:0 0 auto}
+.trip-fuel-record-end>b{min-width:64px;text-align:right}
+.trip-fuel-record-end .record-chevron{padding-left:0}
 .record-link{width:100%;text-align:left;color:var(--ink);font:inherit;cursor:pointer;transition:.2s var(--ease)}
 .record-link:focus-visible{outline:3px solid rgba(40,86,74,.22);outline-offset:2px}
 .record-chevron{font-size:29px;line-height:1;color:#748079;padding-left:8px}
