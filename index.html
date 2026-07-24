@@ -12,7 +12,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
   <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
-  <link rel="stylesheet" href="styles.css?v=0.15.1">
+  <link rel="stylesheet" href="styles.css?v=0.16.0">
 </head>
 <body>
 <div id="pullRefresh" class="pull-refresh" aria-live="polite">
@@ -147,6 +147,10 @@
   <div class="dialog-head"><div><small id="detailKicker">DETAILS</small><h2 id="detailTitle"></h2></div><button type="button" class="close">×</button></div>
   <div id="detailBody"></div>
 </dialog>
+<dialog id="photoDialog" class="photo-dialog">
+  <div class="dialog-head"><div><small>STAY MEMORY</small><h2 id="photoDialogCaption">Stay photo</h2></div><button type="button" class="close">×</button></div>
+  <img id="photoDialogImage" alt="">
+</dialog>
 <div id="authGate" class="auth-gate" hidden>
   <section class="auth-card">
     <img class="auth-brand-mark" src="icons/icon-192.png" alt="">
@@ -176,8 +180,8 @@
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
 <script src="supabase-config.js" defer></script>
-<script src="cloud.js?v=0.15.1" defer></script>
-<script src="cloud-store.js?v=0.15.1" defer></script>
-<script src="app.js?v=0.15.1" defer></script>
+<script src="cloud.js?v=0.16.0" defer></script>
+<script src="cloud-store.js?v=0.16.0" defer></script>
+<script src="app.js?v=0.16.0" defer></script>
 </body>
 </html>

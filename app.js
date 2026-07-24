@@ -1,6 +1,6 @@
-const SEED={"tripSummaries":[],"stays":[],"fuel":[],"siteFees":[],"electric":[],"meta":{"source":"Supabase","version":"0.15.1"},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
+const SEED={"tripSummaries":[],"stays":[],"fuel":[],"siteFees":[],"electric":[],"meta":{"source":"Supabase","version":"0.16.0"},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
-const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const $=s=>document.querySelector(s), $$=(s,root=document)=>[...root.querySelectorAll(s)];
 const clone=x=>JSON.parse(JSON.stringify(x));
 const escapeHtml=value=>String(value).replace(/[&<>\"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[ch]));
 function migrate(x){
@@ -17,14 +17,17 @@ const save=()=>{
   if(cloudLoaded&&window.ADVENTURE_HUB_STORE){
     const status=$('#cloudAccountStatus');
     if(status)status.textContent='Saving shared changes…';
-    window.ADVENTURE_HUB_STORE.save(db).then(()=>{
+    return window.ADVENTURE_HUB_STORE.save(db).then(()=>{
       if(status&&window.ADVENTURE_HUB_CLOUD)status.textContent=`Connected as ${window.ADVENTURE_HUB_CLOUD.user.email} · Higgins Hub · All changes saved`;
+      return true;
     }).catch(error=>{
       console.error(error);
       if(status)status.textContent='Cloud save needs attention. Your browser backup is still safe.';
       alert(`The change is saved on this device, but cloud syncing failed.\n\n${error.message}`);
+      return false;
     });
   }
+  return Promise.resolve(true);
 };
 function applyDataMigrations(){
   db.meta=db.meta||{};
@@ -50,6 +53,33 @@ const clockTime=value=>{
   if(!Number.isFinite(hours)||!Number.isFinite(minutes))return '';
   return new Date(2000,0,1,hours,minutes).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'});
 };
+function stayPhotoGallery(stay){
+  const photos=[
+    {url:stay.sitePhotoUrl,label:'Ruby & Phillis at the site'},
+    {url:stay.signPhotoUrl,label:'Campground or host sign'}
+  ].filter(photo=>photo.url);
+  if(!photos.length)return '';
+  return `<div class="stay-photo-strip">${photos.map(photo=>`<button class="stay-photo-thumb" type="button" data-photo-url="${escapeHtml(photo.url)}" data-photo-label="${escapeHtml(`${stay.name} · ${photo.label}`)}" aria-label="Open ${escapeHtml(photo.label)} photo"><img src="${escapeHtml(photo.url)}" alt="${escapeHtml(photo.label)}" loading="lazy"><span>${escapeHtml(photo.label)}</span></button>`).join('')}</div>`;
+}
+function stayTypeBadges(stay){
+  return `${stay.harvestHost||stay.stayType==='harvest-host'?'<span class="stay-badge">Harvest Host</span>':''}${stay.moochdocking||stay.stayType==='moochdocking'?'<span class="stay-badge">Moochdocking</span>':''}${stay.boondocking||stay.stayType==='boondocking'?'<span class="stay-badge">Boondocking</span>':''}`;
+}
+function stayListing(stay,{viewer=false}={}){
+  const location=viewer
+    ?escapeHtml([stay.address,stay.city,stay.state,stay.zip].filter(Boolean).join(', '))
+    :escapeHtml([stay.city,stay.state].filter(Boolean).join(', '));
+  const index=db.stays.indexOf(stay);
+  return `<article class="stay-listing-card"><div class="stay-listing-main"><div class="stay-listing-copy"><h4>${escapeHtml(stay.name)}</h4><p>${date(stay.arrival)}${stay.checkInTime?` · Check in ${clockTime(stay.checkInTime)}`:''} – ${date(stay.departure)}${stay.checkOutTime?` · Check out ${clockTime(stay.checkOutTime)}`:''}</p>${location?`<p>${location}</p>`:''}${stay.site?`<p>Site ${escapeHtml(stay.site)}</p>`:''}<div class="stay-badges">${stayTypeBadges(stay)}</div></div>${viewer?'':`<div class="detail-value-actions"><span>${money(stay.price)}</span><button class="small-button" data-edit-stay="${index}">Edit</button></div>`}</div>${stayPhotoGallery(stay)}</article>`;
+}
+function bindStayPhotoButtons(root=document){
+  $$('[data-photo-url]',root).forEach(button=>button.onclick=()=>{
+    const dialog=$('#photoDialog');
+    $('#photoDialogImage').src=button.dataset.photoUrl;
+    $('#photoDialogImage').alt=button.dataset.photoLabel||'Stay photo';
+    $('#photoDialogCaption').textContent=button.dataset.photoLabel||'Stay photo';
+    dialog.showModal();
+  });
+}
 let TODAY=new Date(); TODAY.setHours(0,0,0,0);
 function tripDates(t){
   const fallback=`${t.year}-12-31`;
@@ -186,15 +216,17 @@ function showTrip(index){
   const [s,e]=tripDates(t), stays=matchingStays(t), fuel=matchingFuel(t);
   $('#detailKicker').textContent='TRIP'; $('#detailTitle').textContent=t.name;
   if(window.ADVENTURE_HUB_CLOUD?.role==='viewer'){
-    $('#detailBody').innerHTML=`<div class="trip-detail-top"><p class="intro">${date(s)} – ${date(e)}</p></div>${t.destination?`<div class="detail-section"><h3>Destination</h3><p>${escapeHtml(t.destination)}</p></div>`:''}<div class="detail-section"><h3>Itinerary</h3>${stays.map(x=>`<div class="detail-row"><span><b>${escapeHtml(x.name)}</b><br><small>${date(x.arrival)}${x.checkInTime?` · Check in ${clockTime(x.checkInTime)}`:''} – ${date(x.departure)}${x.checkOutTime?` · Check out ${clockTime(x.checkOutTime)}`:''}<br>${escapeHtml([x.address,x.city,x.state,x.zip].filter(Boolean).join(', '))}${x.site?`<br>Site ${escapeHtml(x.site)}`:''}</small></span></div>`).join('')||'<p class="intro">No campground details have been added yet.</p>'}</div>`;
+    $('#detailBody').innerHTML=`<div class="trip-detail-top"><p class="intro">${date(s)} – ${date(e)}</p></div>${t.destination?`<div class="detail-section"><h3>Destination</h3><p>${escapeHtml(t.destination)}</p></div>`:''}<div class="detail-section"><h3>Itinerary</h3><div class="stay-listing-stack">${stays.map(x=>stayListing(x,{viewer:true})).join('')||'<p class="intro">No campground details have been added yet.</p>'}</div></div>`;
+    bindStayPhotoButtons($('#detailBody'));
     $('#detailDialog').showModal();
     return;
   }
-  $('#detailBody').innerHTML=`<div class="trip-detail-top"><p class="intro">${tripHasDates(t)?`${date(s)} – ${date(e)}`:t.year}</p><button class="primary" id="editTripButton">Edit trip</button></div><div class="detail-section"><h3>Trip totals</h3><div class="detail-row"><span>Miles</span><b>${number(t.distance,1)}</b></div><div class="detail-row"><span>Fuel cost</span><b>${money(t.cost)}</b></div><div class="detail-row"><span>Gallons</span><b>${number(t.gallons,2)}</b></div><div class="detail-row"><span>MPG</span><b>${number(t.mpg,2)}</b></div></div><div class="detail-section"><h3>Campgrounds</h3>${stays.map(x=>`<div class="detail-row editable-detail-row"><span><b>${x.name}</b><br><small>${date(x.arrival)}${x.checkInTime?` · Check in ${clockTime(x.checkInTime)}`:''} – ${date(x.departure)}${x.checkOutTime?` · Check out ${clockTime(x.checkOutTime)}`:''}<br>${x.city||''}${x.state?', '+x.state:''} · Site ${x.site||'—'}${x.harvestHost||x.stayType==='harvest-host'?'<br><span class="stay-badge">Harvest Host</span>':''}${x.moochdocking||x.stayType==='moochdocking'?'<br><span class="stay-badge">Moochdocking</span>':''}${x.boondocking||x.stayType==='boondocking'?'<br><span class="stay-badge">Boondocking</span>':''}</small></span><div class="detail-value-actions"><span>${money(x.price)}</span><button class="small-button" data-edit-stay="${db.stays.indexOf(x)}">Edit</button></div></div>`).join('')||'<p class="intro">No campground stays linked yet.</p>'}</div><div class="detail-section"><div class="detail-section-head"><h3>Fuel stops</h3><button class="text-button" id="addTripFuelButton">Add fuel</button></div>${fuel.map(x=>`<div class="detail-row editable-detail-row"><span><b>${x.station}</b><br><small>${date(x.date)} · ${number(x.gallons,2)} gal</small></span><div class="detail-value-actions"><span>${money(x.total)}</span><button class="small-button" data-edit-fuel="${db.fuel.indexOf(x)}">Edit</button></div></div>`).join('')||'<p class="intro">No fuel stops linked yet.</p>'}</div>${t.notes?`<div class="detail-section"><h3>Notes</h3><p>${t.notes}</p></div>`:''}<div class="trip-delete-area"><button class="delete-link" id="deleteTripButton">Delete trip</button></div>`;
+  $('#detailBody').innerHTML=`<div class="trip-detail-top"><p class="intro">${tripHasDates(t)?`${date(s)} – ${date(e)}`:t.year}</p><button class="primary" id="editTripButton">Edit trip</button></div><div class="detail-section"><h3>Trip totals</h3><div class="detail-row"><span>Miles</span><b>${number(t.distance,1)}</b></div><div class="detail-row"><span>Fuel cost</span><b>${money(t.cost)}</b></div><div class="detail-row"><span>Gallons</span><b>${number(t.gallons,2)}</b></div><div class="detail-row"><span>MPG</span><b>${number(t.mpg,2)}</b></div></div><div class="detail-section"><h3>Campgrounds & hosts</h3><div class="stay-listing-stack">${stays.map(x=>stayListing(x)).join('')||'<p class="intro">No campground stays linked yet.</p>'}</div></div><div class="detail-section"><div class="detail-section-head"><h3>Fuel stops</h3><button class="text-button" id="addTripFuelButton">Add fuel</button></div>${fuel.map(x=>`<div class="detail-row editable-detail-row"><span><b>${escapeHtml(x.station)}</b><br><small>${date(x.date)} · ${number(x.gallons,2)} gal</small></span><div class="detail-value-actions"><span>${money(x.total)}</span><button class="small-button" data-edit-fuel="${db.fuel.indexOf(x)}">Edit</button></div></div>`).join('')||'<p class="intro">No fuel stops linked yet.</p>'}</div>${t.notes?`<div class="detail-section"><h3>Notes</h3><p>${escapeHtml(t.notes)}</p></div>`:''}<div class="trip-delete-area"><button class="delete-link" id="deleteTripButton">Delete trip</button></div>`;
   $('#editTripButton').onclick=()=>{$('#detailDialog').close();openEntry('trip',index)};
   $('#addTripFuelButton').onclick=()=>{$('#detailDialog').close();openEntry('fuel',null,index)};
   $$('[data-edit-stay]').forEach(button=>button.onclick=()=>{$('#detailDialog').close();openEntry('stay',+button.dataset.editStay,index)});
   $$('[data-edit-fuel]').forEach(button=>button.onclick=()=>{$('#detailDialog').close();openEntry('fuel',+button.dataset.editFuel,index)});
+  bindStayPhotoButtons($('#detailBody'));
   $('#deleteTripButton').onclick=()=>deleteTrip(index);
   $('#detailDialog').showModal();
 }
@@ -313,13 +345,16 @@ function showPanel(page){
 }
 $$('[data-page]').forEach(b=>b.onclick=()=>showPanel(b.dataset.page));
 function bindDeletes(){$$('[data-delete]').forEach(b=>b.onclick=()=>{if(confirm('Delete this record?')){db[b.dataset.delete].splice(+b.dataset.index,1);save();showPanel(b.closest('#rubyPanel')?'ruby-maintenance':'phillis-maintenance');renderHome()}})}
+function stayPhotoEditorSlot(kind,title,help){
+  return `<article class="stay-photo-editor"><div class="stay-photo-editor-copy"><b>${title}</b><p>${help}</p></div><div class="stay-photo-preview" id="${kind}PhotoPreview"><span>No photo yet</span></div><div class="stay-photo-actions"><label class="secondary photo-picker">Choose photo<input id="${kind}PhotoFile" type="file" accept="image/*" hidden></label><button class="delete-link remove-stay-photo" id="remove${kind[0].toUpperCase()+kind.slice(1)}Photo" type="button" hidden>Remove</button></div></article>`;
+}
 function fields(type){
   if(type==='trip') return `<label>Trip name<input id="name" required></label><div class="two"><label>Start date<input id="startDate" type="date" required></label><label>End date<input id="endDate" type="date" required></label></div><div class="trip-stays-heading"><div><b>Places you are staying</b><p class="field-help">Add and edit every stop for this trip.</p></div><button type="button" class="secondary small-add" id="addTripStay">Add another stay</button></div><div id="tripStaysEditor" class="trip-stays-editor"></div>`;
   if(type==='fuel'){
     const options=db.tripSummaries.slice().sort((a,b)=>tripStamp(b).localeCompare(tripStamp(a))).map(t=>`<option value="${escapeHtml(t.name)}">${escapeHtml(t.name)}</option>`).join('');
     return `<div class="two"><label>Date<input id="date" type="date" required></label><label>Trip<select id="tripName" required><option value="">Choose a trip</option>${options}</select></label></div><label>Station<input id="station" required></label><label>Location<input id="location"></label><div class="three"><label>Gallons<input id="gallons" type="number" min=".001" step=".001" required></label><label>Total<input id="total" type="number" min="0" step=".01" required></label><label>Fuel type<select id="fuelType" required><option value="diesel">Diesel</option><option value="gasoline">Gasoline</option></select></label></div><div class="two"><label>Trip meter<input id="tripMeter" type="number" min="0" step=".1" required></label><label>Odometer<input id="odometer" type="number" min="0" step=".1"></label></div><div class="fuel-calculations" id="fuelCalculations"><span>MPG <b>—</b></span><span>Price / gallon <b>—</b></span></div>`;
   }
-  if(type==='stay') return `<div class="two"><label>Arrival<input id="arrival" type="date" required></label><label>Departure<input id="departure" type="date"></label></div><div class="two"><label>Check-in time<input id="checkInTime" type="time"></label><label>Check-out time<input id="checkOutTime" type="time"></label></div><label>Campground<input id="name" required></label><label>Address<input id="address"></label><div class="three"><label>City<input id="city"></label><label>State<input id="state"></label><label>Site<input id="site"></label></div><label>Total cost<input id="total" type="number" step=".01"></label><div class="stay-type-options"><label><input id="harvestHost" type="checkbox"> Harvest Host</label><label><input id="moochdocking" type="checkbox"> Moochdocking</label><label><input id="boondocking" type="checkbox"> Boondocking</label></div>`;
+  if(type==='stay') return `<div class="two"><label>Arrival<input id="arrival" type="date" required></label><label>Departure<input id="departure" type="date"></label></div><div class="two"><label>Check-in time<input id="checkInTime" type="time"></label><label>Check-out time<input id="checkOutTime" type="time"></label></div><label>Campground<input id="name" required></label><label>Address<input id="address"></label><div class="three"><label>City<input id="city"></label><label>State<input id="state"></label><label>Site<input id="site"></label></div><label>Total cost<input id="total" type="number" step=".01"></label><div class="stay-type-options"><label><input id="harvestHost" type="checkbox"> Harvest Host</label><label><input id="moochdocking" type="checkbox"> Moochdocking</label><label><input id="boondocking" type="checkbox"> Boondocking</label></div><section class="stay-photo-editors"><div class="stay-photo-editors-heading"><b>Stay photos</b><p>Add these from Kayla’s photo library now or come back later.</p></div>${stayPhotoEditorSlot('site','Ruby & Phillis at the site','The campsite photo you take at nearly every stop.')}${stayPhotoEditorSlot('sign','Campground or host sign','The entrance, campground, winery, farm, or host sign.')}</section>`;
   if(type==='electric') return `<div class="two"><label>Reading date<input id="date" type="date" required></label><label>Paid date<input id="paid" type="date"></label></div><div class="three"><label>Previous meter<input id="previous" type="number" required></label><label>Current meter<input id="current" type="number" required></label><label>Rate / kWh<input id="rate" type="number" step=".001" value=".16"></label></div><label>Check number<input id="check"></label>`;
   if(type==='sitepayment') return `<div class="three"><label>Season year<input id="year" type="number" value="${new Date().getFullYear()}" required></label><label>Payment date<input id="date" type="date" required></label><label>Amount<input id="payment" type="number" step=".01" required></label></div><label>Check number<input id="check"></label>`;
   if(type==='sitefee'){
@@ -368,6 +403,42 @@ function readTripStayCards(){
     const harvestHost=checked('harvestHost'),moochdocking=checked('moochdocking'),boondocking=checked('boondocking');
     return {...original,arrival:value('arrival'),departure:value('departure'),checkInTime:value('checkInTime'),checkOutTime:value('checkOutTime'),name:value('name').trim(),address:value('address'),city:value('city'),state:value('state'),site:value('site'),price:+value('price')||0,harvestHost,moochdocking,boondocking,stayType:harvestHost?'harvest-host':moochdocking?'moochdocking':boondocking?'boondocking':'campground'};
   }).filter(stay=>stay.name);
+}
+let stayPhotoPreviewUrls=[];
+function clearStayPhotoPreviewUrls(){
+  stayPhotoPreviewUrls.forEach(url=>URL.revokeObjectURL(url));
+  stayPhotoPreviewUrls=[];
+}
+function bindStayPhotoEditor(stay={}){
+  clearStayPhotoPreviewUrls();
+  [
+    {kind:'site',url:stay.sitePhotoUrl,label:'Ruby & Phillis at the site'},
+    {kind:'sign',url:stay.signPhotoUrl,label:'Campground or host sign'}
+  ].forEach(photo=>{
+    const input=$(`#${photo.kind}PhotoFile`);
+    const preview=$(`#${photo.kind}PhotoPreview`);
+    const remove=$(`#remove${photo.kind[0].toUpperCase()+photo.kind.slice(1)}Photo`);
+    if(!input||!preview||!remove)return;
+    const show=url=>{
+      preview.innerHTML=url?`<img src="${escapeHtml(url)}" alt="${escapeHtml(photo.label)}">`:'<span>No photo yet</span>';
+      remove.hidden=!url;
+    };
+    input.dataset.remove='false';
+    show(photo.url||'');
+    input.addEventListener('change',()=>{
+      input.dataset.remove='false';
+      const file=input.files?.[0];
+      if(!file){show(photo.url||'');return;}
+      const url=URL.createObjectURL(file);
+      stayPhotoPreviewUrls.push(url);
+      show(url);
+    });
+    remove.addEventListener('click',()=>{
+      input.value='';
+      input.dataset.remove='true';
+      show('');
+    });
+  });
 }
 function openEntry(type,index=null,returnTripIndex=null){
   const titles={trip:index===null?'Add trip':'Edit trip',fuel:index===null?'Add fuel':'Edit fuel stop',stay:index===null?'Add campground':'Edit stay','phillis-maint':index===null?'Add Phillis maintenance':'Edit Phillis maintenance','phillis-upgrade':index===null?'Add Phillis upgrade':'Edit Phillis upgrade','ruby-maint':index===null?'Add Ruby maintenance':'Edit Ruby maintenance','ruby-upgrade':index===null?'Add Ruby upgrade':'Edit Ruby upgrade',electric:index===null?'Add electric reading':'Edit electric reading',sitepayment:index===null?'Add seasonal payment':'Edit seasonal payment',sitefee:index===null?'Add season':'Edit season'};
@@ -433,6 +504,7 @@ function openEntry(type,index=null,returnTripIndex=null){
       $('#harvestHost').dispatchEvent(new Event('change'));
     }
   }
+  if(type==='stay')bindStayPhotoEditor(index===null?{}:db.stays[index]);
   if(type==='sitepayment' && index!==null){
     const record=db.siteFees?.[index];
     if(record){$('#year').value=record.year||new Date().getFullYear();$('#date').value=record.date||today;$('#payment').value=record.payment??'';$('#check').value=record.check||'';$('#notes').value=record.notes||'';}
@@ -467,11 +539,18 @@ function openEntry(type,index=null,returnTripIndex=null){
   }
   $('#entryDialog').showModal();
 }
-$$('dialog .close').forEach(b=>b.onclick=()=>b.closest('dialog').close());
-$$('dialog').forEach(dialog=>dialog.addEventListener('mousedown',event=>{const box=dialog.getBoundingClientRect();const outside=event.clientX<box.left||event.clientX>box.right||event.clientY<box.top||event.clientY>box.bottom;if(outside)dialog.close()}));
+$$('dialog .close').forEach(b=>b.onclick=()=>{const dialog=b.closest('dialog');dialog.close();if(dialog.id==='entryDialog')clearStayPhotoPreviewUrls()});
+$$('dialog').forEach(dialog=>dialog.addEventListener('mousedown',event=>{const box=dialog.getBoundingClientRect();const outside=event.clientX<box.left||event.clientX>box.right||event.clientY<box.top||event.clientY>box.bottom;if(outside){dialog.close();if(dialog.id==='entryDialog')clearStayPhotoPreviewUrls()}}));
 bindOpeners();
-$('#entryForm').onsubmit=e=>{
+$('#entryForm').onsubmit=async e=>{
   e.preventDefault(); const type=$('#entryType').value, notes=$('#notes').value;
+  const submitButton=$('#entryForm').querySelector('.form-actions .primary');
+  const originalButtonText=submitButton.textContent;
+  let savedStay=null;
+  const stayPhotoChanges=type==='stay'?[
+    {kind:'site',file:$('#sitePhotoFile')?.files?.[0]||null,remove:$('#sitePhotoFile')?.dataset.remove==='true'},
+    {kind:'sign',file:$('#signPhotoFile')?.files?.[0]||null,remove:$('#signPhotoFile')?.dataset.remove==='true'}
+  ].filter(change=>change.file||change.remove):[];
   if(type==='trip'){
     const s=$('#startDate').value,eDate=$('#endDate').value,name=$('#name').value.trim(),index=$('#entryIndex').value===''?null:+$('#entryIndex').value;
     const duplicateIndex=db.tripSummaries.findIndex((trip,i)=>i!==index&&(trip.name||'').trim().toLocaleLowerCase()===name.toLocaleLowerCase());
@@ -505,13 +584,32 @@ $('#entryForm').onsubmit=e=>{
     const a=$('#arrival').value,d=$('#departure').value,index=$('#entryIndex').value===''?null:+$('#entryIndex').value,harvestHost=$('#harvestHost').checked,moochdocking=$('#moochdocking').checked,boondocking=$('#boondocking').checked,stayType=harvestHost?'harvest-host':moochdocking?'moochdocking':boondocking?'boondocking':'campground';
     const record={...(index===null?{}:db.stays[index]),year:+a.slice(0,4),arrival:a,departure:d,checkInTime:$('#checkInTime').value,checkOutTime:$('#checkOutTime').value,nights:d?Math.round((new Date(d)-new Date(a))/86400000):null,name:$('#name').value,address:$('#address').value,city:$('#city').value,state:$('#state').value,site:$('#site').value,price:+$('#total').value||0,harvestHost,moochdocking,boondocking,stayType,notes};
     if(index===null) db.stays.push(record); else db.stays[index]=record;
+    savedStay=record;
   }
   else if(type==='sitepayment'){const index=$('#entryIndex').value===''?null:+$('#entryIndex').value,record={...(index===null?{}:db.siteFees[index]),year:+$('#year').value,date:$('#date').value,payment:+$('#payment').value||0,check:$('#check').value,notes};if(index===null)db.siteFees.push(record);else db.siteFees[index]=record}
   else if(type==='electric'){const p=+$('#previous').value,c=+$('#current').value,r=+$('#rate').value||.16,u=c-p,index=$('#entryIndex').value===''?null:+$('#entryIndex').value,record={...(index===null?{}:db.electric[index]),date:$('#date').value,previous:p,current:c,usage:u,unitPrice:r,total:u*r,paid:$('#paid').value,check:$('#check').value,notes};if(index===null)db.electric.push(record);else db.electric[index]=record}
   else if(type==='sitefee'){const y=+$('#year').value,total=+$('#total').value||0,index=$('#entryIndex').value===''?null:+$('#entryIndex').value,record={...(index===null?{}:db.stays[index]),year:y,arrival:'Season',departure:'Season',nights:null,name:'Lehigh Gorge Campground',address:$('#address').value,city:$('#city').value,state:$('#state').value,zip:$('#zip').value,site:$('#site').value||'39',price:total,harvestHost:false,notes};if(index===null)db.stays.push(record);else db.stays[index]=record;const annual=(db.siteFees||[]).find(x=>+x.year===y&&x.yearTotal!=null);if(annual)annual.yearTotal=total}
   else {const obj={date:$('#date').value,description:$('#description').value,location:$('#location').value,price:+$('#total').value||0,notes},key=type==='phillis-maint'?'phillisMaintenance':type==='phillis-upgrade'?'phillisUpgrades':type==='ruby-maint'?'rubyMaintenance':'rubyUpgrades',index=$('#entryIndex').value===''?null:+$('#entryIndex').value;if(index===null)db[key].push(obj);else db[key][index]={...db[key][index],...obj}}
   const returnTripIndex=$('#entryStayIndex').value===''?null:+$('#entryStayIndex').value;
-  save(); $('#entryDialog').close(); renderHome(); renderTrips();
+  submitButton.disabled=true;
+  submitButton.textContent=stayPhotoChanges.length?'Saving stay…':'Saving…';
+  const cloudSaved=await save();
+  if(savedStay&&stayPhotoChanges.length&&cloudSaved&&window.ADVENTURE_HUB_STORE){
+    try{
+      submitButton.textContent='Uploading photos…';
+      for(const change of stayPhotoChanges){
+        await window.ADVENTURE_HUB_STORE.setStayPhoto(savedStay,change.kind,change.remove?null:change.file);
+      }
+      localStorage.setItem(KEY,JSON.stringify(db));
+    }catch(error){
+      console.error(error);
+      alert(`The stay details were saved, but a photo could not be uploaded.\n\n${error.message}`);
+    }
+  }
+  submitButton.disabled=false;
+  submitButton.textContent=originalButtonText;
+  clearStayPhotoPreviewUrls();
+  $('#entryDialog').close(); renderHome(); renderTrips();
   if(type==='fuel' && returnTripIndex===null) showPanel('fuel-history');
   if(type==='phillis-maint') showPanel('phillis-maintenance');
   if(type==='phillis-upgrade') showPanel('phillis-upgrades');

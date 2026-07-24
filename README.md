@@ -2,6 +2,19 @@
 
 Adventure Hub is Scott and Kayla's private travel companion.
 
+## Version 0.16.0
+
+- Adds two shared photo spots to every campground and Harvest Host stay:
+  Ruby & Phillis at the site, and the campground or host sign.
+- Shows tappable photo thumbnails directly in each trip's stay listings.
+- Opens stay photos in a larger in-app viewer.
+- Compresses phone photos before securely storing them in Supabase.
+- Keeps Family Viewer access read-only while allowing current/upcoming stay
+  photos to be viewed.
+- Lays the photo and stay-card foundation for a future campground journal.
+
+Run `database-add-stay-photos.sql` in Supabase before publishing this version.
+
 ## Version 0.15.1
 
 - Makes the pull-down gesture shorter and easier to trigger on iPhone.

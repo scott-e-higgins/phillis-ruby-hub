@@ -11,10 +11,106 @@
     const { client, householdId, role } = cloud;
     let known = {};
     let syncing = Promise.resolve();
+    const photoBucket = client.storage.from('stay-photos');
+
+    async function signedPhotoUrl(path) {
+      if (!path) return '';
+      const result = await photoBucket.createSignedUrl(path, 60 * 60 * 24 * 7);
+      if (result.error) {
+        console.warn('A stay photo could not be displayed.', result.error);
+        return '';
+      }
+      return result.data?.signedUrl || '';
+    }
+
+    async function hydrateStayPhotoUrls(stays) {
+      await Promise.all(stays.flatMap(stay => [
+        stay.sitePhotoPath ? signedPhotoUrl(stay.sitePhotoPath).then(url => { stay.sitePhotoUrl = url; }) : null,
+        stay.signPhotoPath ? signedPhotoUrl(stay.signPhotoPath).then(url => { stay.signPhotoUrl = url; }) : null
+      ].filter(Boolean)));
+      return stays;
+    }
+
+    async function preparePhoto(file) {
+      const fallback = () => {
+        if (file.size > 12 * 1024 * 1024) {
+          throw new Error('That photo is too large. Please choose a photo under 12 MB.');
+        }
+        const extension = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+        return { blob: file, extension, contentType: file.type || 'image/jpeg' };
+      };
+      try {
+        const url = URL.createObjectURL(file);
+        const image = new Image();
+        await new Promise((resolve, reject) => {
+          image.onload = resolve;
+          image.onerror = reject;
+          image.src = url;
+        });
+        URL.revokeObjectURL(url);
+        const maxDimension = 1800;
+        const scale = Math.min(1, maxDimension / Math.max(image.naturalWidth, image.naturalHeight));
+        const width = Math.max(1, Math.round(image.naturalWidth * scale));
+        const height = Math.max(1, Math.round(image.naturalHeight * scale));
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext('2d').drawImage(image, 0, 0, width, height);
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', .84));
+        if (!blob) return fallback();
+        return { blob, extension: 'jpg', contentType: 'image/jpeg' };
+      } catch {
+        return fallback();
+      }
+    }
+
+    async function setStayPhoto(stay, kind, file) {
+      if (role === 'viewer') throw new Error('Family Viewer accounts cannot change photos.');
+      if (!stay?._cloudId) throw new Error('Save this stay before adding its photos.');
+      const sitePhoto = kind === 'site';
+      const pathKey = sitePhoto ? 'sitePhotoPath' : 'signPhotoPath';
+      const urlKey = sitePhoto ? 'sitePhotoUrl' : 'signPhotoUrl';
+      const column = sitePhoto ? 'site_photo_path' : 'sign_photo_path';
+      const oldPath = stay[pathKey] || '';
+
+      if (!file) {
+        const update = await client.from('campground_stays').update({ [column]: null }).eq('id', stay._cloudId);
+        if (update.error) throw update.error;
+        if (oldPath) {
+          const removed = await photoBucket.remove([oldPath]);
+          if (removed.error) console.warn('The old stay photo could not be removed.', removed.error);
+        }
+        stay[pathKey] = '';
+        stay[urlKey] = '';
+        return stay;
+      }
+
+      const prepared = await preparePhoto(file);
+      const path = `${householdId}/${stay._cloudId}/${kind}-${Date.now()}.${prepared.extension}`;
+      const upload = await photoBucket.upload(path, prepared.blob, {
+        cacheControl: '3600',
+        contentType: prepared.contentType,
+        upsert: false
+      });
+      if (upload.error) throw upload.error;
+
+      const update = await client.from('campground_stays').update({ [column]: path }).eq('id', stay._cloudId);
+      if (update.error) {
+        await photoBucket.remove([path]);
+        throw update.error;
+      }
+      if (oldPath && oldPath !== path) {
+        const removed = await photoBucket.remove([oldPath]);
+        if (removed.error) console.warn('The replaced stay photo could not be removed.', removed.error);
+      }
+      stay[pathKey] = path;
+      stay[urlKey] = await signedPhotoUrl(path);
+      return stay;
+    }
 
     async function load() {
       if (role === 'viewer') {
-        const rows = assert(await client.rpc('get_family_itinerary_v2'));
+        const rows = assert(await client.rpc('get_family_itinerary_v3'));
         const trips = new Map();
         const stays = [];
         rows.forEach(row => {
@@ -54,10 +150,15 @@
               harvestHost: row.stay_type === 'harvest-host',
               moochdocking: row.stay_type === 'moochdocking',
               boondocking: row.stay_type === 'boondocking',
+              sitePhotoPath: row.site_photo_path || '',
+              signPhotoPath: row.sign_photo_path || '',
+              sitePhotoUrl: '',
+              signPhotoUrl: '',
               notes: ''
             });
           }
         });
+        await hydrateStayPhotoUrls(stays);
         return {
           tripSummaries: [...trips.values()],
           stays,
@@ -148,8 +249,13 @@
         harvestHost: row.stay_type === 'harvest-host',
         moochdocking: row.stay_type === 'moochdocking',
         boondocking: row.stay_type === 'boondocking',
+        sitePhotoPath: row.site_photo_path || '',
+        signPhotoPath: row.sign_photo_path || '',
+        sitePhotoUrl: '',
+        signPhotoUrl: '',
         notes: row.notes || ''
       }));
+      await hydrateStayPhotoUrls(localStays);
 
       seasons.forEach(season => {
         localStays.push({
@@ -284,6 +390,7 @@
         site_number: x.site || null, cost: x.price || 0, address: x.address || null,
         city: x.city || null, state: x.state || null, postal_code: x.zip || null,
         stay_type: x.stayType || (x.harvestHost ? 'harvest-host' : x.moochdocking ? 'moochdocking' : x.boondocking ? 'boondocking' : 'campground'),
+        site_photo_path: x.sitePhotoPath || null, sign_photo_path: x.signPhotoPath || null,
         notes: x.notes || null
       })).filter(x => x.trip_id);
       if (stayRows.length) assert(await client.from('campground_stays').upsert(stayRows));
@@ -376,7 +483,8 @@
       save(snapshot) {
         syncing = syncing.then(() => write(snapshot));
         return syncing;
-      }
+      },
+      setStayPhoto
     };
   }
 
