@@ -19,7 +19,7 @@ Travel Journal is Scott and Kayla's private travel companion.
 - Opens maintenance, upgrades, fuel history, and Lehigh Gorge records directly
   beneath the item that was tapped instead of placing them below the entire
   Phillis or Ruby card.
-- Keeps each expanded section independently collapsible.
+- Keeps each expanded section independently collapsible from its own header.
 
 ## Version 0.28.1
 
