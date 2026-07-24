@@ -13,6 +13,13 @@ Travel Journal is Scott and Kayla's private travel companion.
   read-only calendar subscription remains a fallback if a native companion is
   not pursued.
 
+## Version 0.30.3
+
+- Styles state dropdowns to match the height, border, background, and spacing
+  of the surrounding stay fields.
+- Selecting Harvest Host, moochdocking, or boondocking still changes the cost
+  to zero, but the cost remains editable afterward.
+
 ## Version 0.30.2
 
 - Adds ZIP code to the popup trip-stay form and the standalone stay editor.

@@ -1,4 +1,4 @@
-const APP_VERSION='0.30.2';
+const APP_VERSION='0.30.3';
 const SEED={"tripSummaries":[],"stays":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"vehicleDetails":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const $=s=>document.querySelector(s), $$=(s,root=document)=>[...root.querySelectorAll(s)];
@@ -632,21 +632,13 @@ function syncTripStayTypeFields(){
     {input:$('#tripStayMoochdocking'),code:'MD'},
     {input:$('#tripStayBoondocking'),code:'BD'}
   ];
-  const selected=checks.find(item=>item.input.checked);
-  if(selected){
-    if(cost.value&&+cost.value!==0)cost.dataset.previousCost=cost.value;
-    cost.value='0';
-    cost.disabled=true;
-  }else{
-    cost.disabled=false;
-    if(cost.dataset.previousCost!==undefined){cost.value=cost.dataset.previousCost;delete cost.dataset.previousCost;}
-  }
+  cost.disabled=false;
   checks.forEach(item=>item.input.onchange=()=>{
     if(item.input.checked){
       checks.forEach(other=>{if(other!==item)other.input.checked=false;});
       site.value=item.code;
+      cost.value='0';
     }
-    syncTripStayTypeFields();
   });
 }
 function openTripStayEditor(index=null){
@@ -670,7 +662,6 @@ function openTripStayEditor(index=null){
   $('#tripStayBoondocking').checked=Boolean(stay.boondocking||stay.stayType==='boondocking');
   $('#tripStayNotes').value=stay.notes||'';
   $('#tripStayCost').disabled=false;
-  delete $('#tripStayCost').dataset.previousCost;
   syncTripStayTypeFields();
   $('#tripStayDialog').showModal();
 }
@@ -829,23 +820,14 @@ function openEntry(type,index=null,returnTripIndex=null){
     const cost=$('#total'),checks=[$('#harvestHost'),$('#moochdocking'),$('#boondocking')];
     const site=$('#site');
     const siteCodes=new Map([[$('#harvestHost'),'HH'],[$('#moochdocking'),'MD'],[$('#boondocking'),'BD']]);
-    const syncCost=()=>{
-      const freeStay=checks.some(check=>check?.checked);
-      if(freeStay){
-        if(cost.value && +cost.value!==0) cost.dataset.previousCost=cost.value;
-        cost.value='0';
-        cost.disabled=true;
-      }else{
-        cost.disabled=false;
-        if(cost.dataset.previousCost!==undefined){cost.value=cost.dataset.previousCost;delete cost.dataset.previousCost;}
-      }
-    };
+    cost.disabled=false;
     checks.forEach(check=>check?.addEventListener('change',()=>{
       if(check.checked) checks.forEach(other=>{if(other&&other!==check) other.checked=false;});
-      if(check.checked&&site)site.value=siteCodes.get(check);
-      syncCost();
+      if(check.checked){
+        if(site)site.value=siteCodes.get(check);
+        cost.value='0';
+      }
     }));
-    syncCost();
   }
   if(type==='fuel'){
     const syncTripFuelType=()=>{
@@ -889,7 +871,6 @@ function openEntry(type,index=null,returnTripIndex=null){
       $('#city').value=stay.city||''; $('#state').value=stay.state||''; $('#zip').value=stay.zip||''; $('#site').value=stay.site||''; $('#total').value=stay.price??'';
       $('#harvestHost').checked=Boolean(stay.harvestHost||stay.stayType==='harvest-host'); $('#moochdocking').checked=Boolean(stay.moochdocking||stay.stayType==='moochdocking'); $('#boondocking').checked=Boolean(stay.boondocking||stay.stayType==='boondocking'); $('#entryNotes').value=stay.notes||'';
       const selected=[$('#harvestHost'),$('#moochdocking'),$('#boondocking')].filter(x=>x.checked); if(selected.length>1) selected.slice(1).forEach(x=>x.checked=false);
-      $('#harvestHost').dispatchEvent(new Event('change'));
     }
   }
   if(type==='stay')bindStayPhotoEditor(index===null?{}:db.stays[index]);
