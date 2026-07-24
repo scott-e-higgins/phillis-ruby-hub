@@ -2,7 +2,7 @@
 
 Adventure Hub is Scott and Kayla's private travel companion.
 
-## Version 0.13.0
+## Version 0.13.1
 
 - Stores shared records securely in Supabase.
 - Keeps personal travel history out of the public website source.

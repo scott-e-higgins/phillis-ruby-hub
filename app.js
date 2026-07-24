@@ -1,4 +1,4 @@
-const SEED={"tripSummaries":[],"stays":[],"fuel":[],"siteFees":[],"electric":[],"meta":{"source":"Supabase","version":"0.13.0"},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
+const SEED={"tripSummaries":[],"stays":[],"fuel":[],"siteFees":[],"electric":[],"meta":{"source":"Supabase","version":"0.13.1"},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const clone=x=>JSON.parse(JSON.stringify(x));
@@ -144,7 +144,21 @@ function matchingStays(t){
   }
   return [];
 }
-function matchingFuel(t){return db.fuel.filter(f=>f.trip===t.name || (f.date&&+f.date.slice(0,4)===+t.year&&f.trip?.toLowerCase().includes(t.name.toLowerCase())) )}
+function matchingFuel(t){
+  return db.fuel.filter(f=>(f._tripId&&t._cloudId&&f._tripId===t._cloudId)||f.trip===t.name||(f.date&&+f.date.slice(0,4)===+t.year&&f.trip?.toLowerCase().includes(t.name.toLowerCase())));
+}
+function refreshTripFuelSummaries(){
+  db.tripSummaries.forEach(trip=>{
+    const rows=matchingFuel(trip);
+    const distance=rows.reduce((sum,row)=>sum+(Number(row.tripMiles)||0),0);
+    const gallons=rows.reduce((sum,row)=>sum+(Number(row.gallons)||0),0);
+    const cost=rows.reduce((sum,row)=>sum+(Number(row.total)||0),0);
+    trip.distance=distance||null;
+    trip.gallons=gallons;
+    trip.cost=cost;
+    trip.mpg=distance&&gallons?distance/gallons:null;
+  });
+}
 function bindTripButtons(){$$('[data-trip-index]').forEach(b=>b.onclick=()=>showTrip(+b.dataset.tripIndex))}
 function showTrip(index){
   const t=db.tripSummaries[index]; if(!t)return;
@@ -155,8 +169,9 @@ function showTrip(index){
     $('#detailDialog').showModal();
     return;
   }
-  $('#detailBody').innerHTML=`<div class="trip-detail-top"><p class="intro">${tripHasDates(t)?`${date(s)} – ${date(e)}`:t.year}</p><button class="primary" id="editTripButton">Edit trip</button></div><div class="detail-section"><h3>Trip totals</h3><div class="detail-row"><span>Miles</span><b>${number(t.distance,1)}</b></div><div class="detail-row"><span>Fuel cost</span><b>${money(t.cost)}</b></div><div class="detail-row"><span>Gallons</span><b>${number(t.gallons,2)}</b></div><div class="detail-row"><span>MPG</span><b>${number(t.mpg,2)}</b></div></div><div class="detail-section"><h3>Campgrounds</h3>${stays.map(x=>`<div class="detail-row editable-detail-row"><span><b>${x.name}</b><br><small>${date(x.arrival)} – ${date(x.departure)}<br>${x.city||''}${x.state?', '+x.state:''} · Site ${x.site||'—'}${x.harvestHost||x.stayType==='harvest-host'?'<br><span class="stay-badge">Harvest Host</span>':''}${x.moochdocking||x.stayType==='moochdocking'?'<br><span class="stay-badge">Moochdocking</span>':''}${x.boondocking||x.stayType==='boondocking'?'<br><span class="stay-badge">Boondocking</span>':''}</small></span><div class="detail-value-actions"><span>${money(x.price)}</span><button class="small-button" data-edit-stay="${db.stays.indexOf(x)}">Edit</button></div></div>`).join('')||'<p class="intro">No campground stays linked yet.</p>'}</div><div class="detail-section"><h3>Fuel stops</h3>${fuel.map(x=>`<div class="detail-row editable-detail-row"><span><b>${x.station}</b><br><small>${date(x.date)} · ${number(x.gallons,2)} gal</small></span><div class="detail-value-actions"><span>${money(x.total)}</span><button class="small-button" data-edit-fuel="${db.fuel.indexOf(x)}">Edit</button></div></div>`).join('')||'<p class="intro">No fuel stops linked yet.</p>'}</div>${t.notes?`<div class="detail-section"><h3>Notes</h3><p>${t.notes}</p></div>`:''}<div class="trip-delete-area"><button class="delete-link" id="deleteTripButton">Delete trip</button></div>`;
+  $('#detailBody').innerHTML=`<div class="trip-detail-top"><p class="intro">${tripHasDates(t)?`${date(s)} – ${date(e)}`:t.year}</p><button class="primary" id="editTripButton">Edit trip</button></div><div class="detail-section"><h3>Trip totals</h3><div class="detail-row"><span>Miles</span><b>${number(t.distance,1)}</b></div><div class="detail-row"><span>Fuel cost</span><b>${money(t.cost)}</b></div><div class="detail-row"><span>Gallons</span><b>${number(t.gallons,2)}</b></div><div class="detail-row"><span>MPG</span><b>${number(t.mpg,2)}</b></div></div><div class="detail-section"><h3>Campgrounds</h3>${stays.map(x=>`<div class="detail-row editable-detail-row"><span><b>${x.name}</b><br><small>${date(x.arrival)} – ${date(x.departure)}<br>${x.city||''}${x.state?', '+x.state:''} · Site ${x.site||'—'}${x.harvestHost||x.stayType==='harvest-host'?'<br><span class="stay-badge">Harvest Host</span>':''}${x.moochdocking||x.stayType==='moochdocking'?'<br><span class="stay-badge">Moochdocking</span>':''}${x.boondocking||x.stayType==='boondocking'?'<br><span class="stay-badge">Boondocking</span>':''}</small></span><div class="detail-value-actions"><span>${money(x.price)}</span><button class="small-button" data-edit-stay="${db.stays.indexOf(x)}">Edit</button></div></div>`).join('')||'<p class="intro">No campground stays linked yet.</p>'}</div><div class="detail-section"><div class="detail-section-head"><h3>Fuel stops</h3><button class="text-button" id="addTripFuelButton">Add fuel</button></div>${fuel.map(x=>`<div class="detail-row editable-detail-row"><span><b>${x.station}</b><br><small>${date(x.date)} · ${number(x.gallons,2)} gal</small></span><div class="detail-value-actions"><span>${money(x.total)}</span><button class="small-button" data-edit-fuel="${db.fuel.indexOf(x)}">Edit</button></div></div>`).join('')||'<p class="intro">No fuel stops linked yet.</p>'}</div>${t.notes?`<div class="detail-section"><h3>Notes</h3><p>${t.notes}</p></div>`:''}<div class="trip-delete-area"><button class="delete-link" id="deleteTripButton">Delete trip</button></div>`;
   $('#editTripButton').onclick=()=>{$('#detailDialog').close();openEntry('trip',index)};
+  $('#addTripFuelButton').onclick=()=>{$('#detailDialog').close();openEntry('fuel',null,index)};
   $$('[data-edit-stay]').forEach(button=>button.onclick=()=>{$('#detailDialog').close();openEntry('stay',+button.dataset.editStay,index)});
   $$('[data-edit-fuel]').forEach(button=>button.onclick=()=>{$('#detailDialog').close();openEntry('fuel',+button.dataset.editFuel,index)});
   $('#deleteTripButton').onclick=()=>deleteTrip(index);
@@ -205,7 +220,7 @@ function showFuelRecord(index){
   $('#detailTitle').textContent=record.station||'Fuel stop';
   $('#detailBody').innerHTML=`<div class="record-detail-actions"><button class="primary" id="editFuelRecord">Edit entry</button></div><div class="detail-section"><div class="detail-row"><span>Date</span><span>${date(record.date)}</span></div>${record.trip?`<div class="detail-row"><span>Trip</span><span>${escapeHtml(record.trip)}</span></div>`:''}${record.location?`<div class="detail-row"><span>Location</span><span>${escapeHtml(record.location)}</span></div>`:''}<div class="detail-row"><span>Gallons</span><span>${number(record.gallons,3)}</span></div><div class="detail-row"><span>Total</span><span>${money(record.total||0)}</span></div><div class="detail-row"><span>Price per gallon</span><span>${money(record.price||((record.gallons&&record.total)?record.total/record.gallons:0))}</span></div>${record.odometer?`<div class="detail-row"><span>Odometer</span><span>${number(record.odometer,1)}</span></div>`:''}${record.notes?`<div class="record-notes"><small>NOTES</small><p>${escapeHtml(record.notes)}</p></div>`:''}</div><div class="trip-delete-area"><button class="delete-link" id="deleteFuelRecord">Delete entry</button></div>`;
   $('#editFuelRecord').onclick=()=>{$('#detailDialog').close();openEntry('fuel',index)};
-  $('#deleteFuelRecord').onclick=()=>{if(!confirm(`Delete this fuel stop at ${record.station||'this station'}?`))return;db.fuel.splice(index,1);save();$('#detailDialog').close();renderHome();showPanel('fuel-history')};
+  $('#deleteFuelRecord').onclick=()=>{if(!confirm(`Delete this fuel stop at ${record.station||'this station'}?`))return;db.fuel.splice(index,1);refreshTripFuelSummaries();save();$('#detailDialog').close();renderHome();renderTrips();showPanel('fuel-history')};
   $('#detailDialog').showModal();
 }
 function showSeasonRecord(index){
@@ -279,7 +294,10 @@ $$('[data-page]').forEach(b=>b.onclick=()=>showPanel(b.dataset.page));
 function bindDeletes(){$$('[data-delete]').forEach(b=>b.onclick=()=>{if(confirm('Delete this record?')){db[b.dataset.delete].splice(+b.dataset.index,1);save();showPanel(b.closest('#rubyPanel')?'ruby-maintenance':'phillis-maintenance');renderHome()}})}
 function fields(type){
   if(type==='trip') return `<label>Trip name<input id="name" required></label><div class="two"><label>Start date<input id="startDate" type="date" required></label><label>End date<input id="endDate" type="date" required></label></div><div class="trip-stays-heading"><div><b>Places you are staying</b><p class="field-help">Add and edit every stop for this trip.</p></div><button type="button" class="secondary small-add" id="addTripStay">Add another stay</button></div><div id="tripStaysEditor" class="trip-stays-editor"></div>`;
-  if(type==='fuel') return `<div class="two"><label>Date<input id="date" type="date" required></label><label>Trip<input id="tripName" list="tripNames" required></label></div><datalist id="tripNames">${db.tripSummaries.map(t=>`<option value="${t.name}">`).join('')}</datalist><label>Station<input id="station" required></label><label>Location<input id="location"></label><div class="three"><label>Gallons<input id="gallons" type="number" step=".001" required></label><label>Total<input id="total" type="number" step=".01" required></label><label>Fuel type<select id="fuelType"><option value="diesel">Diesel</option><option value="gasoline">Gasoline</option></select></label></div><div class="two"><label>Trip meter<input id="tripMeter" type="number" step=".1"></label><label>Odometer<input id="odometer" type="number" step=".1"></label></div>`;
+  if(type==='fuel'){
+    const options=db.tripSummaries.slice().sort((a,b)=>tripStamp(b).localeCompare(tripStamp(a))).map(t=>`<option value="${escapeHtml(t.name)}">${escapeHtml(t.name)}</option>`).join('');
+    return `<div class="two"><label>Date<input id="date" type="date" required></label><label>Trip<select id="tripName" required><option value="">Choose a trip</option>${options}</select></label></div><label>Station<input id="station" required></label><label>Location<input id="location"></label><div class="three"><label>Gallons<input id="gallons" type="number" min=".001" step=".001" required></label><label>Total<input id="total" type="number" min="0" step=".01" required></label><label>Fuel type<select id="fuelType" required><option value="diesel">Diesel</option><option value="gasoline">Gasoline</option></select></label></div><div class="two"><label>Trip meter<input id="tripMeter" type="number" min="0" step=".1" required></label><label>Odometer<input id="odometer" type="number" min="0" step=".1"></label></div><div class="fuel-calculations" id="fuelCalculations"><span>MPG <b>—</b></span><span>Price / gallon <b>—</b></span></div>`;
+  }
   if(type==='stay') return `<div class="two"><label>Arrival<input id="arrival" type="date" required></label><label>Departure<input id="departure" type="date"></label></div><label>Campground<input id="name" required></label><label>Address<input id="address"></label><div class="three"><label>City<input id="city"></label><label>State<input id="state"></label><label>Site<input id="site"></label></div><label>Total cost<input id="total" type="number" step=".01"></label><div class="stay-type-options"><label><input id="harvestHost" type="checkbox"> Harvest Host</label><label><input id="moochdocking" type="checkbox"> Moochdocking</label><label><input id="boondocking" type="checkbox"> Boondocking</label></div>`;
   if(type==='electric') return `<div class="two"><label>Reading date<input id="date" type="date" required></label><label>Paid date<input id="paid" type="date"></label></div><div class="three"><label>Previous meter<input id="previous" type="number" required></label><label>Current meter<input id="current" type="number" required></label><label>Rate / kWh<input id="rate" type="number" step=".001" value=".16"></label></div><label>Check number<input id="check"></label>`;
   if(type==='sitepayment') return `<div class="three"><label>Season year<input id="year" type="number" value="${new Date().getFullYear()}" required></label><label>Payment date<input id="date" type="date" required></label><label>Amount<input id="payment" type="number" step=".01" required></label></div><label>Check number<input id="check"></label>`;
@@ -355,12 +373,33 @@ function openEntry(type,index=null,returnTripIndex=null){
     }));
     syncCost();
   }
-  if(type==='fuel' && index!==null){
-    const fuel=db.fuel[index];
-    if(fuel){
-      $('#date').value=fuel.date||today; $('#tripName').value=fuel.trip||''; $('#station').value=fuel.station||''; $('#location').value=fuel.location||'';
-      $('#gallons').value=fuel.gallons??''; $('#total').value=fuel.total??''; $('#fuelType').value=fuel.fuelType||(+String(fuel.date||'').slice(0,4)>=2025?'diesel':'gasoline'); $('#tripMeter').value=fuel.tripMiles??''; $('#odometer').value=fuel.odometer??''; $('#notes').value=fuel.notes||'';
+  if(type==='fuel'){
+    const updatePreview=()=>{
+      const gallons=Number($('#gallons').value),total=Number($('#total').value),tripMeter=Number($('#tripMeter').value);
+      const values=$$('#fuelCalculations b');
+      values[0].textContent=gallons>0&&tripMeter>=0?number(tripMeter/gallons,2):'—';
+      values[1].textContent=gallons>0&&total>=0?money(total/gallons):'—';
+    };
+    if(index!==null){
+      const fuel=db.fuel[index];
+      if(fuel){
+        $('#date').value=fuel.date||today; $('#tripName').value=fuel.trip||''; $('#station').value=fuel.station||''; $('#location').value=fuel.location||'';
+        $('#gallons').value=fuel.gallons??''; $('#total').value=fuel.total??''; $('#fuelType').value=fuel.fuelType||(+String(fuel.date||'').slice(0,4)>=2025?'diesel':'gasoline'); $('#tripMeter').value=fuel.tripMiles??''; $('#odometer').value=fuel.odometer??''; $('#notes').value=fuel.notes||'';
+      }
+    }else if(returnTripIndex!==null){
+      $('#tripName').value=db.tripSummaries[returnTripIndex]?.name||'';
+    }else{
+      const currentTrip=db.tripSummaries.find(trip=>tripStatus(trip)==='current');
+      if(currentTrip)$('#tripName').value=currentTrip.name;
     }
+    $('#date').addEventListener('change',()=>{
+      if($('#tripName').value)return;
+      const value=$('#date').value;
+      const matching=db.tripSummaries.find(trip=>{const [start,end]=tripDates(trip);return start<=value&&end>=value;});
+      if(matching)$('#tripName').value=matching.name;
+    });
+    ['#gallons','#total','#tripMeter'].forEach(selector=>$(selector).addEventListener('input',updatePreview));
+    updatePreview();
   }
   if(type==='stay' && index!==null){
     const stay=db.stays[index];
@@ -434,8 +473,11 @@ $('#entryForm').onsubmit=e=>{
   }
   else if(type==='fuel'){
     const g=+$('#gallons').value||0,total=+$('#total').value||0,index=$('#entryIndex').value===''?null:+$('#entryIndex').value;
-    const record={...(index===null?{}:db.fuel[index]),date:$('#date').value,trip:$('#tripName').value,station:$('#station').value,location:$('#location').value,gallons:g,total,price:g?total/g:0,fuelType:$('#fuelType').value,tripMiles:+$('#tripMeter').value||null,odometer:+$('#odometer').value||null,notes};
+    const selectedTrip=db.tripSummaries.find(trip=>trip.name===$('#tripName').value);
+    if(!selectedTrip){alert('Please choose a trip from the list.');$('#tripName').focus();return;}
+    const record={...(index===null?{}:db.fuel[index]),_tripId:selectedTrip._cloudId||null,date:$('#date').value,trip:selectedTrip.name,station:$('#station').value.trim(),location:$('#location').value.trim(),gallons:g,total,price:g?total/g:0,fuelType:$('#fuelType').value,tripMiles:+$('#tripMeter').value,odometer:$('#odometer').value===''?null:+$('#odometer').value,notes};
     if(index===null) db.fuel.push(record); else db.fuel[index]=record;
+    refreshTripFuelSummaries();
   }
   else if(type==='stay'){
     const a=$('#arrival').value,d=$('#departure').value,index=$('#entryIndex').value===''?null:+$('#entryIndex').value,harvestHost=$('#harvestHost').checked,moochdocking=$('#moochdocking').checked,boondocking=$('#boondocking').checked,stayType=harvestHost?'harvest-host':moochdocking?'moochdocking':boondocking?'boondocking':'';

@@ -107,7 +107,7 @@
         const rows = fuelByTrip.get(row.id) || [];
         const gallons = rows.reduce((sum, x) => sum + (num(x.gallons) || 0), 0);
         const cost = rows.reduce((sum, x) => sum + (num(x.total_cost) || 0), 0);
-        const distance = rows.reduce((max, x) => Math.max(max, num(x.trip_meter) || 0), 0) || null;
+        const distance = rows.reduce((sum, x) => sum + (num(x.trip_meter) || 0), 0) || null;
         return {
           _cloudId: row.id,
           year: Number(String(row.start_date).slice(0, 4)),
