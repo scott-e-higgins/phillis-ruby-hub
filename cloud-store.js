@@ -1,6 +1,7 @@
 (() => {
   const uuid = () => crypto.randomUUID();
   const num = value => value == null ? null : Number(value);
+  const time = value => value ? String(value).slice(0, 5) : '';
   const assert = result => {
     if (result.error) throw result.error;
     return result.data || [];
@@ -13,7 +14,7 @@
 
     async function load() {
       if (role === 'viewer') {
-        const rows = assert(await client.rpc('get_family_itinerary'));
+        const rows = assert(await client.rpc('get_family_itinerary_v2'));
         const trips = new Map();
         const stays = [];
         rows.forEach(row => {
@@ -39,6 +40,8 @@
               year: Number(String(row.arrival_date).slice(0, 4)),
               arrival: row.arrival_date,
               departure: row.checkout_date,
+              checkInTime: time(row.check_in_time),
+              checkOutTime: time(row.check_out_time),
               nights: row.checkout_date ? Math.round((new Date(row.checkout_date) - new Date(row.arrival_date)) / 86400000) : null,
               name: row.campground_name,
               address: row.address || '',
@@ -131,6 +134,8 @@
         year: Number(String(row.arrival_date).slice(0, 4)),
         arrival: row.arrival_date,
         departure: row.checkout_date,
+        checkInTime: time(row.check_in_time),
+        checkOutTime: time(row.check_out_time),
         nights: row.checkout_date ? Math.round((new Date(row.checkout_date) - new Date(row.arrival_date)) / 86400000) : null,
         name: row.campground_name,
         address: row.address || '',
@@ -275,6 +280,7 @@
       const stayRows = ordinaryStays.map(x => ({
         id: x._cloudId, trip_id: x._tripId || tripForStay(x)?._cloudId,
         campground_name: x.name, arrival_date: x.arrival, checkout_date: x.departure,
+        check_in_time: x.checkInTime || null, check_out_time: x.checkOutTime || null,
         site_number: x.site || null, cost: x.price || 0, address: x.address || null,
         city: x.city || null, state: x.state || null, postal_code: x.zip || null,
         stay_type: x.stayType || (x.harvestHost ? 'harvest-host' : x.moochdocking ? 'moochdocking' : x.boondocking ? 'boondocking' : 'campground'),

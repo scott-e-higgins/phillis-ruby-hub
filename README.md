@@ -2,7 +2,11 @@
 
 Adventure Hub is Scott and Kayla's private travel companion.
 
-## Version 0.13.1
+## Version 0.14.0
+
+- Compact, clickable countdown cards
+- Cranberry active-trip state with day progress
+- Campground check-in and check-out times
 
 - Stores shared records securely in Supabase.
 - Keeps personal travel history out of the public website source.
