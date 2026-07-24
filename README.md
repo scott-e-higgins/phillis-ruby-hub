@@ -2,6 +2,12 @@
 
 Adventure Hub is Scott and Kayla's private travel companion.
 
+## Version 0.15.1
+
+- Makes the pull-down gesture shorter and easier to trigger on iPhone.
+- Adds a one-tap refresh button beside the main menu as a dependable fallback.
+- Uses the same cloud reload and completion message for both refresh methods.
+
 ## Version 0.15.0
 
 - Adds pull-down-to-refresh on touch devices.

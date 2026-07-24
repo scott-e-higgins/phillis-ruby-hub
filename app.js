@@ -1,4 +1,4 @@
-const SEED={"tripSummaries":[],"stays":[],"fuel":[],"siteFees":[],"electric":[],"meta":{"source":"Supabase","version":"0.15.0"},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
+const SEED={"tripSummaries":[],"stays":[],"fuel":[],"siteFees":[],"electric":[],"meta":{"source":"Supabase","version":"0.15.1"},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const clone=x=>JSON.parse(JSON.stringify(x));
@@ -539,18 +539,39 @@ async function loadCloudData(){
 }
 function enablePullToRefresh(){
   const indicator=$('#pullRefresh');
-  if(!indicator||!('ontouchstart' in window))return;
+  const refreshButton=$('#cloudRefresh');
+  if(!indicator)return;
   const label=indicator.querySelector('b');
-  const threshold=68;
+  const threshold=44;
   let startY=0,startX=0,distance=0,pulling=false,refreshing=false;
-  const position=value=>{indicator.style.transform=`translate(-50%, ${Math.min(0,value-74)}px)`};
+  const position=value=>{indicator.style.transform=`translate(-50%, ${Math.min(0,value-48)}px)`};
   const hide=()=>{
     indicator.classList.remove('ready','refreshing');
     indicator.style.transform='';
     label.textContent='Pull down to refresh';
   };
+  const runRefresh=async()=>{
+    if(refreshing)return;
+    refreshing=true;
+    refreshButton?.classList.add('refreshing');
+    refreshButton?.setAttribute('aria-label','Refreshing shared data');
+    indicator.classList.remove('ready');
+    indicator.classList.add('refreshing');
+    indicator.style.transform='translate(-50%, 0)';
+    label.textContent='Refreshing trips…';
+    let refreshed=false;
+    if(window.ADVENTURE_HUB_STORE)refreshed=await loadCloudData();
+    label.textContent=refreshed?'Updated just now':'Could not refresh';
+    window.setTimeout(()=>{
+      refreshing=false;
+      refreshButton?.classList.remove('refreshing');
+      refreshButton?.setAttribute('aria-label','Refresh shared data');
+      hide();
+    },refreshed?800:1500);
+  };
+  refreshButton?.addEventListener('click',runRefresh);
   document.addEventListener('touchstart',event=>{
-    if(refreshing||window.scrollY>0||document.querySelector('dialog[open]')||event.touches.length!==1)return;
+    if(refreshing||window.scrollY>2||document.querySelector('dialog[open]')||event.touches.length!==1)return;
     startY=event.touches[0].clientY;
     startX=event.touches[0].clientX;
     distance=0;
@@ -561,8 +582,8 @@ function enablePullToRefresh(){
     const deltaY=event.touches[0].clientY-startY;
     const deltaX=Math.abs(event.touches[0].clientX-startX);
     if(deltaY<=0||deltaX>deltaY){pulling=false;hide();return;}
-    distance=Math.min(96,deltaY*.58);
-    if(distance>8)event.preventDefault();
+    distance=Math.min(82,deltaY*.9);
+    if(distance>5)event.preventDefault();
     position(distance);
     const ready=distance>=threshold;
     indicator.classList.toggle('ready',ready);
@@ -572,15 +593,7 @@ function enablePullToRefresh(){
     if(!pulling||refreshing)return;
     pulling=false;
     if(distance<threshold){hide();return;}
-    refreshing=true;
-    indicator.classList.remove('ready');
-    indicator.classList.add('refreshing');
-    indicator.style.transform='translate(-50%, 0)';
-    label.textContent='Refreshing trips…';
-    let refreshed=false;
-    if(window.ADVENTURE_HUB_STORE)refreshed=await loadCloudData();
-    label.textContent=refreshed?'Updated just now':'Could not refresh';
-    window.setTimeout(()=>{refreshing=false;hide()},refreshed?800:1500);
+    await runRefresh();
   },{passive:true});
   document.addEventListener('touchcancel',()=>{if(!refreshing){pulling=false;hide()}},{passive:true});
 }

@@ -12,7 +12,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
   <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
-  <link rel="stylesheet" href="styles.css?v=0.15.0">
+  <link rel="stylesheet" href="styles.css?v=0.15.1">
 </head>
 <body>
 <div id="pullRefresh" class="pull-refresh" aria-live="polite">
@@ -28,7 +28,10 @@
       <p class="brand-subtitle">Our miles, stays & memories</p>
     </div>
   </div>
-  <button class="icon-button" data-view="more" aria-label="Open more options"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+  <div class="topbar-actions">
+    <button class="icon-button refresh-button" id="cloudRefresh" type="button" aria-label="Refresh shared data"><span aria-hidden="true">↻</span></button>
+    <button class="icon-button" data-view="more" aria-label="Open more options"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+  </div>
 </header>
 
 <main>
@@ -173,8 +176,8 @@
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
 <script src="supabase-config.js" defer></script>
-<script src="cloud.js?v=0.15.0" defer></script>
-<script src="cloud-store.js?v=0.15.0" defer></script>
-<script src="app.js?v=0.15.0" defer></script>
+<script src="cloud.js?v=0.15.1" defer></script>
+<script src="cloud-store.js?v=0.15.1" defer></script>
+<script src="app.js?v=0.15.1" defer></script>
 </body>
 </html>

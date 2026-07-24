@@ -41,9 +41,12 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .brand-mark{width:62px;height:62px;object-fit:cover;border-radius:9px;border:1px solid rgba(255,255,255,.16);box-shadow:0 8px 20px rgba(0,0,0,.25);flex:0 0 62px}
 .topbar h1{font-size:25px;line-height:1.08;margin:3px 0 2px;letter-spacing:-.025em}
 .brand-subtitle{margin:0;color:rgba(255,255,255,.72);font-size:12px;font-weight:600}
+.topbar-actions{position:relative;z-index:1;display:flex;align-items:center;gap:8px}
 .icon-button{position:relative;z-index:1;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.1);color:#fff;border-radius:11px;width:44px;height:44px;display:grid;place-items:center;transition:.2s var(--ease)}
 .icon-button:hover{background:rgba(255,255,255,.18);transform:translateY(-1px)}
 .icon-button svg{width:21px;height:21px}
+.refresh-button span{font-size:26px;line-height:1;margin-top:-2px}
+.refresh-button.refreshing span{display:block;animation:refreshSpin .75s linear infinite}
 
 main{max-width:920px;margin:auto;padding:22px 16px 10px}
 .view{display:none;animation:viewIn .28s var(--ease)}
@@ -205,6 +208,8 @@ fieldset legend{font-weight:850;padding:0 7px}
   .filters{grid-template-columns:1fr}
   .two,.three{grid-template-columns:1fr}
   .topbar{padding-left:18px;padding-right:18px}
+  .topbar-actions{gap:6px}
+  .icon-button{width:41px;height:41px}
   .trip-numbers{gap:10px}
   .page-title{align-items:flex-end}
   .page-title h2{font-size:29px}
