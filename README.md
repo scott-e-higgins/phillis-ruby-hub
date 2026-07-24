@@ -2,6 +2,13 @@
 
 Travel Journal is Scott and Kayla's private travel companion.
 
+## Version 0.20.6
+
+- Places the trip dates and rig directly beneath the trip title.
+- Reserves separate space for the close button so it no longer crowds the
+  On the Road Again photo.
+- Removes the awkward blank area between the title and trip information.
+
 ## Version 0.20.5
 
 - Moves the On the Road Again photo into the trip-detail header, to the right

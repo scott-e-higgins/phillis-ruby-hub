@@ -165,9 +165,14 @@ dialog{width:min(580px,calc(100% - 22px));max-height:90vh;border:1px solid rgba(
 @keyframes dialogIn{from{opacity:0;transform:translateY(12px) scale(.985)}to{opacity:1;transform:none}}
 dialog::backdrop{background:rgba(2,8,6,.72);backdrop-filter:blur(3px)}
 .dialog-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:17px}
+#detailDialog .dialog-head{position:relative;padding-right:54px}
+#detailDialog .dialog-head>.close{position:absolute;right:0;top:0}
 .dialog-title-row{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;min-width:0;flex:1}
 .dialog-title-copy{min-width:0;flex:1}
 .detail-header-media:empty{display:none}
+.detail-header-meta:empty{display:none}
+.detail-header-dates{margin:3px 0 0;color:var(--muted);font-size:13px}
+.detail-header-meta .rig-line{margin-top:4px}
 .dialog-head h2{margin:3px 0;letter-spacing:-.025em}
 .dialog-head .close{border:0;background:#28332e;color:#b6c1bb;border-radius:50%;width:40px;height:40px;font-size:24px;flex:0 0 40px;transition:.2s var(--ease)}
 .dialog-head .close:hover{background:#34413b;transform:rotate(3deg)}

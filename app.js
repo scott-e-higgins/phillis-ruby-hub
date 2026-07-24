@@ -1,4 +1,4 @@
-const APP_VERSION='0.20.5';
+const APP_VERSION='0.20.6';
 const SEED={"tripSummaries":[],"stays":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const $=s=>document.querySelector(s), $$=(s,root=document)=>[...root.querySelectorAll(s)];
@@ -72,9 +72,10 @@ function tripPhotoHtml(trip,{detail=false,header=false}={}){
   const photoClass=header?'trip-detail-photo':detail?'trip-hero-photo':'trip-card-photo';
   return `<button class="${photoClass}" type="button" data-photo-url="${escapeHtml(trip.onRoadPhotoUrl)}" data-photo-label="${escapeHtml(label)}" aria-label="Open On the Road Again photo"><img src="${escapeHtml(trip.onRoadPhotoUrl)}" alt="${escapeHtml(`On the Road Again for ${trip.name}`)}" loading="lazy"><span>On the Road Again</span></button>`;
 }
-function setDetailHeader(kicker,title,trip=null){
+function setDetailHeader(kicker,title,trip=null,metaHtml=''){
   $('#detailKicker').textContent=kicker;
   $('#detailTitle').textContent=title;
+  $('#detailHeaderMeta').innerHTML=metaHtml;
   const media=$('#detailHeaderMedia');
   media.innerHTML=tripPhotoHtml(trip||{},{header:true});
   bindStayPhotoButtons(media);
@@ -338,14 +339,15 @@ function bindTripButtons(){$$('[data-trip-index]').forEach(b=>b.onclick=()=>show
 function showTrip(index){
   const t=db.tripSummaries[index]; if(!t)return;
   const [s,e]=tripDates(t), stays=matchingStays(t), fuel=matchingFuel(t);
-  setDetailHeader('TRIP',t.name,t);
+  const headerMeta=`<p class="detail-header-dates">${tripHasDates(t)?`${date(s)} – ${date(e)}`:t.year}</p>${rigLineHtml(t)}`;
+  setDetailHeader('TRIP',t.name,t,headerMeta);
   if(window.ADVENTURE_HUB_CLOUD?.role==='viewer'){
-    $('#detailBody').innerHTML=`<div class="trip-detail-top"><p class="intro">${date(s)} – ${date(e)}</p></div>${t.destination?`<div class="detail-section"><h3>Destination</h3><p>${escapeHtml(t.destination)}</p></div>`:''}<div class="detail-section"><h3>Itinerary</h3><div class="stay-listing-stack">${stays.map(x=>stayListing(x,{viewer:true})).join('')||'<p class="intro">No campground details have been added yet.</p>'}</div></div>`;
+    $('#detailBody').innerHTML=`${t.destination?`<div class="detail-section"><h3>Destination</h3><p>${escapeHtml(t.destination)}</p></div>`:''}<div class="detail-section"><h3>Itinerary</h3><div class="stay-listing-stack">${stays.map(x=>stayListing(x,{viewer:true})).join('')||'<p class="intro">No campground details have been added yet.</p>'}</div></div>`;
     bindStayPhotoButtons($('#detailBody'));
     $('#detailDialog').showModal();
     return;
   }
-  $('#detailBody').innerHTML=`<div class="trip-detail-top"><div><p class="intro">${tripHasDates(t)?`${date(s)} – ${date(e)}`:t.year}</p>${rigLineHtml(t)}</div><button class="primary" id="editTripButton">Edit trip</button></div><div class="detail-section"><h3>Trip totals</h3><div class="detail-row"><span>Miles</span><b>${number(t.distance,1)}</b></div><div class="detail-row"><span>Fuel cost</span><b>${money(t.cost)}</b></div><div class="detail-row"><span>Gallons</span><b>${number(t.gallons,2)}</b></div><div class="detail-row"><span>MPG</span><b>${number(t.mpg,2)}</b></div></div><div class="detail-section"><h3>Campgrounds & hosts</h3><div class="stay-listing-stack">${stays.map(x=>stayListing(x)).join('')||'<p class="intro">No campground stays linked yet.</p>'}</div></div><div class="detail-section"><div class="detail-section-head"><h3>Fuel stops</h3><button class="text-button" id="addTripFuelButton">Add fuel</button></div>${fuel.map(x=>`<div class="detail-row editable-detail-row"><span><b>${escapeHtml(x.station)}</b><br><small>${date(x.date)} · ${escapeHtml(x.vehicle||t.towVehicle||'')} · ${x.fuelType==='diesel'?'Diesel':'Gasoline'} · ${number(x.gallons,2)} gal</small></span><div class="detail-value-actions"><span>${money(x.total)}</span><button class="small-button" data-edit-fuel="${db.fuel.indexOf(x)}">Edit</button></div></div>`).join('')||'<p class="intro">No fuel stops linked yet.</p>'}</div>${t.notes?`<div class="detail-section"><h3>Notes</h3><p>${escapeHtml(t.notes)}</p></div>`:''}<div class="trip-delete-area"><button class="delete-link" id="deleteTripButton">Delete trip</button></div>`;
+  $('#detailBody').innerHTML=`<div class="record-detail-actions"><button class="primary" id="editTripButton">Edit trip</button></div><div class="detail-section"><h3>Trip totals</h3><div class="detail-row"><span>Miles</span><b>${number(t.distance,1)}</b></div><div class="detail-row"><span>Fuel cost</span><b>${money(t.cost)}</b></div><div class="detail-row"><span>Gallons</span><b>${number(t.gallons,2)}</b></div><div class="detail-row"><span>MPG</span><b>${number(t.mpg,2)}</b></div></div><div class="detail-section"><h3>Campgrounds & hosts</h3><div class="stay-listing-stack">${stays.map(x=>stayListing(x)).join('')||'<p class="intro">No campground stays linked yet.</p>'}</div></div><div class="detail-section"><div class="detail-section-head"><h3>Fuel stops</h3><button class="text-button" id="addTripFuelButton">Add fuel</button></div>${fuel.map(x=>`<div class="detail-row editable-detail-row"><span><b>${escapeHtml(x.station)}</b><br><small>${date(x.date)} · ${escapeHtml(x.vehicle||t.towVehicle||'')} · ${x.fuelType==='diesel'?'Diesel':'Gasoline'} · ${number(x.gallons,2)} gal</small></span><div class="detail-value-actions"><span>${money(x.total)}</span><button class="small-button" data-edit-fuel="${db.fuel.indexOf(x)}">Edit</button></div></div>`).join('')||'<p class="intro">No fuel stops linked yet.</p>'}</div>${t.notes?`<div class="detail-section"><h3>Notes</h3><p>${escapeHtml(t.notes)}</p></div>`:''}<div class="trip-delete-area"><button class="delete-link" id="deleteTripButton">Delete trip</button></div>`;
   $('#editTripButton').onclick=()=>{$('#detailDialog').close();openEntry('trip',index)};
   $('#addTripFuelButton').onclick=()=>{$('#detailDialog').close();openEntry('fuel',null,index)};
   $$('[data-edit-stay]').forEach(button=>button.onclick=()=>{$('#detailDialog').close();openEntry('stay',+button.dataset.editStay,index)});
