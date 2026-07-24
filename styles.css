@@ -187,6 +187,11 @@ label textarea{resize:vertical}
 .detail-section h3{font-size:15px;text-transform:uppercase;letter-spacing:.08em;color:#9eaaa4;margin-bottom:6px}
 .detail-row{display:flex;justify-content:space-between;gap:15px;padding:12px 0;border-bottom:1px solid var(--line)}
 .detail-row span:last-child{text-align:right}
+.trip-totals-section{margin-top:14px}
+.trip-totals-compact{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:8px}
+.trip-totals-compact>div{min-width:0;padding:9px 10px;border:1px solid var(--line);border-radius:7px;background:#252e29}
+.trip-totals-compact small{display:block;color:var(--muted);font-size:9px;font-weight:850;letter-spacing:.045em;text-transform:uppercase;white-space:nowrap}
+.trip-totals-compact b{display:block;margin-top:3px;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pill{display:inline-block;background:var(--pine-3);color:var(--pine);border-radius:999px;padding:4px 9px;font-size:11px;font-weight:850;letter-spacing:.04em}
 .record-actions{display:flex;gap:7px}
 .small-button{border:1px solid #3b4942;border-radius:10px;background:#28332e;color:var(--ink);padding:7px 10px;font-weight:800}
@@ -366,6 +371,7 @@ fieldset legend{font-weight:850;padding:0 7px}
   .trip-numbers{grid-template-columns:repeat(2,1fr);row-gap:14px}
   .trip-detail-top{align-items:flex-start;flex-direction:column}
   .trip-detail-top .primary,.record-detail-actions .primary{width:100%}
+  .trip-totals-compact{grid-template-columns:repeat(2,minmax(0,1fr))}
   .editable-detail-row{align-items:flex-start}
   .detail-value-actions{flex-direction:column;align-items:flex-end;gap:6px}
   .detail-value-actions .small-button{min-width:58px}

@@ -13,6 +13,13 @@ Travel Journal is Scott and Kayla's private travel companion.
   read-only calendar subscription remains a fallback if a native companion is
   not pursued.
 
+## Version 0.22.1
+
+- Replaces the tall Trip Totals list with a compact four-item summary.
+- Shows Stay cost, Fuel cost, Miles, and MPG.
+- Automatically totals every campground and host stay linked to the trip.
+- Removes gallons from the at-a-glance trip summary.
+
 ## Version 0.22.0
 
 - Makes each campground, Harvest Host, boondocking, or moochdocking card
