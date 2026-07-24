@@ -1,4 +1,4 @@
-const APP_VERSION='0.32.0';
+const APP_VERSION='0.32.1';
 const SEED={"tripSummaries":[],"stays":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"vehicleDetails":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const NO_TRIP_VALUE='__everyday_ruby__';
@@ -636,10 +636,10 @@ function stayPhotoEditorSlot(kind,title,help){
   return `<article class="stay-photo-editor"><div class="stay-photo-editor-copy"><b>${title}</b><p>${help}</p></div><div class="stay-photo-preview" id="${kind}PhotoPreview"><span>No photo yet</span></div><div class="stay-photo-actions"><label class="secondary photo-picker">Choose photo<input id="${kind}PhotoFile" type="file" accept="image/*" hidden></label><button class="delete-link remove-stay-photo" id="remove${kind[0].toUpperCase()+kind.slice(1)}Photo" type="button" hidden>Remove</button></div></article>`;
 }
 function receiptEditorFields(help='Optional. Take a picture or choose one from your photo library.'){
-  return `<section class="fuel-receipt-editor">${stayPhotoEditorSlot('receipt','Receipt',help)}</section>`;
+  return `<section class="fuel-receipt-editor"><article class="stay-photo-editor"><div class="stay-photo-editor-copy"><b>Receipt</b><p>${help}</p></div><div class="stay-photo-preview" id="receiptPhotoPreview"><span>No receipt yet</span></div><div class="stay-photo-actions"><label class="secondary photo-picker">Take photo<input id="receiptCameraFile" type="file" accept="image/*" capture="environment" hidden></label><label class="secondary photo-picker">Choose photo<input id="receiptPhotoFile" type="file" accept="image/*" hidden></label><button class="delete-link remove-stay-photo" id="removeReceiptPhoto" type="button" hidden>Remove</button></div></article></section>`;
 }
 function multiReceiptFields(help){
-  return `<section class="note-photo-editor seasonal-receipt-editor"><div class="note-photo-editor-heading"><div><b>Receipts and documents</b><p>${help}</p></div><label class="secondary photo-picker">Choose pictures<input id="multiReceiptFiles" type="file" accept="image/*" multiple hidden></label></div><div id="multiReceiptGrid" class="note-photo-editor-grid"></div><small id="multiReceiptCount">0 of 6 pictures</small></section>`;
+  return `<section class="note-photo-editor seasonal-receipt-editor"><div class="note-photo-editor-heading"><div><b>Receipts and documents</b><p>${help}</p></div><div class="stay-photo-actions"><label class="secondary photo-picker">Take photo<input id="multiReceiptCameraFile" type="file" accept="image/*" capture="environment" hidden></label><label class="secondary photo-picker">Choose pictures<input id="multiReceiptFiles" type="file" accept="image/*" multiple hidden></label></div></div><div id="multiReceiptGrid" class="note-photo-editor-grid"></div><small id="multiReceiptCount">0 of 6 pictures</small></section>`;
 }
 function notePhotoFields(){
   return `<section class="note-photo-editor"><div class="note-photo-editor-heading"><div><b>Pictures</b><p>Add up to six pictures from your phone.</p></div><label class="secondary photo-picker">Choose pictures<input id="notePhotoFiles" type="file" accept="image/*" multiple hidden></label></div><div id="notePhotoEditorGrid" class="note-photo-editor-grid"></div><small id="notePhotoCount">0 of 6 pictures</small></section>`;
@@ -790,29 +790,36 @@ function bindTripPhotoEditor(trip={}){
     show('');
   });
 }
+let receiptEditorSelectedFile=null;
 function bindReceiptEditor(record={}){
   clearStayPhotoPreviewUrls();
   const input=$('#receiptPhotoFile');
+  const cameraInput=$('#receiptCameraFile');
   const preview=$('#receiptPhotoPreview');
   const remove=$('#removeReceiptPhoto');
-  if(!input||!preview||!remove)return;
+  if(!input||!cameraInput||!preview||!remove)return;
   const show=url=>{
     preview.innerHTML=url?`<img src="${escapeHtml(url)}" alt="Receipt photo">`:'<span>No receipt yet</span>';
     remove.hidden=!url;
   };
-  input.dataset.remove='false';
-  show(record.receiptPhotoUrl||'');
-  input.addEventListener('change',()=>{
+  const selectFile=file=>{
     input.dataset.remove='false';
-    const file=input.files?.[0];
+    receiptEditorSelectedFile=file||null;
     if(!file){show(record.receiptPhotoUrl||'');return;}
     const url=URL.createObjectURL(file);
     stayPhotoPreviewUrls.push(url);
     show(url);
-  });
+  };
+  receiptEditorSelectedFile=null;
+  input.dataset.remove='false';
+  show(record.receiptPhotoUrl||'');
+  input.addEventListener('change',()=>selectFile(input.files?.[0]));
+  cameraInput.addEventListener('change',()=>selectFile(cameraInput.files?.[0]));
   remove.addEventListener('click',()=>{
     input.value='';
+    cameraInput.value='';
     input.dataset.remove='true';
+    receiptEditorSelectedFile=null;
     show('');
   });
 }
@@ -852,15 +859,23 @@ function bindMultiReceiptEditor(record={}){
   multiReceiptEditorState.existing=paths.map((path,index)=>({path,url:urls[index]||''}));
   renderMultiReceiptEditor();
   const input=$('#multiReceiptFiles');
-  if(!input)return;
-  input.addEventListener('change',()=>{
+  const cameraInput=$('#multiReceiptCameraFile');
+  if(!input||!cameraInput)return;
+  const addChosen=files=>{
     const existingCount=multiReceiptEditorState.existing.filter(photo=>!multiReceiptEditorState.removedPaths.has(photo.path)).length;
     const available=Math.max(0,6-existingCount-multiReceiptEditorState.pending.length);
-    const chosen=[...(input.files||[])];
+    const chosen=[...(files||[])];
     if(chosen.length>available)alert(`You can attach up to six pictures. ${available||'No'} more can be added to this record.`);
     chosen.slice(0,available).forEach(file=>multiReceiptEditorState.pending.push({file,url:URL.createObjectURL(file)}));
-    input.value='';
     renderMultiReceiptEditor();
+  };
+  input.addEventListener('change',()=>{
+    addChosen(input.files);
+    input.value='';
+  });
+  cameraInput.addEventListener('change',()=>{
+    addChosen(cameraInput.files);
+    cameraInput.value='';
   });
 }
 function multiReceiptChanges(){
@@ -1144,8 +1159,8 @@ $('#entryForm').onsubmit=async e=>{
     ?{file:$('#onRoadPhotoFile')?.files?.[0]||null,remove:$('#onRoadPhotoFile')?.dataset.remove==='true'}
     :null;
   const receiptKinds={fuel:'fuel',electric:'electric'};
-  const receiptChange=receiptKinds[type]&&($('#receiptPhotoFile')?.files?.[0]||$('#receiptPhotoFile')?.dataset.remove==='true')
-    ?{file:$('#receiptPhotoFile')?.files?.[0]||null,remove:$('#receiptPhotoFile')?.dataset.remove==='true'}
+  const receiptChange=receiptKinds[type]&&(receiptEditorSelectedFile||$('#receiptPhotoFile')?.dataset.remove==='true')
+    ?{file:receiptEditorSelectedFile||null,remove:$('#receiptPhotoFile')?.dataset.remove==='true'}
     :null;
   if(type==='hub-note'){
     const index=$('#entryIndex').value===''?null:+$('#entryIndex').value;

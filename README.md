@@ -13,6 +13,12 @@ Travel Journal is Scott and Kayla's private travel companion.
   read-only calendar subscription remains a fallback if a native companion is
   not pursued.
 
+## Version 0.32.1
+
+- Added a dedicated **Take photo** button to fuel receipts and electric bills.
+- Added the same camera option to maintenance, upgrade, and seasonal-fee documents.
+- Existing **Choose photo(s)** buttons remain available for pictures already on the phone.
+
 ## Version 0.32.0
 
 - Adds **No trip · Everyday Ruby** to the fuel form for ordinary driving.
