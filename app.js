@@ -1,4 +1,4 @@
-const APP_VERSION='0.30.0';
+const APP_VERSION='0.30.1';
 const SEED={"tripSummaries":[],"stays":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"vehicleDetails":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const $=s=>document.querySelector(s), $$=(s,root=document)=>[...root.querySelectorAll(s)];
@@ -1079,11 +1079,30 @@ async function loadCloudData(){
   const status=$('#cloudAccountStatus');
   if(status)status.textContent='Loading shared Travel Journal records…';
   try{
+    const browserBackup=migrate(JSON.parse(localStorage.getItem(KEY)||'null'));
     db=migrate(await window.ADVENTURE_HUB_STORE.load());
+    let recoveredLocalChanges=false;
+    if(browserBackup){
+      const tripKey=trip=>`${String(trip.name||'').trim().toLowerCase()}|${trip.startDate||''}|${trip.endDate||''}`;
+      const cloudTripKeys=new Set(db.tripSummaries.map(tripKey));
+      browserBackup.tripSummaries
+        .filter(trip=>!trip._cloudId&&!cloudTripKeys.has(tripKey(trip)))
+        .forEach(trip=>{db.tripSummaries.push({...trip});cloudTripKeys.add(tripKey(trip));recoveredLocalChanges=true;});
+      const stayKey=stay=>`${String(stay.name||'').trim().toLowerCase()}|${stay.arrival||''}|${stay.departure||''}`;
+      const cloudStayKeys=new Set(db.stays.filter(stay=>stay.arrival!=='Season').map(stayKey));
+      browserBackup.stays
+        .filter(stay=>stay.arrival!=='Season'&&!stay._cloudId&&!cloudStayKeys.has(stayKey(stay)))
+        .forEach(stay=>{
+          const trip=db.tripSummaries.find(item=>item.startDate<=stay.departure&&item.endDate>=stay.arrival);
+          db.stays.push({...stay,_tripId:trip?._cloudId||stay._tripId||null});
+          cloudStayKeys.add(stayKey(stay));
+          recoveredLocalChanges=true;
+        });
+    }
     const shouldSaveTrailerAssignments=migratedTrailerAssignments;
     TODAY=new Date(); TODAY.setHours(0,0,0,0);
     cloudLoaded=true;
-    if(shouldSaveTrailerAssignments)await save();
+    if(shouldSaveTrailerAssignments||recoveredLocalChanges)await save();
     localStorage.setItem(KEY,JSON.stringify(db));
     renderHome();renderTrips();renderNotes();renderVehicleDetails();
     if(status&&window.ADVENTURE_HUB_CLOUD)status.textContent=`Connected as ${window.ADVENTURE_HUB_CLOUD.user.email} · Higgins Hub · Cloud sync is on · v${APP_VERSION}`;

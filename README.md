@@ -13,6 +13,14 @@ Travel Journal is Scott and Kayla's private travel companion.
   read-only calendar subscription remains a fallback if a native companion is
   not pursued.
 
+## Version 0.30.1
+
+- Corrects the Harvest Host value sent to Supabase so it matches the database
+  constraint.
+- Recognizes both the database and app spellings when loading older records.
+- Recovers a newly entered trip or stay that was kept in the browser after a
+  cloud-sync failure, then retries the cloud save automatically.
+
 ## Version 0.30.0
 
 - Opens each trip stay in a focused popup instead of stacking full stay forms

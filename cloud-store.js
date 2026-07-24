@@ -258,8 +258,8 @@
               zip: row.postal_code || '',
               site: row.site_number || '',
               price: 0,
-              stayType: row.stay_type || 'campground',
-              harvestHost: row.stay_type === 'harvest-host',
+              stayType: row.stay_type === 'harvest_host' ? 'harvest-host' : (row.stay_type || 'campground'),
+              harvestHost: row.stay_type === 'harvest_host' || row.stay_type === 'harvest-host',
               moochdocking: row.stay_type === 'moochdocking',
               boondocking: row.stay_type === 'boondocking',
               sitePhotoPath: row.site_photo_path || '',
@@ -374,8 +374,8 @@
         zip: row.postal_code || '',
         site: row.site_number || '',
         price: num(row.cost) || 0,
-        stayType: row.stay_type || '',
-        harvestHost: row.stay_type === 'harvest-host',
+        stayType: row.stay_type === 'harvest_host' ? 'harvest-host' : (row.stay_type || ''),
+        harvestHost: row.stay_type === 'harvest_host' || row.stay_type === 'harvest-host',
         moochdocking: row.stay_type === 'moochdocking',
         boondocking: row.stay_type === 'boondocking',
         sitePhotoPath: row.site_photo_path || '',
@@ -546,7 +546,13 @@
         check_in_time: x.checkInTime || null, check_out_time: x.checkOutTime || null,
         site_number: x.site || null, cost: x.price || 0, address: x.address || null,
         city: x.city || null, state: x.state || null, postal_code: x.zip || null,
-        stay_type: x.stayType || (x.harvestHost ? 'harvest-host' : x.moochdocking ? 'moochdocking' : x.boondocking ? 'boondocking' : 'campground'),
+        stay_type: x.harvestHost || x.stayType === 'harvest-host' || x.stayType === 'harvest_host'
+          ? 'harvest_host'
+          : x.moochdocking || x.stayType === 'moochdocking'
+            ? 'moochdocking'
+            : x.boondocking || x.stayType === 'boondocking'
+              ? 'boondocking'
+              : 'campground',
         site_photo_path: x.sitePhotoPath || null, sign_photo_path: x.signPhotoPath || null,
         notes: x.notes || null
       })).filter(x => x.trip_id);
