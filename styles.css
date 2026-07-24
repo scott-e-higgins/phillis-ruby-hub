@@ -744,13 +744,20 @@ dialog::backdrop{background:rgba(4,9,7,.66)}
   border-color:#c1737f;
 }
 
-/* v0.33.2 — smooth brown journal canvas */
+/* v0.33.3 — subtle tree-bark grain on the brown canvas */
 html{
   background:#302018;
 }
 body{
   background-color:#302018;
-  background-image:radial-gradient(circle at 50% -140px,#4b3427 0,#39261d 360px,#302018 820px);
+  background-image:
+    repeating-linear-gradient(93deg,transparent 0 11px,rgba(255,255,255,.018) 12px 13px,transparent 14px 29px,rgba(0,0,0,.04) 30px 31px,transparent 32px 47px),
+    repeating-linear-gradient(87deg,transparent 0 17px,rgba(0,0,0,.027) 18px 20px,transparent 21px 39px,rgba(255,255,255,.012) 40px 41px,transparent 42px 61px),
+    linear-gradient(90deg,transparent 0 8%,rgba(0,0,0,.035) 18%,transparent 31%,rgba(255,255,255,.012) 46%,transparent 61%,rgba(0,0,0,.03) 78%,transparent 94%),
+    radial-gradient(circle at 50% -140px,#4b3427 0,#39261d 360px,#302018 820px);
+  background-size:137px 100%,211px 100%,317px 100%,auto;
+  background-position:0 0,31px 0,73px 0,center;
+  background-blend-mode:soft-light,multiply,soft-light,normal;
   background-attachment:fixed;
 }
 .topbar{

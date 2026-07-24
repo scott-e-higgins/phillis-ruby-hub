@@ -13,6 +13,12 @@ Travel Journal is Scott and Kayla's private travel companion.
   read-only calendar subscription remains a fallback if a native companion is
   not pursued.
 
+## Version 0.33.3
+
+- Added a restrained vertical tree-bark grain to the brown page canvas.
+- Used dark-on-dark variation so the texture remains behind the content.
+- Kept the green header smooth, the card colors unchanged, and the header dots removed.
+
 ## Version 0.33.2
 
 - Removed the embossed texture from the page and header.
