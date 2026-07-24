@@ -12,12 +12,13 @@
     let known = {};
     let syncing = Promise.resolve();
     const photoBucket = client.storage.from('stay-photos');
+    const tripPhotoBucket = client.storage.from('trip-photos');
 
-    async function signedPhotoUrl(path) {
+    async function signedPhotoUrl(bucket, path) {
       if (!path) return '';
-      const result = await photoBucket.createSignedUrl(path, 60 * 60 * 24 * 7);
+      const result = await bucket.createSignedUrl(path, 60 * 60 * 24 * 7);
       if (result.error) {
-        console.warn('A stay photo could not be displayed.', result.error);
+        console.warn('A photo could not be displayed.', result.error);
         return '';
       }
       return result.data?.signedUrl || '';
@@ -25,10 +26,19 @@
 
     async function hydrateStayPhotoUrls(stays) {
       await Promise.all(stays.flatMap(stay => [
-        stay.sitePhotoPath ? signedPhotoUrl(stay.sitePhotoPath).then(url => { stay.sitePhotoUrl = url; }) : null,
-        stay.signPhotoPath ? signedPhotoUrl(stay.signPhotoPath).then(url => { stay.signPhotoUrl = url; }) : null
+        stay.sitePhotoPath ? signedPhotoUrl(photoBucket, stay.sitePhotoPath).then(url => { stay.sitePhotoUrl = url; }) : null,
+        stay.signPhotoPath ? signedPhotoUrl(photoBucket, stay.signPhotoPath).then(url => { stay.signPhotoUrl = url; }) : null
       ].filter(Boolean)));
       return stays;
+    }
+
+    async function hydrateTripPhotoUrls(trips) {
+      await Promise.all(trips.map(trip =>
+        trip.onRoadPhotoPath
+          ? signedPhotoUrl(tripPhotoBucket, trip.onRoadPhotoPath).then(url => { trip.onRoadPhotoUrl = url; })
+          : null
+      ).filter(Boolean));
+      return trips;
     }
 
     async function preparePhoto(file) {
@@ -104,13 +114,53 @@
         if (removed.error) console.warn('The replaced stay photo could not be removed.', removed.error);
       }
       stay[pathKey] = path;
-      stay[urlKey] = await signedPhotoUrl(path);
+      stay[urlKey] = await signedPhotoUrl(photoBucket, path);
       return stay;
+    }
+
+    async function setTripPhoto(trip, file) {
+      if (role === 'viewer') throw new Error('Family Viewer accounts cannot change photos.');
+      if (!trip?._cloudId) throw new Error('Save this trip before adding its photo.');
+      const oldPath = trip.onRoadPhotoPath || '';
+
+      if (!file) {
+        const update = await client.from('trips').update({ on_road_photo_path: null }).eq('id', trip._cloudId);
+        if (update.error) throw update.error;
+        if (oldPath) {
+          const removed = await tripPhotoBucket.remove([oldPath]);
+          if (removed.error) console.warn('The old trip photo could not be removed.', removed.error);
+        }
+        trip.onRoadPhotoPath = '';
+        trip.onRoadPhotoUrl = '';
+        return trip;
+      }
+
+      const prepared = await preparePhoto(file);
+      const path = `${householdId}/${trip._cloudId}/on-road-${Date.now()}.${prepared.extension}`;
+      const upload = await tripPhotoBucket.upload(path, prepared.blob, {
+        cacheControl: '3600',
+        contentType: prepared.contentType,
+        upsert: false
+      });
+      if (upload.error) throw upload.error;
+
+      const update = await client.from('trips').update({ on_road_photo_path: path }).eq('id', trip._cloudId);
+      if (update.error) {
+        await tripPhotoBucket.remove([path]);
+        throw update.error;
+      }
+      if (oldPath && oldPath !== path) {
+        const removed = await tripPhotoBucket.remove([oldPath]);
+        if (removed.error) console.warn('The replaced trip photo could not be removed.', removed.error);
+      }
+      trip.onRoadPhotoPath = path;
+      trip.onRoadPhotoUrl = await signedPhotoUrl(tripPhotoBucket, path);
+      return trip;
     }
 
     async function load() {
       if (role === 'viewer') {
-        const rows = assert(await client.rpc('get_family_itinerary_v3'));
+        const rows = assert(await client.rpc('get_family_itinerary_v4'));
         const trips = new Map();
         const stays = [];
         rows.forEach(row => {
@@ -127,7 +177,9 @@
               distance: null,
               gallons: 0,
               cost: 0,
-              mpg: null
+              mpg: null,
+              onRoadPhotoPath: row.on_road_photo_path || '',
+              onRoadPhotoUrl: ''
             });
           }
           if (row.campground_name) {
@@ -158,9 +210,10 @@
             });
           }
         });
-        await hydrateStayPhotoUrls(stays);
+        const tripSummaries = [...trips.values()];
+        await Promise.all([hydrateStayPhotoUrls(stays), hydrateTripPhotoUrls(tripSummaries)]);
         return {
-          tripSummaries: [...trips.values()],
+          tripSummaries,
           stays,
           fuel: [],
           siteFees: [],
@@ -224,9 +277,12 @@
           distance,
           gallons,
           cost,
-          mpg: gallons && distance ? distance / gallons : null
+          mpg: gallons && distance ? distance / gallons : null,
+          onRoadPhotoPath: row.on_road_photo_path || '',
+          onRoadPhotoUrl: ''
         };
       });
+      await hydrateTripPhotoUrls(tripSummaries);
 
       const tripName = id => tripById.get(id)?.name || '';
       const localStays = stays.map(row => ({
@@ -371,7 +427,8 @@
         id: x._cloudId, household_id: householdId, name: x.name,
         destination_name: x.destination || x.name, start_date: x.startDate,
         end_date: x.endDate, status: x.status || 'planned', notes: x.notes || null,
-        tow_vehicle_id: ruby.id, rv_id: phillis.id
+        tow_vehicle_id: ruby.id, rv_id: phillis.id,
+        on_road_photo_path: x.onRoadPhotoPath || null
       }));
       assert(await client.from('trips').upsert(tripRows));
       const tripFor = (name, date) => snapshot.tripSummaries.find(x =>
@@ -484,7 +541,8 @@
         syncing = syncing.then(() => write(snapshot));
         return syncing;
       },
-      setStayPhoto
+      setStayPhoto,
+      setTripPhoto
     };
   }
 

@@ -1,4 +1,4 @@
-const SEED={"tripSummaries":[],"stays":[],"fuel":[],"siteFees":[],"electric":[],"meta":{"source":"Supabase","version":"0.16.0"},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
+const SEED={"tripSummaries":[],"stays":[],"fuel":[],"siteFees":[],"electric":[],"meta":{"source":"Supabase","version":"0.17.0"},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const $=s=>document.querySelector(s), $$=(s,root=document)=>[...root.querySelectorAll(s)];
 const clone=x=>JSON.parse(JSON.stringify(x));
@@ -60,6 +60,11 @@ function stayPhotoGallery(stay){
   ].filter(photo=>photo.url);
   if(!photos.length)return '';
   return `<div class="stay-photo-strip">${photos.map(photo=>`<button class="stay-photo-thumb" type="button" data-photo-url="${escapeHtml(photo.url)}" data-photo-label="${escapeHtml(`${stay.name} · ${photo.label}`)}" aria-label="Open ${escapeHtml(photo.label)} photo"><img src="${escapeHtml(photo.url)}" alt="${escapeHtml(photo.label)}" loading="lazy"><span>${escapeHtml(photo.label)}</span></button>`).join('')}</div>`;
+}
+function tripPhotoHtml(trip,{detail=false}={}){
+  if(!trip.onRoadPhotoUrl)return '';
+  const label=`${trip.name} · On the Road Again`;
+  return `<button class="${detail?'trip-hero-photo':'trip-card-photo'}" type="button" data-photo-url="${escapeHtml(trip.onRoadPhotoUrl)}" data-photo-label="${escapeHtml(label)}" aria-label="Open On the Road Again photo"><img src="${escapeHtml(trip.onRoadPhotoUrl)}" alt="${escapeHtml(`On the Road Again for ${trip.name}`)}" loading="lazy"><span>On the Road Again</span></button>`;
 }
 function stayTypeBadges(stay){
   return `${stay.harvestHost||stay.stayType==='harvest-host'?'<span class="stay-badge">Harvest Host</span>':''}${stay.moochdocking||stay.stayType==='moochdocking'?'<span class="stay-badge">Moochdocking</span>':''}${stay.boondocking||stay.stayType==='boondocking'?'<span class="stay-badge">Boondocking</span>':''}`;
@@ -150,7 +155,7 @@ function tripCardHtml(t){
   const [s,e]=tripDates(t),stays=matchingStays(t),tripIndex=db.tripSummaries.indexOf(t);
   const stayCost=stays.reduce((sum,stay)=>sum+(Number(stay.price)||0),0);
   const nights=stays.reduce((sum,stay)=>sum+tripStayNights(stay),0);
-  return `<article class="trip-item" data-trip-index="${tripIndex}"><div class="trip-top"><div><small class="pill">${tripStatus(t)==='planned'?'PLANNED':tripStatus(t)==='current'?'CURRENT':'COMPLETED'}</small><h3>${t.name}</h3><div class="trip-meta">${tripHasDates(t)?`${date(s)} – ${date(e)}`:String(t.year)}</div></div><span>›</span></div><div class="trip-numbers"><div><small>Miles</small><b>${number(t.distance,1)}</b></div><div><small>Fuel</small><b>${money(t.cost)}</b></div><div><small>MPG</small><b>${number(t.mpg,2)}</b></div><div><small>Stay cost</small><b>${money(stayCost)}</b></div><div><small>Nights</small><b>${nights}</b></div><div><small>Stays</small><b>${stays.length}</b></div></div></article>`;
+  return `<article class="trip-item" data-trip-index="${tripIndex}">${tripPhotoHtml(t)}<div class="trip-top"><div><small class="pill">${tripStatus(t)==='planned'?'PLANNED':tripStatus(t)==='current'?'CURRENT':'COMPLETED'}</small><h3>${t.name}</h3><div class="trip-meta">${tripHasDates(t)?`${date(s)} – ${date(e)}`:String(t.year)}</div></div><span>›</span></div><div class="trip-numbers"><div><small>Miles</small><b>${number(t.distance,1)}</b></div><div><small>Fuel</small><b>${money(t.cost)}</b></div><div><small>MPG</small><b>${number(t.mpg,2)}</b></div><div><small>Stay cost</small><b>${money(stayCost)}</b></div><div><small>Nights</small><b>${nights}</b></div><div><small>Stays</small><b>${stays.length}</b></div></div></article>`;
 }
 function yearTotals(trips){
   const allStays=trips.flatMap(matchingStays);
@@ -216,12 +221,12 @@ function showTrip(index){
   const [s,e]=tripDates(t), stays=matchingStays(t), fuel=matchingFuel(t);
   $('#detailKicker').textContent='TRIP'; $('#detailTitle').textContent=t.name;
   if(window.ADVENTURE_HUB_CLOUD?.role==='viewer'){
-    $('#detailBody').innerHTML=`<div class="trip-detail-top"><p class="intro">${date(s)} – ${date(e)}</p></div>${t.destination?`<div class="detail-section"><h3>Destination</h3><p>${escapeHtml(t.destination)}</p></div>`:''}<div class="detail-section"><h3>Itinerary</h3><div class="stay-listing-stack">${stays.map(x=>stayListing(x,{viewer:true})).join('')||'<p class="intro">No campground details have been added yet.</p>'}</div></div>`;
+    $('#detailBody').innerHTML=`<div class="trip-detail-top"><p class="intro">${date(s)} – ${date(e)}</p></div>${tripPhotoHtml(t,{detail:true})}${t.destination?`<div class="detail-section"><h3>Destination</h3><p>${escapeHtml(t.destination)}</p></div>`:''}<div class="detail-section"><h3>Itinerary</h3><div class="stay-listing-stack">${stays.map(x=>stayListing(x,{viewer:true})).join('')||'<p class="intro">No campground details have been added yet.</p>'}</div></div>`;
     bindStayPhotoButtons($('#detailBody'));
     $('#detailDialog').showModal();
     return;
   }
-  $('#detailBody').innerHTML=`<div class="trip-detail-top"><p class="intro">${tripHasDates(t)?`${date(s)} – ${date(e)}`:t.year}</p><button class="primary" id="editTripButton">Edit trip</button></div><div class="detail-section"><h3>Trip totals</h3><div class="detail-row"><span>Miles</span><b>${number(t.distance,1)}</b></div><div class="detail-row"><span>Fuel cost</span><b>${money(t.cost)}</b></div><div class="detail-row"><span>Gallons</span><b>${number(t.gallons,2)}</b></div><div class="detail-row"><span>MPG</span><b>${number(t.mpg,2)}</b></div></div><div class="detail-section"><h3>Campgrounds & hosts</h3><div class="stay-listing-stack">${stays.map(x=>stayListing(x)).join('')||'<p class="intro">No campground stays linked yet.</p>'}</div></div><div class="detail-section"><div class="detail-section-head"><h3>Fuel stops</h3><button class="text-button" id="addTripFuelButton">Add fuel</button></div>${fuel.map(x=>`<div class="detail-row editable-detail-row"><span><b>${escapeHtml(x.station)}</b><br><small>${date(x.date)} · ${number(x.gallons,2)} gal</small></span><div class="detail-value-actions"><span>${money(x.total)}</span><button class="small-button" data-edit-fuel="${db.fuel.indexOf(x)}">Edit</button></div></div>`).join('')||'<p class="intro">No fuel stops linked yet.</p>'}</div>${t.notes?`<div class="detail-section"><h3>Notes</h3><p>${escapeHtml(t.notes)}</p></div>`:''}<div class="trip-delete-area"><button class="delete-link" id="deleteTripButton">Delete trip</button></div>`;
+  $('#detailBody').innerHTML=`<div class="trip-detail-top"><p class="intro">${tripHasDates(t)?`${date(s)} – ${date(e)}`:t.year}</p><button class="primary" id="editTripButton">Edit trip</button></div>${tripPhotoHtml(t,{detail:true})}<div class="detail-section"><h3>Trip totals</h3><div class="detail-row"><span>Miles</span><b>${number(t.distance,1)}</b></div><div class="detail-row"><span>Fuel cost</span><b>${money(t.cost)}</b></div><div class="detail-row"><span>Gallons</span><b>${number(t.gallons,2)}</b></div><div class="detail-row"><span>MPG</span><b>${number(t.mpg,2)}</b></div></div><div class="detail-section"><h3>Campgrounds & hosts</h3><div class="stay-listing-stack">${stays.map(x=>stayListing(x)).join('')||'<p class="intro">No campground stays linked yet.</p>'}</div></div><div class="detail-section"><div class="detail-section-head"><h3>Fuel stops</h3><button class="text-button" id="addTripFuelButton">Add fuel</button></div>${fuel.map(x=>`<div class="detail-row editable-detail-row"><span><b>${escapeHtml(x.station)}</b><br><small>${date(x.date)} · ${number(x.gallons,2)} gal</small></span><div class="detail-value-actions"><span>${money(x.total)}</span><button class="small-button" data-edit-fuel="${db.fuel.indexOf(x)}">Edit</button></div></div>`).join('')||'<p class="intro">No fuel stops linked yet.</p>'}</div>${t.notes?`<div class="detail-section"><h3>Notes</h3><p>${escapeHtml(t.notes)}</p></div>`:''}<div class="trip-delete-area"><button class="delete-link" id="deleteTripButton">Delete trip</button></div>`;
   $('#editTripButton').onclick=()=>{$('#detailDialog').close();openEntry('trip',index)};
   $('#addTripFuelButton').onclick=()=>{$('#detailDialog').close();openEntry('fuel',null,index)};
   $$('[data-edit-stay]').forEach(button=>button.onclick=()=>{$('#detailDialog').close();openEntry('stay',+button.dataset.editStay,index)});
@@ -349,7 +354,7 @@ function stayPhotoEditorSlot(kind,title,help){
   return `<article class="stay-photo-editor"><div class="stay-photo-editor-copy"><b>${title}</b><p>${help}</p></div><div class="stay-photo-preview" id="${kind}PhotoPreview"><span>No photo yet</span></div><div class="stay-photo-actions"><label class="secondary photo-picker">Choose photo<input id="${kind}PhotoFile" type="file" accept="image/*" hidden></label><button class="delete-link remove-stay-photo" id="remove${kind[0].toUpperCase()+kind.slice(1)}Photo" type="button" hidden>Remove</button></div></article>`;
 }
 function fields(type){
-  if(type==='trip') return `<label>Trip name<input id="name" required></label><div class="two"><label>Start date<input id="startDate" type="date" required></label><label>End date<input id="endDate" type="date" required></label></div><div class="trip-stays-heading"><div><b>Places you are staying</b><p class="field-help">Add and edit every stop for this trip.</p></div><button type="button" class="secondary small-add" id="addTripStay">Add another stay</button></div><div id="tripStaysEditor" class="trip-stays-editor"></div>`;
+  if(type==='trip') return `<label>Trip name<input id="name" required></label><div class="two"><label>Start date<input id="startDate" type="date" required></label><label>End date<input id="endDate" type="date" required></label></div><section class="trip-photo-editor"><div class="stay-photo-editors-heading"><b>On the Road Again</b><p>The photo you take near the start of this trip. It becomes the cover of the trip card.</p></div><div class="trip-photo-preview" id="onRoadPhotoPreview"><span>No photo yet</span></div><div class="stay-photo-actions"><label class="secondary photo-picker">Choose photo<input id="onRoadPhotoFile" type="file" accept="image/*" hidden></label><button class="delete-link remove-stay-photo" id="removeOnRoadPhoto" type="button" hidden>Remove</button></div></section><div class="trip-stays-heading"><div><b>Places you are staying</b><p class="field-help">Add and edit every stop for this trip.</p></div><button type="button" class="secondary small-add" id="addTripStay">Add another stay</button></div><div id="tripStaysEditor" class="trip-stays-editor"></div>`;
   if(type==='fuel'){
     const options=db.tripSummaries.slice().sort((a,b)=>tripStamp(b).localeCompare(tripStamp(a))).map(t=>`<option value="${escapeHtml(t.name)}">${escapeHtml(t.name)}</option>`).join('');
     return `<div class="two"><label>Date<input id="date" type="date" required></label><label>Trip<select id="tripName" required><option value="">Choose a trip</option>${options}</select></label></div><label>Station<input id="station" required></label><label>Location<input id="location"></label><div class="three"><label>Gallons<input id="gallons" type="number" min=".001" step=".001" required></label><label>Total<input id="total" type="number" min="0" step=".01" required></label><label>Fuel type<select id="fuelType" required><option value="diesel">Diesel</option><option value="gasoline">Gasoline</option></select></label></div><div class="two"><label>Trip meter<input id="tripMeter" type="number" min="0" step=".1" required></label><label>Odometer<input id="odometer" type="number" min="0" step=".1"></label></div><div class="fuel-calculations" id="fuelCalculations"><span>MPG <b>—</b></span><span>Price / gallon <b>—</b></span></div>`;
@@ -438,6 +443,32 @@ function bindStayPhotoEditor(stay={}){
       input.dataset.remove='true';
       show('');
     });
+  });
+}
+function bindTripPhotoEditor(trip={}){
+  clearStayPhotoPreviewUrls();
+  const input=$('#onRoadPhotoFile');
+  const preview=$('#onRoadPhotoPreview');
+  const remove=$('#removeOnRoadPhoto');
+  if(!input||!preview||!remove)return;
+  const show=url=>{
+    preview.innerHTML=url?`<img src="${escapeHtml(url)}" alt="On the Road Again">`:'<span>No photo yet</span>';
+    remove.hidden=!url;
+  };
+  input.dataset.remove='false';
+  show(trip.onRoadPhotoUrl||'');
+  input.addEventListener('change',()=>{
+    input.dataset.remove='false';
+    const file=input.files?.[0];
+    if(!file){show(trip.onRoadPhotoUrl||'');return;}
+    const url=URL.createObjectURL(file);
+    stayPhotoPreviewUrls.push(url);
+    show(url);
+  });
+  remove.addEventListener('click',()=>{
+    input.value='';
+    input.dataset.remove='true';
+    show('');
   });
 }
 function openEntry(type,index=null,returnTripIndex=null){
@@ -529,6 +560,7 @@ function openEntry(type,index=null,returnTripIndex=null){
       tripStayEditorItems=stays.length?stays.map(stay=>({...stay,dbIndex:db.stays.indexOf(stay)})):[blankTripStay(start,end)];
     } else tripStayEditorItems=[blankTripStay($('#startDate').value,$('#endDate').value)];
     renderTripStayEditor();
+    bindTripPhotoEditor(index===null?{}:db.tripSummaries[index]);
     $('#addTripStay').onclick=()=>{
       const current=readTripStayCards();
       tripStayEditorItems=current.length?current:tripStayEditorItems;
@@ -547,10 +579,14 @@ $('#entryForm').onsubmit=async e=>{
   const submitButton=$('#entryForm').querySelector('.form-actions .primary');
   const originalButtonText=submitButton.textContent;
   let savedStay=null;
+  let savedTrip=null;
   const stayPhotoChanges=type==='stay'?[
     {kind:'site',file:$('#sitePhotoFile')?.files?.[0]||null,remove:$('#sitePhotoFile')?.dataset.remove==='true'},
     {kind:'sign',file:$('#signPhotoFile')?.files?.[0]||null,remove:$('#signPhotoFile')?.dataset.remove==='true'}
   ].filter(change=>change.file||change.remove):[];
+  const tripPhotoChange=type==='trip'&&($('#onRoadPhotoFile')?.files?.[0]||$('#onRoadPhotoFile')?.dataset.remove==='true')
+    ?{file:$('#onRoadPhotoFile')?.files?.[0]||null,remove:$('#onRoadPhotoFile')?.dataset.remove==='true'}
+    :null;
   if(type==='trip'){
     const s=$('#startDate').value,eDate=$('#endDate').value,name=$('#name').value.trim(),index=$('#entryIndex').value===''?null:+$('#entryIndex').value;
     const duplicateIndex=db.tripSummaries.findIndex((trip,i)=>i!==index&&(trip.name||'').trim().toLocaleLowerCase()===name.toLocaleLowerCase());
@@ -564,6 +600,7 @@ $('#entryForm').onsubmit=async e=>{
     const prior=index===null?null:db.tripSummaries[index];
     const trip={...(prior||{}),year:+s.slice(0,4),name,startDate:s,endDate:eDate,distance:prior?.distance??null,cost:prior?.cost??0,gallons:prior?.gallons??0,mpg:prior?.mpg??null,notes};
     if(index===null) db.tripSummaries.push(trip); else db.tripSummaries[index]=trip;
+    savedTrip=trip;
     const editedStays=readTripStayCards();
     const originalIndices=new Set(tripStayEditorItems.map(x=>x.dbIndex).filter(x=>x!==null&&x!==undefined));
     db.stays=db.stays.filter((_,i)=>!originalIndices.has(i));
@@ -592,7 +629,7 @@ $('#entryForm').onsubmit=async e=>{
   else {const obj={date:$('#date').value,description:$('#description').value,location:$('#location').value,price:+$('#total').value||0,notes},key=type==='phillis-maint'?'phillisMaintenance':type==='phillis-upgrade'?'phillisUpgrades':type==='ruby-maint'?'rubyMaintenance':'rubyUpgrades',index=$('#entryIndex').value===''?null:+$('#entryIndex').value;if(index===null)db[key].push(obj);else db[key][index]={...db[key][index],...obj}}
   const returnTripIndex=$('#entryStayIndex').value===''?null:+$('#entryStayIndex').value;
   submitButton.disabled=true;
-  submitButton.textContent=stayPhotoChanges.length?'Saving stay…':'Saving…';
+  submitButton.textContent=stayPhotoChanges.length?'Saving stay…':tripPhotoChange?'Saving trip…':'Saving…';
   const cloudSaved=await save();
   if(savedStay&&stayPhotoChanges.length&&cloudSaved&&window.ADVENTURE_HUB_STORE){
     try{
@@ -604,6 +641,16 @@ $('#entryForm').onsubmit=async e=>{
     }catch(error){
       console.error(error);
       alert(`The stay details were saved, but a photo could not be uploaded.\n\n${error.message}`);
+    }
+  }
+  if(savedTrip&&tripPhotoChange&&cloudSaved&&window.ADVENTURE_HUB_STORE){
+    try{
+      submitButton.textContent='Uploading trip photo…';
+      await window.ADVENTURE_HUB_STORE.setTripPhoto(savedTrip,tripPhotoChange.remove?null:tripPhotoChange.file);
+      localStorage.setItem(KEY,JSON.stringify(db));
+    }catch(error){
+      console.error(error);
+      alert(`The trip details were saved, but the On the Road Again photo could not be uploaded.\n\n${error.message}`);
     }
   }
   submitButton.disabled=false;

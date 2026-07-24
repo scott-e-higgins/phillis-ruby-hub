@@ -2,6 +2,17 @@
 
 Adventure Hub is Scott and Kayla's private travel companion.
 
+## Version 0.17.0
+
+- Adds one shared “On the Road Again” cover photo to every trip.
+- Lets Scott and Kayla add, replace, or remove the photo while editing a trip.
+- Shows the cover prominently on trip cards and trip-detail pages.
+- Makes the same photo visible to Family Viewer accounts for current and
+  upcoming trips.
+- Compresses and stores trip photos securely in a private Supabase bucket.
+
+Run `database-add-trip-photos.sql` in Supabase before publishing this version.
+
 ## Version 0.16.0
 
 - Adds two shared photo spots to every campground and Harvest Host stay:
