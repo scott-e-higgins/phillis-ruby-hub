@@ -148,6 +148,16 @@ main{max-width:920px;margin:auto;padding:22px 16px 10px}
 .menu-list i{font-size:27px;color:#748079;font-style:normal}
 .card{margin-bottom:13px;padding:18px}
 .button-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:15px}
+.updates-card{padding:16px 18px 18px}
+.updates-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.updates-heading small{display:block;color:var(--muted);font-size:10px;font-weight:850;letter-spacing:.1em}
+.updates-heading h3{margin:3px 0 0}
+.version-badge{padding:5px 9px;border:1px solid #527563;border-radius:999px;background:#20362d;color:#a7ddc1;font-size:11px;font-weight:850}
+.updates-list{margin:13px 0 15px;border-top:1px solid var(--line)}
+.updates-list>div{display:grid;grid-template-columns:58px minmax(0,1fr);gap:8px;padding:10px 0;border-bottom:1px solid var(--line)}
+.updates-list b{color:#a7ddc1;font-size:12px}
+.updates-list span{color:var(--muted);font-size:13px;line-height:1.4}
+.update-history-link{display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
 .file-label{display:inline-flex;align-items:center;cursor:pointer}
 .warning-card{background:#2b251c}
 .empty{text-align:center;color:var(--muted);padding:34px 14px;border:1px dashed #46524c;border-radius:9px;background:rgba(26,34,30,.6)}
