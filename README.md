@@ -2,6 +2,13 @@
 
 Travel Journal is Scott and Kayla's private travel companion.
 
+## Version 0.20.2
+
+- Moves the complete Pictures section below the note text or checklist inside
+  the Add/Edit Note screen.
+- Keeps the editing order focused on the note first: title, note, pictures,
+  then Save.
+
 ## Version 0.20.1
 
 - Keeps the note itself as the primary content on every note card.
