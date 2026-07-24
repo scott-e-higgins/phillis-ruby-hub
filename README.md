@@ -2,6 +2,13 @@
 
 Travel Journal is Scott and Kayla's private travel companion.
 
+## Version 0.19.3
+
+- Adds **Add note** beside the Home screen's trip and fuel shortcuts.
+- Shows the three most recently updated shared notes on Home.
+- Opens a recent note directly in the editor when its card is tapped.
+- Keeps Notes and the new Home note shortcuts hidden from Family Viewers.
+
 ## Version 0.19.2
 
 - Renamed the app to **Phillis & Ruby Travel Journal**.

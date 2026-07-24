@@ -79,7 +79,7 @@ main{max-width:920px;margin:auto;padding:22px 16px 10px}
 .section-heading,.section-row h2{font-size:19px;letter-spacing:-.015em;margin:28px 2px 12px}
 .section-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .text-button{border:0;background:none;color:#8bc5aa;font-weight:850;padding:8px 4px}
-.quick-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}
+.quick-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px}
 .quick-actions button{border:1px solid var(--line);background:rgba(18,24,21,.94);border-radius:9px;padding:15px 8px 14px;font-weight:800;color:var(--ink);box-shadow:var(--shadow-sm);transition:.2s var(--ease)}
 .quick-actions button:hover{transform:translateY(-2px);border-color:#4d665b;box-shadow:0 12px 26px rgba(0,0,0,.28)}
 .quick-actions button:active{transform:scale(.98)}
@@ -234,6 +234,7 @@ fieldset legend{font-weight:850;padding:0 7px}
 .record-notes small{font-size:11px;letter-spacing:.12em;font-weight:850;color:var(--muted)}
 .notes-intro{margin-top:-5px;margin-bottom:18px}
 .note-list{display:grid;gap:12px}
+.home-note-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px}
 .note-card{display:block;width:100%;padding:17px;border:1px solid var(--line);border-radius:8px;background:linear-gradient(145deg,#2a342f,#232c28);color:var(--ink);text-align:left;box-shadow:var(--shadow-sm);transition:.2s var(--ease)}
 .note-card:hover{transform:translateY(-1px);border-color:#536159;background:#303b35}
 .note-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
@@ -242,6 +243,12 @@ fieldset legend{font-weight:850;padding:0 7px}
 .note-card p{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;white-space:pre-wrap;margin:7px 0 10px;color:#c3cdc8;font-size:14px;line-height:1.45}
 .note-card .note-empty-copy{color:var(--muted);font-style:italic}
 .note-card small{color:var(--muted);font-size:11px;font-weight:750;letter-spacing:.02em}
+.home-note-card{min-width:0;padding:14px}
+.home-note-card h3{font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.home-note-card .note-card-top span{display:none}
+.home-note-card p{-webkit-line-clamp:2;font-size:13px}
+.home-note-card .note-checklist-preview{margin:8px 0 10px}
+.home-note-card .note-checklist-preview span:nth-child(n+4){display:none}
 .note-body{min-height:120px;margin-top:16px;padding:17px;border:1px solid var(--line);border-radius:8px;background:#202823;color:#e1e9e5;white-space:pre-wrap;overflow-wrap:anywhere}
 .note-detail-updated{margin:10px 2px 0;color:var(--muted);font-size:12px}
 .note-checklist-preview{display:grid;gap:6px;margin:10px 0 12px}
@@ -274,7 +281,9 @@ fieldset legend{font-weight:850;padding:0 7px}
   .next-trip-current h2{font-size:22px}
   .next-trip p{font-size:11px}
   .countdown-open{right:9px;bottom:8px}
-  .quick-actions{grid-template-columns:repeat(2,1fr)}
+  .quick-actions{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+  .quick-actions button{padding-left:5px;padding-right:5px;font-size:13px}
+  .home-note-list{grid-template-columns:1fr}
   .filters{grid-template-columns:1fr}
   .two,.three{grid-template-columns:1fr}
   .topbar{padding-left:max(18px,env(safe-area-inset-left));padding-right:max(18px,env(safe-area-inset-right))}
@@ -523,6 +532,8 @@ dialog::backdrop{background:rgba(4,9,7,.66)}
 .viewer-mode #home>.section-heading,
 .viewer-mode #recentRecords,
 .viewer-mode #home .section-row:has(+ #recentRecords),
+.viewer-mode #recentNotes,
+.viewer-mode .home-notes-row,
 .viewer-mode #trips .page-title .primary,
 .viewer-mode .trip-numbers,
 .viewer-mode .trip-year-numbers,

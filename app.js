@@ -1,4 +1,4 @@
-const APP_VERSION='0.19.2';
+const APP_VERSION='0.19.3';
 const SEED={"tripSummaries":[],"stays":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const $=s=>document.querySelector(s), $$=(s,root=document)=>[...root.querySelectorAll(s)];
@@ -187,19 +187,27 @@ function setupNoteEditor(body=''){
   };
   sync();
 }
+function sortedSharedNotes(){
+  return [...(db.sharedNotes||[])].sort((a,b)=>String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||'')));
+}
+function noteCardHtml(note,compact=false){
+  const index=db.sharedNotes.indexOf(note);
+  const preview=(note.body||'').trim();
+  const checklist=parseChecklist(preview);
+  const previewLimit=compact?3:4;
+  const content=checklist
+    ?`<div class="note-checklist-preview">${checklist.slice(0,previewLimit).map(item=>`<span><i class="${item.checked?'checked':''}">${item.checked?'✓':''}</i><b class="${item.checked?'completed':''}">${escapeHtml(item.text)}</b></span>`).join('')}${checklist.length>previewLimit?`<em>+${checklist.length-previewLimit} more</em>`:''}</div>`
+    :preview?`<p>${escapeHtml(preview)}</p>`:'<p class="note-empty-copy">No text yet.</p>';
+  return `<button class="note-card${compact?' home-note-card':''}" type="button" data-note-index="${index}"><div class="note-card-top"><h3>${escapeHtml(note.title||'Untitled note')}</h3><span>Edit ›</span></div>${content}<small>${noteWhen(note.updatedAt||note.createdAt)?`Updated ${noteWhen(note.updatedAt||note.createdAt)}`:'Shared note'}</small></button>`;
+}
+function bindNoteCards(host){
+  $$('[data-note-index]',host).forEach(button=>button.onclick=()=>openEntry('hub-note',+button.dataset.noteIndex));
+}
 function renderNotes(){
   const host=$('#noteList'); if(!host)return;
-  const notes=[...(db.sharedNotes||[])].sort((a,b)=>String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||'')));
-  host.innerHTML=notes.map(note=>{
-    const index=db.sharedNotes.indexOf(note);
-    const preview=(note.body||'').trim();
-    const checklist=parseChecklist(preview);
-    const content=checklist
-      ?`<div class="note-checklist-preview">${checklist.slice(0,4).map(item=>`<span><i class="${item.checked?'checked':''}">${item.checked?'✓':''}</i><b class="${item.checked?'completed':''}">${escapeHtml(item.text)}</b></span>`).join('')}${checklist.length>4?`<em>+${checklist.length-4} more</em>`:''}</div>`
-      :preview?`<p>${escapeHtml(preview)}</p>`:'<p class="note-empty-copy">No text yet.</p>';
-    return `<button class="note-card" type="button" data-note-index="${index}"><div class="note-card-top"><h3>${escapeHtml(note.title||'Untitled note')}</h3><span>Edit ›</span></div>${content}<small>${noteWhen(note.updatedAt||note.createdAt)?`Updated ${noteWhen(note.updatedAt||note.createdAt)}`:'Shared note'}</small></button>`;
-  }).join('')||'<div class="empty">No shared notes yet. Add your first list, reminder, or idea.</div>';
-  $$('[data-note-index]',host).forEach(button=>button.onclick=()=>openEntry('hub-note',+button.dataset.noteIndex));
+  const notes=sortedSharedNotes();
+  host.innerHTML=notes.map(note=>noteCardHtml(note)).join('')||'<div class="empty">No shared notes yet. Add your first list, reminder, or idea.</div>';
+  bindNoteCards(host);
   bindOpeners();
 }
 
@@ -217,6 +225,9 @@ function renderHome(){
     return `<button type="button" class="next-trip ${status==='current'?'next-trip-current':plannedPosition===2?'next-trip-secondary':''}" data-trip-index="${tripIndex}" aria-label="Open ${escapeHtml(trip.name)} trip"><small>${status==='current'?'● ACTIVE TRIP':plannedPosition===1?'NEXT TRIP':'AFTER THAT'}</small><h2>${escapeHtml(trip.name)}</h2><p>${date(start)} – ${date(end)}</p><div class="countdown"><strong>${status==='current'?`Day ${progress.day}`:daysUntil(start)}</strong><span>${status==='current'?`of ${progress.length}`:'days to go'}</span></div><span class="countdown-open">Open ›</span></button>`;
   }).join(''):`<article class="next-trip next-trip-empty"><small>NEXT TRIP</small><h2>Nothing planned yet</h2><p>Add the next adventure whenever you're ready.</p><div class="button-row"><button class="secondary" data-open="trip">Add a trip</button></div></article>`;
   $('#upcomingList').innerHTML=upcoming.slice(0,3).map(t=>{const [s,e]=tripDates(t),tripIndex=db.tripSummaries.indexOf(t);return `<button class="list-item" data-trip-index="${tripIndex}"><div class="date-box"><small>${new Date(s+'T12:00:00').toLocaleDateString(undefined,{month:'short'})}</small><b>${new Date(s+'T12:00:00').getDate()}</b></div><div class="item-copy"><h3>${t.name}</h3><p>${date(s)} – ${date(e)}</p></div><span class="item-chevron">›</span></button>`}).join('')||'<div class="empty">No upcoming trips yet.</div>';
+  const recentNotes=sortedSharedNotes().slice(0,3);
+  $('#recentNotes').innerHTML=recentNotes.map(note=>noteCardHtml(note,true)).join('')||'<div class="empty">New notes will appear here.</div>';
+  bindNoteCards($('#recentNotes'));
   const recent=[];
   db.fuel.forEach(x=>recent.push({type:'Fuel',icon:'⛽',title:x.station||'Fuel stop',sub:`${date(x.date)} · ${money(x.total)}`,stamp:x.date||''}));
   db.phillisMaintenance.forEach(x=>recent.push({type:'Phillis',icon:'🔧',title:x.description||'Maintenance',sub:`${date(x.date)} · ${money(x.price)}`,stamp:x.date||''}));
@@ -578,6 +589,7 @@ function openEntry(type,index=null,returnTripIndex=null){
         db.sharedNotes.splice(index,1);
         save();
         $('#entryDialog').close();
+        renderHome();
         renderNotes();
       };
     }
