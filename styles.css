@@ -176,7 +176,7 @@ main{max-width:920px;margin:auto;padding:22px 16px 10px}
 .empty{text-align:center;color:var(--muted);padding:34px 14px;border:1px dashed #46524c;border-radius:9px;background:rgba(26,34,30,.6)}
 .empty::before{content:"✦";display:block;font-size:23px;color:#7f8984;margin-bottom:5px}
 
-.bottom-nav{position:fixed;bottom:0;left:0;right:0;height:80px;padding:5px 8px max(6px,env(safe-area-inset-bottom));display:grid;grid-template-columns:repeat(5,1fr);background:rgba(18,24,21,.94);border-top:1px solid rgba(52,64,58,.92);backdrop-filter:blur(18px);z-index:20;box-shadow:0 -10px 28px rgba(0,0,0,.3)}
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;height:80px;padding:5px 8px max(6px,env(safe-area-inset-bottom));display:grid;grid-template-columns:repeat(4,1fr);background:rgba(18,24,21,.94);border-top:1px solid rgba(52,64,58,.92);backdrop-filter:blur(18px);z-index:20;box-shadow:0 -10px 28px rgba(0,0,0,.3)}
 .bottom-nav button{position:relative;border:0;background:none;color:#849089;font-size:10px;font-weight:800;border-radius:14px;transition:.2s var(--ease)}
 .bottom-nav span{display:block;font-size:20px;line-height:1.3;margin-bottom:1px}
 .bottom-nav button.active{color:#9ed2b8}
@@ -348,6 +348,20 @@ fieldset legend{font-weight:850;padding:0 7px}
 .form-actions #deleteEntryNote{margin-right:auto}
 .record-notes p{margin:6px 0 0;white-space:pre-wrap;color:var(--ink)}
 .record-asset{display:inline-block;margin-bottom:5px;padding:3px 7px;border:1px solid #5d7468;border-radius:5px;background:#263a32;color:#abd8c1;font-size:9px;font-weight:850;letter-spacing:.08em;text-transform:uppercase}
+.garage-intro{margin-bottom:16px}
+.garage-stack{display:grid;gap:18px}
+.vehicle-section{padding:16px;border:1px solid #4d5a53;border-radius:9px;background:linear-gradient(145deg,#303a34,#29322d);box-shadow:var(--shadow-sm)}
+.vehicle-section-phillis{border-top:3px solid #6ca084}
+.vehicle-section-ruby{border-top:3px solid #9a4350}
+.vehicle-section-heading{display:flex;align-items:center;gap:13px;margin-bottom:14px}
+.vehicle-section-heading>div{min-width:0}
+.vehicle-section-heading small{color:var(--gold);font-size:9px;font-weight:850;letter-spacing:.13em}
+.vehicle-section-heading h2{margin:2px 0;font-size:22px}
+.vehicle-section-heading p{margin:0;color:var(--muted);font-size:12px}
+.vehicle-section-icon{display:grid;width:46px;height:46px;flex:0 0 46px;place-items:center;border:1px solid #536159;border-radius:8px;background:#25322c;color:#b8e5cf;font-size:22px}
+.vehicle-section-ruby .vehicle-section-icon{background:#3a292d;border-color:#6d444c;color:#e9b4bb}
+.vehicle-section .menu-list{margin:0}
+.vehicle-panel:not(:empty){margin-top:18px;padding-top:16px;border-top:1px solid #4b5851}
 .fuel-calculations{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:13px}
 .fuel-calculations span{display:flex;justify-content:space-between;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:#171f1b;color:var(--muted);font-size:13px}
 .fuel-calculations b{color:var(--ink);font-variant-numeric:tabular-nums}
@@ -634,8 +648,7 @@ dialog::backdrop{background:rgba(4,9,7,.66)}
 .viewer-mode .trip-year-numbers,
 .viewer-mode #backupCard,
 .viewer-mode #householdAccessCard,
-.viewer-mode .bottom-nav [data-view="phillis"],
-.viewer-mode .bottom-nav [data-view="ruby"],
+.viewer-mode .bottom-nav [data-view="garage"],
 .viewer-mode .bottom-nav [data-view="notes"]{display:none!important}
 .viewer-mode .bottom-nav{grid-template-columns:repeat(2,1fr)}
 .viewer-mode .trip-year-content{margin-top:12px}
