@@ -743,3 +743,27 @@ dialog::backdrop{background:rgba(4,9,7,.66)}
   background:linear-gradient(145deg,#713844,#49363a);
   border-color:#c1737f;
 }
+
+/* v0.33.0 — leather-bound journal theme */
+html{
+  background:#281a14;
+}
+body{
+  background-color:#281a14;
+  background-image:
+    repeating-linear-gradient(117deg,rgba(255,255,255,.014) 0 1px,transparent 1px 4px),
+    repeating-linear-gradient(27deg,rgba(0,0,0,.026) 0 1px,transparent 1px 5px),
+    radial-gradient(circle at 50% -120px,#4a3023 0,#342219 330px,#281a14 760px);
+  background-attachment:fixed;
+}
+.topbar{
+  background-color:#17392f;
+  background-image:
+    repeating-linear-gradient(118deg,rgba(255,255,255,.013) 0 1px,transparent 1px 4px),
+    repeating-linear-gradient(28deg,rgba(0,0,0,.024) 0 1px,transparent 1px 5px),
+    linear-gradient(135deg,#10241d,#1f4437);
+}
+.topbar::before,
+.topbar::after{
+  display:none;
+}
