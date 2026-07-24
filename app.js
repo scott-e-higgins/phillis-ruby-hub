@@ -1,4 +1,4 @@
-const APP_VERSION='0.31.0';
+const APP_VERSION='0.31.1';
 const SEED={"tripSummaries":[],"stays":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"vehicleDetails":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const $=s=>document.querySelector(s), $$=(s,root=document)=>[...root.querySelectorAll(s)];
@@ -800,9 +800,11 @@ function openEntry(type,index=null,returnTripIndex=null){
   $('#entryType').value=type; $('#entryIndex').value=index===null?'':index; $('#entryStayIndex').value=returnTripIndex===null?'':returnTripIndex;
   $('#entryTitle').textContent=titles[type]; $('#entryFields').innerHTML=fields(type); $('#entryExtras').innerHTML=type==='hub-note'?notePhotoFields():''; $('#entryNotes').value='';
   $('#entryNotesLabel').textContent=type==='hub-note'?'Note':'Notes';
-  const deleteNote=$('#deleteEntryNote');
-  deleteNote.hidden=true;
-  deleteNote.onclick=null;
+  const deleteEntry=$('#deleteEntryNote');
+  deleteEntry.hidden=true;
+  deleteEntry.disabled=false;
+  deleteEntry.textContent='Delete';
+  deleteEntry.onclick=null;
   const today=new Date().toISOString().slice(0,10), d=$('#date')||$('#arrival')||$('#startDate'); if(d)d.value=today; if(type==='trip')$('#endDate').value=$('#startDate').value;
   if(type==='hub-note'){
     const note=index===null?null:db.sharedNotes?.[index];
@@ -810,10 +812,11 @@ function openEntry(type,index=null,returnTripIndex=null){
     setupNoteEditor(note?.body||'');
     bindNotePhotoEditor(note||{});
     if(note){
-      deleteNote.hidden=false;
-      deleteNote.onclick=async()=>{
+      deleteEntry.textContent='Delete note';
+      deleteEntry.hidden=false;
+      deleteEntry.onclick=async()=>{
         if(!confirm(`Delete “${note.title||'this note'}”?`))return;
-        deleteNote.disabled=true;
+        deleteEntry.disabled=true;
         try{
           if(window.ADVENTURE_HUB_STORE&&note._cloudId)await window.ADVENTURE_HUB_STORE.deleteNotePhotos(note);
           db.sharedNotes.splice(index,1);
@@ -825,7 +828,7 @@ function openEntry(type,index=null,returnTripIndex=null){
         }catch(error){
           console.error(error);
           alert(`The note could not be deleted.\n\n${error.message}`);
-          deleteNote.disabled=false;
+          deleteEntry.disabled=false;
         }
       };
     }
@@ -860,6 +863,26 @@ function openEntry(type,index=null,returnTripIndex=null){
       if(fuel){
         $('#date').value=fuel.date||today; $('#tripName').value=fuel.trip||''; $('#station').value=fuel.station||''; $('#city').value=fuel.city||splitFuelLocation(fuel.location).city; $('#state').value=fuel.state||splitFuelLocation(fuel.location).state;
         $('#gallons').value=fuel.gallons??''; $('#total').value=fuel.total??''; $('#fuelType').value=fuel.fuelType||(+String(fuel.date||'').slice(0,4)>=2025?'diesel':'gasoline'); $('#tripMeter').value=fuel.tripMiles??''; $('#odometer').value=fuel.odometer??''; $('#entryNotes').value=fuel.notes||'';
+        deleteEntry.textContent='Delete fuel stop';
+        deleteEntry.hidden=false;
+        deleteEntry.onclick=async()=>{
+          if(!confirm(`Delete this fuel stop at ${fuel.station||'this station'}?`))return;
+          deleteEntry.disabled=true;
+          const removed=db.fuel.splice(index,1)[0];
+          refreshTripFuelSummaries();
+          const cloudSaved=await save();
+          if(!cloudSaved){
+            db.fuel.splice(index,0,removed);
+            refreshTripFuelSummaries();
+            deleteEntry.disabled=false;
+            return;
+          }
+          $('#entryDialog').close();
+          renderHome();
+          renderTrips();
+          if(returnTripIndex!==null)showTrip(returnTripIndex);
+          else showPanel('fuel-history');
+        };
       }
     }else if(returnTripIndex!==null){
       $('#tripName').value=db.tripSummaries[returnTripIndex]?.name||'';

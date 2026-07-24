@@ -363,6 +363,7 @@ fieldset legend{font-weight:850;padding:0 7px}
 .note-photo-empty{grid-column:1/-1;padding:14px;border:1px dashed #4c5a53;border-radius:7px;color:var(--muted);font-size:13px;text-align:center}
 .note-photo-editor>small{color:var(--muted);font-size:11px;font-weight:750}
 .form-actions #deleteEntryNote{margin-right:auto}
+.form-actions #deleteEntryNote[hidden]{display:none}
 .record-notes p{margin:6px 0 0;white-space:pre-wrap;color:var(--ink)}
 .record-asset{display:inline-block;margin-bottom:5px;padding:3px 7px;border:1px solid #5d7468;border-radius:5px;background:#263a32;color:#abd8c1;font-size:9px;font-weight:850;letter-spacing:.08em;text-transform:uppercase}
 .garage-intro{margin-bottom:16px}

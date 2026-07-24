@@ -13,6 +13,13 @@ Travel Journal is Scott and Kayla's private travel companion.
   read-only calendar subscription remains a fallback if a native companion is
   not pursued.
 
+## Version 0.31.1
+
+- Replaces the incorrect **Delete note** button in an edited fuel stop with
+  **Delete fuel stop**.
+- Deletes that exact fuel record from both the trip and shared cloud data.
+- Keeps the Notes-specific delete action hidden for every other record type.
+
 ## Version 0.31.0
 
 - Replaces the single fuel-stop location field with separate City and State
