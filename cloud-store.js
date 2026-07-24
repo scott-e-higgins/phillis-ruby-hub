@@ -283,6 +283,7 @@
           rubyMaintenance: [],
           rubyUpgrades: [],
           sharedNotes: [],
+          vehicleDetails: [],
           meta: { cloud: true, viewer: true }
         };
       }
@@ -296,9 +297,10 @@
         client.from('site_seasons').select('*'),
         client.from('seasonal_payments').select('*'),
         client.from('electric_bills').select('*'),
-        client.from('hub_notes').select('*').eq('household_id', householdId)
+        client.from('hub_notes').select('*').eq('household_id', householdId),
+        client.from('vehicle_private_details').select('vehicle_id, vin').eq('household_id', householdId)
       ]);
-      const [trips, stays, fuel, vehicles, maintenance, sites, seasons, payments, electric, notes] = results.map(assert);
+      const [trips, stays, fuel, vehicles, maintenance, sites, seasons, payments, electric, notes, privateVehicleDetails] = results.map(assert);
       known = {
         trips: new Set(trips.map(x => x.id)),
         campground_stays: new Set(stays.map(x => x.id)),
@@ -312,6 +314,7 @@
 
       const tripById = new Map(trips.map(x => [x.id, x]));
       const vehicleById = new Map(vehicles.map(x => [x.id, x]));
+      const privateVehicleById = new Map(privateVehicleDetails.map(x => [x.vehicle_id, x]));
       const seasonById = new Map(seasons.map(x => [x.id, x]));
       const site = sites[0] || {};
       const siteLocation = String(site.location || '');
@@ -488,6 +491,11 @@
         siteFees,
         electric: localElectric,
         sharedNotes: localNotes,
+        vehicleDetails: vehicles.map(vehicle => ({
+          _cloudId: vehicle.id,
+          name: vehicle.name,
+          vin: privateVehicleById.get(vehicle.id)?.vin || ''
+        })),
         ...maintenanceGroups,
         meta: { cloud: true }
       };

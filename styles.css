@@ -358,6 +358,9 @@ fieldset legend{font-weight:850;padding:0 7px}
 .vehicle-section-heading small{color:var(--gold);font-size:9px;font-weight:850;letter-spacing:.13em}
 .vehicle-section-heading h2{margin:2px 0;font-size:22px}
 .vehicle-section-heading p{margin:0;color:var(--muted);font-size:12px}
+.vehicle-section-heading .vehicle-vin{display:flex;align-items:center;gap:7px;margin-top:6px;color:#d7ded9;font-size:10px}
+.vehicle-vin span{color:var(--gold);font-size:8px;font-weight:850;letter-spacing:.12em}
+.vehicle-vin code{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:10px;letter-spacing:.025em;user-select:all}
 .vehicle-section-icon{display:grid;width:46px;height:46px;flex:0 0 46px;place-items:center;border:1px solid #536159;border-radius:8px;background:#25322c;color:#b8e5cf;font-size:22px}
 .vehicle-section-ruby .vehicle-section-icon{background:#3a292d;border-color:#6d444c;color:#e9b4bb}
 .vehicle-section .menu-list{margin:0}

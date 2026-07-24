@@ -1,5 +1,5 @@
-const APP_VERSION='0.28.0';
-const SEED={"tripSummaries":[],"stays":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
+const APP_VERSION='0.28.1';
+const SEED={"tripSummaries":[],"stays":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"vehicleDetails":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const $=s=>document.querySelector(s), $$=(s,root=document)=>[...root.querySelectorAll(s)];
 const clone=x=>JSON.parse(JSON.stringify(x));
@@ -10,7 +10,7 @@ function migrate(x){
   migratedTrailerAssignments=false;
   if(x.maintenance&&!x.phillisMaintenance) x.phillisMaintenance=x.maintenance;
   delete x.maintenance;
-  for(const k of ['phillisMaintenance','phillisUpgrades','rubyMaintenance','rubyUpgrades','fuel','electric','siteFees','stays','tripSummaries','sharedNotes']) x[k]=x[k]||[];
+  for(const k of ['phillisMaintenance','phillisUpgrades','rubyMaintenance','rubyUpgrades','fuel','electric','siteFees','stays','tripSummaries','sharedNotes','vehicleDetails']) x[k]=x[k]||[];
   for(const key of ['phillisMaintenance','phillisUpgrades']){
     x[key].forEach(record=>{
       const trailer=Number(String(record.date||'').slice(0,4))>=2026?'Phillis II.0':'Phillis';
@@ -173,6 +173,20 @@ function go(view){
   if(view==='notes') renderNotes();
 }
 $$('[data-view]').forEach(b=>b.addEventListener('click',()=>go(b.dataset.view)));
+
+function renderVehicleDetails(){
+  const details=new Map((db.vehicleDetails||[]).map(vehicle=>[vehicle.name,vehicle]));
+  const showVin=(selector,name)=>{
+    const host=$(selector);
+    if(!host)return;
+    const vin=details.get(name)?.vin||'';
+    host.hidden=!vin;
+    const code=host.querySelector('code');
+    if(code)code.textContent=vin;
+  };
+  showVin('#phillisVin','Phillis II.0');
+  showVin('#rubyVin','Ruby');
+}
 
 function noteWhen(value){
   if(!value)return '';
@@ -996,7 +1010,7 @@ async function loadCloudData(){
     cloudLoaded=true;
     if(shouldSaveTrailerAssignments)await save();
     localStorage.setItem(KEY,JSON.stringify(db));
-    renderHome();renderTrips();renderNotes();
+    renderHome();renderTrips();renderNotes();renderVehicleDetails();
     if(status&&window.ADVENTURE_HUB_CLOUD)status.textContent=`Connected as ${window.ADVENTURE_HUB_CLOUD.user.email} · Higgins Hub · Cloud sync is on · v${APP_VERSION}`;
     return true;
   }catch(error){
@@ -1068,7 +1082,7 @@ function enablePullToRefresh(){
 window.addEventListener('adventure-store-ready',loadCloudData);
 if(window.ADVENTURE_HUB_STORE)loadCloudData();
 enablePullToRefresh();
-renderHome(); renderTrips(); renderNotes();
+renderHome(); renderTrips(); renderNotes(); renderVehicleDetails();
 async function checkForAppUpdate(){
   try{
     const response=await fetch(`version.json?checked=${Date.now()}`,{cache:'no-store'});

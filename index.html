@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-title" content="Travel Journal">
   <meta name="description" content="The private travel, maintenance and seasonal-site hub for Phillis & Ruby.">
   <title>Phillis & Ruby Travel Journal</title>
-  <link rel="manifest" href="manifest.webmanifest?v=0.28.0">
+  <link rel="manifest" href="manifest.webmanifest?v=0.28.1">
   <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
   <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
   <script>
@@ -20,7 +20,7 @@
       document.documentElement.classList.add('standalone-app');
     }
   </script>
-  <link rel="stylesheet" href="styles.css?v=0.28.0">
+  <link rel="stylesheet" href="styles.css?v=0.28.1">
 </head>
 <body>
 <div id="pullRefresh" class="pull-refresh" aria-live="polite">
@@ -90,7 +90,7 @@
       <article class="vehicle-section vehicle-section-phillis">
         <div class="vehicle-section-heading">
           <span class="vehicle-section-icon" aria-hidden="true">△</span>
-          <div><small>CURRENT TRAILER</small><h2>Phillis II.0</h2><p>2026 Brinkley Model I265</p></div>
+          <div><small>CURRENT TRAILER</small><h2>Phillis II.0</h2><p>2026 Brinkley Model I265</p><p class="vehicle-vin" id="phillisVin" hidden><span>VIN</span><code></code></p></div>
         </div>
         <div class="menu-list">
           <button data-page="phillis-maintenance"><span>🔧</span><div><b>Maintenance & repairs</b><small>Work performed, cost and notes</small></div><i>›</i></button>
@@ -102,7 +102,7 @@
       <article class="vehicle-section vehicle-section-ruby">
         <div class="vehicle-section-heading">
           <span class="vehicle-section-icon" aria-hidden="true">▰</span>
-          <div><small>CURRENT TOW VEHICLE</small><h2>Ruby</h2><p>2025 Ford F-250 Tremor · Diesel</p></div>
+          <div><small>CURRENT TOW VEHICLE</small><h2>Ruby</h2><p>2025 Ford F-250 Tremor · Diesel</p><p class="vehicle-vin" id="rubyVin" hidden><span>VIN</span><code></code></p></div>
         </div>
         <div class="menu-list">
           <button data-page="ruby-maintenance"><span>🔧</span><div><b>Maintenance & service</b><small>Oil, filters, tires and repairs</small></div><i>›</i></button>
@@ -157,9 +157,13 @@
     <article class="card updates-card">
       <div class="updates-heading">
         <div><small>WHAT'S NEW</small><h3>Recent updates</h3></div>
-        <span class="version-badge">v0.28.0</span>
+        <span class="version-badge">v0.28.1</span>
       </div>
       <div class="updates-list">
+        <div>
+          <b>v0.28.1</b>
+          <span>Added the VIN for Phillis II.0 and Ruby to the Rig page.</span>
+        </div>
         <div>
           <b>v0.28.0</b>
           <span>Combined Phillis and Ruby into one Rig page.</span>
@@ -168,12 +172,8 @@
           <b>v0.27.0</b>
           <span>Identified Phillis maintenance, repairs, and upgrades by trailer.</span>
         </div>
-        <div>
-          <b>v0.26.0</b>
-          <span>Added Last Trip, Next Trip, and After That cards to Home, plus a full-width active trip.</span>
-        </div>
       </div>
-      <a class="secondary update-history-link" href="https://github.com/scott-e-higgins/phillis-ruby-hub#version-0280" target="_blank" rel="noopener">View complete update history</a>
+      <a class="secondary update-history-link" href="https://github.com/scott-e-higgins/phillis-ruby-hub#version-0281" target="_blank" rel="noopener">View complete update history</a>
     </article>
   </section>
 </main>
@@ -235,8 +235,8 @@
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
 <script src="supabase-config.js" defer></script>
-<script src="cloud.js?v=0.28.0" defer></script>
-<script src="cloud-store.js?v=0.28.0" defer></script>
-<script src="app.js?v=0.28.0" defer></script>
+<script src="cloud.js?v=0.28.1" defer></script>
+<script src="cloud-store.js?v=0.28.1" defer></script>
+<script src="app.js?v=0.28.1" defer></script>
 </body>
 </html>

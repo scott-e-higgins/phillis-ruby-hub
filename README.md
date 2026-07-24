@@ -13,6 +13,15 @@ Travel Journal is Scott and Kayla's private travel companion.
   read-only calendar subscription remains a fallback if a native companion is
   not pursued.
 
+## Version 0.28.1
+
+- Adds the VIN for Phillis II.0 and Ruby beneath each vehicle's identifying
+  details on the Rig page.
+- Stores VINs in a separate Supabase table restricted to owners and editors;
+  they are not embedded in the public website source or exposed to Family
+  Viewer accounts.
+- Keeps the VIN visually secondary while making it easy to select and copy.
+
 ## Version 0.28.0
 
 - Combines the separate Phillis and Ruby bottom navigation pages into one Rig
