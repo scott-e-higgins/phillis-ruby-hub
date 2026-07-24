@@ -13,12 +13,16 @@ Travel Journal is Scott and Kayla's private travel companion.
   read-only calendar subscription remains a fallback if a native companion is
   not pursued.
 
-## Version 0.33.5
+## Version 0.33.6
 
 - Adds oversized, flowing leaf veins to the forest-green header.
 - Adds low-contrast grass silhouettes to the fixed bottom navigation.
 - Keeps the branding, controls, and navigation labels clear and readable.
 - Preserves the chunky pine-bark page canvas and existing card colors.
+
+## Version 0.33.5
+
+- Introduced the responsive botanical pattern assets used by the header and navigation.
 
 ## Version 0.33.4
 
