@@ -1,4 +1,4 @@
-const APP_VERSION='0.30.1';
+const APP_VERSION='0.30.2';
 const SEED={"tripSummaries":[],"stays":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"vehicleDetails":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const $=s=>document.querySelector(s), $$=(s,root=document)=>[...root.querySelectorAll(s)];
@@ -66,6 +66,8 @@ const clockTime=value=>{
   if(!Number.isFinite(hours)||!Number.isFinite(minutes))return '';
   return new Date(2000,0,1,hours,minutes).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'});
 };
+const US_STATE_ABBREVIATIONS=['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'];
+const stateOptions=()=>'<option value="">Choose</option>'+US_STATE_ABBREVIATIONS.map(state=>`<option value="${state}">${state}</option>`).join('');
 function stayPhotoGallery(stay){
   const photos=[
     {url:stay.sitePhotoUrl,label:'Campsite'},
@@ -586,7 +588,7 @@ function fields(type){
     const options=db.tripSummaries.slice().sort((a,b)=>tripStamp(b).localeCompare(tripStamp(a))).map(t=>`<option value="${escapeHtml(t.name)}">${escapeHtml(t.name)}</option>`).join('');
     return `<div class="two"><label>Date<input id="date" type="date" required></label><label>Trip<select id="tripName" required><option value="">Choose a trip</option>${options}</select></label></div><label>Station<input id="station" required></label><label>Location<input id="location"></label><div class="three"><label>Gallons<input id="gallons" type="number" min=".001" step=".001" required></label><label>Total<input id="total" type="number" min="0" step=".01" required></label><label>Fuel type<select id="fuelType" required><option value="diesel">Diesel</option><option value="gasoline">Gasoline</option></select></label></div><div class="two"><label>Trip meter<input id="tripMeter" type="number" min="0" step=".1" required></label><label>Odometer<input id="odometer" type="number" min="0" step=".1"></label></div><div class="fuel-calculations" id="fuelCalculations"><span>MPG <b>—</b></span><span>Price / gallon <b>—</b></span></div>`;
   }
-  if(type==='stay') return `<div class="two"><label>Arrival<input id="arrival" type="date" required></label><label>Departure<input id="departure" type="date"></label></div><div class="two"><label>Check-in time<input id="checkInTime" type="time" value="12:00"></label><label>Check-out time<input id="checkOutTime" type="time" value="12:00"></label></div><label>Campground<input id="name" required></label><label>Address<input id="address"></label><div class="three"><label>City<input id="city"></label><label>State<input id="state"></label><label>Site<input id="site"></label></div><label>Total cost<input id="total" type="number" step=".01"></label><div class="stay-type-options"><label><input id="harvestHost" type="checkbox"> Harvest Host</label><label><input id="moochdocking" type="checkbox"> Moochdocking</label><label><input id="boondocking" type="checkbox"> Boondocking</label></div><section class="stay-photo-editors"><div class="stay-photo-editors-heading"><b>Stay photos</b><p>Add these from Kayla’s photo library now or come back later.</p></div>${stayPhotoEditorSlot('site','Campsite','The campsite photo you take at nearly every stop.')}${stayPhotoEditorSlot('sign','Sign','The entrance, campground, winery, farm, or host sign.')}</section>`;
+  if(type==='stay') return `<div class="two"><label>Arrival<input id="arrival" type="date" required></label><label>Departure<input id="departure" type="date"></label></div><div class="two"><label>Check-in time<input id="checkInTime" type="time" value="12:00"></label><label>Check-out time<input id="checkOutTime" type="time" value="12:00"></label></div><label>Campground<input id="name" required></label><label>Address<input id="address"></label><div class="three"><label>City<input id="city"></label><label>State<select id="state">${stateOptions()}</select></label><label>ZIP code<input id="zip" inputmode="numeric" autocomplete="postal-code" maxlength="10"></label></div><div class="two"><label>Site<input id="site"></label><label>Total cost<input id="total" type="number" step=".01"></label></div><div class="stay-type-options"><label><input id="harvestHost" type="checkbox"> Harvest Host</label><label><input id="moochdocking" type="checkbox"> Moochdocking</label><label><input id="boondocking" type="checkbox"> Boondocking</label></div><section class="stay-photo-editors"><div class="stay-photo-editors-heading"><b>Stay photos</b><p>Add these from Kayla’s photo library now or come back later.</p></div>${stayPhotoEditorSlot('site','Campsite','The campsite photo you take at nearly every stop.')}${stayPhotoEditorSlot('sign','Sign','The entrance, campground, winery, farm, or host sign.')}</section>`;
   if(type==='electric') return `<div class="two"><label>Reading date<input id="date" type="date" required></label><label>Paid date<input id="paid" type="date"></label></div><div class="three"><label>Previous meter<input id="previous" type="number" required></label><label>Current meter<input id="current" type="number" required></label><label>Rate / kWh<input id="rate" type="number" step=".001" value=".16"></label></div><label>Check number<input id="check"></label>`;
   if(type==='sitepayment') return `<div class="three"><label>Season year<input id="year" type="number" value="${new Date().getFullYear()}" required></label><label>Payment date<input id="date" type="date" required></label><label>Amount<input id="payment" type="number" step=".01" required></label></div><label>Check number<input id="check"></label>`;
   if(type==='sitefee'){
@@ -660,6 +662,7 @@ function openTripStayEditor(index=null){
   $('#tripStayAddress').value=stay.address||'';
   $('#tripStayCity').value=stay.city||'';
   $('#tripStayState').value=stay.state||'';
+  $('#tripStayZip').value=stay.zip||'';
   $('#tripStaySite').value=stay.site||'';
   $('#tripStayCost').value=stay.price??'';
   $('#tripStayHarvestHost').checked=Boolean(stay.harvestHost||stay.stayType==='harvest-host');
@@ -883,7 +886,7 @@ function openEntry(type,index=null,returnTripIndex=null){
     if(stay){
       $('#arrival').value=stay.arrival||today; $('#departure').value=stay.departure||''; $('#name').value=stay.name||''; $('#address').value=stay.address||'';
       $('#checkInTime').value=String(stay.checkInTime||'').slice(0,5); $('#checkOutTime').value=String(stay.checkOutTime||'').slice(0,5);
-      $('#city').value=stay.city||''; $('#state').value=stay.state||''; $('#site').value=stay.site||''; $('#total').value=stay.price??'';
+      $('#city').value=stay.city||''; $('#state').value=stay.state||''; $('#zip').value=stay.zip||''; $('#site').value=stay.site||''; $('#total').value=stay.price??'';
       $('#harvestHost').checked=Boolean(stay.harvestHost||stay.stayType==='harvest-host'); $('#moochdocking').checked=Boolean(stay.moochdocking||stay.stayType==='moochdocking'); $('#boondocking').checked=Boolean(stay.boondocking||stay.stayType==='boondocking'); $('#entryNotes').value=stay.notes||'';
       const selected=[$('#harvestHost'),$('#moochdocking'),$('#boondocking')].filter(x=>x.checked); if(selected.length>1) selected.slice(1).forEach(x=>x.checked=false);
       $('#harvestHost').dispatchEvent(new Event('change'));
@@ -941,6 +944,7 @@ $('#tripStayForm').onsubmit=event=>{
     address:$('#tripStayAddress').value.trim(),
     city:$('#tripStayCity').value.trim(),
     state:$('#tripStayState').value.trim(),
+    zip:$('#tripStayZip').value.trim(),
     site:$('#tripStaySite').value.trim(),
     price:+$('#tripStayCost').value||0,
     harvestHost,
@@ -1018,7 +1022,7 @@ $('#entryForm').onsubmit=async e=>{
   }
   else if(type==='stay'){
     const a=$('#arrival').value,d=$('#departure').value,index=$('#entryIndex').value===''?null:+$('#entryIndex').value,harvestHost=$('#harvestHost').checked,moochdocking=$('#moochdocking').checked,boondocking=$('#boondocking').checked,stayType=harvestHost?'harvest-host':moochdocking?'moochdocking':boondocking?'boondocking':'campground';
-    const record={...(index===null?{}:db.stays[index]),year:+a.slice(0,4),arrival:a,departure:d,checkInTime:$('#checkInTime').value,checkOutTime:$('#checkOutTime').value,nights:d?Math.round((new Date(d)-new Date(a))/86400000):null,name:$('#name').value,address:$('#address').value,city:$('#city').value,state:$('#state').value,site:$('#site').value,price:+$('#total').value||0,harvestHost,moochdocking,boondocking,stayType,notes};
+    const record={...(index===null?{}:db.stays[index]),year:+a.slice(0,4),arrival:a,departure:d,checkInTime:$('#checkInTime').value,checkOutTime:$('#checkOutTime').value,nights:d?Math.round((new Date(d)-new Date(a))/86400000):null,name:$('#name').value,address:$('#address').value,city:$('#city').value,state:$('#state').value,zip:$('#zip').value,site:$('#site').value,price:+$('#total').value||0,harvestHost,moochdocking,boondocking,stayType,notes};
     if(index===null) db.stays.push(record); else db.stays[index]=record;
     savedStay=record;
   }

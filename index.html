@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-title" content="Travel Journal">
   <meta name="description" content="The private travel, maintenance and seasonal-site hub for Phillis & Ruby.">
   <title>Phillis & Ruby Travel Journal</title>
-  <link rel="manifest" href="manifest.webmanifest?v=0.30.1">
+  <link rel="manifest" href="manifest.webmanifest?v=0.30.2">
   <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
   <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
   <script>
@@ -20,7 +20,7 @@
       document.documentElement.classList.add('standalone-app');
     }
   </script>
-  <link rel="stylesheet" href="styles.css?v=0.30.1">
+  <link rel="stylesheet" href="styles.css?v=0.30.2">
 </head>
 <body>
 <div id="pullRefresh" class="pull-refresh" aria-live="polite">
@@ -173,9 +173,13 @@
     <article class="card updates-card">
       <div class="updates-heading">
         <div><small>WHAT'S NEW</small><h3>Recent updates</h3></div>
-        <span class="version-badge">v0.30.1</span>
+        <span class="version-badge">v0.30.2</span>
       </div>
       <div class="updates-list">
+        <div>
+          <b>v0.30.2</b>
+          <span>Added ZIP codes and a 50-state abbreviation list to stays.</span>
+        </div>
         <div>
           <b>v0.30.1</b>
           <span>Fixed Harvest Host cloud syncing and recovers the stay saved on this device.</span>
@@ -184,12 +188,8 @@
           <b>v0.30.0</b>
           <span>Streamlined trip building with popup stay forms and smart defaults.</span>
         </div>
-        <div>
-          <b>v0.29.0</b>
-          <span>Made every Rig section expand directly beneath the item you tap.</span>
-        </div>
       </div>
-      <a class="secondary update-history-link" href="https://github.com/scott-e-higgins/phillis-ruby-hub#version-0301" target="_blank" rel="noopener">View complete update history</a>
+      <a class="secondary update-history-link" href="https://github.com/scott-e-higgins/phillis-ruby-hub#version-0302" target="_blank" rel="noopener">View complete update history</a>
     </article>
   </section>
 </main>
@@ -221,8 +221,8 @@
     <div class="two"><label>Check-in time<input id="tripStayCheckIn" type="time" value="12:00"></label><label>Check-out time<input id="tripStayCheckOut" type="time" value="12:00"></label></div>
     <label>Campground or location<input id="tripStayName" required></label>
     <label>Address<input id="tripStayAddress"></label>
-    <div class="three"><label>City<input id="tripStayCity"></label><label>State<input id="tripStayState"></label><label>Site<input id="tripStaySite"></label></div>
-    <label>Total cost<input id="tripStayCost" type="number" step=".01"></label>
+    <div class="three"><label>City<input id="tripStayCity"></label><label>State<select id="tripStayState"><option value="">Choose</option><option>AL</option><option>AK</option><option>AZ</option><option>AR</option><option>CA</option><option>CO</option><option>CT</option><option>DE</option><option>FL</option><option>GA</option><option>HI</option><option>ID</option><option>IL</option><option>IN</option><option>IA</option><option>KS</option><option>KY</option><option>LA</option><option>ME</option><option>MD</option><option>MA</option><option>MI</option><option>MN</option><option>MS</option><option>MO</option><option>MT</option><option>NE</option><option>NV</option><option>NH</option><option>NJ</option><option>NM</option><option>NY</option><option>NC</option><option>ND</option><option>OH</option><option>OK</option><option>OR</option><option>PA</option><option>RI</option><option>SC</option><option>SD</option><option>TN</option><option>TX</option><option>UT</option><option>VT</option><option>VA</option><option>WA</option><option>WV</option><option>WI</option><option>WY</option></select></label><label>ZIP code<input id="tripStayZip" inputmode="numeric" autocomplete="postal-code" maxlength="10"></label></div>
+    <div class="two"><label>Site<input id="tripStaySite"></label><label>Total cost<input id="tripStayCost" type="number" step=".01"></label></div>
     <div class="stay-type-options"><label><input id="tripStayHarvestHost" type="checkbox"> Harvest Host</label><label><input id="tripStayMoochdocking" type="checkbox"> Moochdocking</label><label><input id="tripStayBoondocking" type="checkbox"> Boondocking</label></div>
     <label>Notes<textarea id="tripStayNotes" rows="4"></textarea></label>
     <div class="form-actions"><button class="primary">Save stay</button><button type="button" class="secondary close">Cancel</button></div>
@@ -266,8 +266,8 @@
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
 <script src="supabase-config.js" defer></script>
-<script src="cloud.js?v=0.30.1" defer></script>
-<script src="cloud-store.js?v=0.30.1" defer></script>
-<script src="app.js?v=0.30.1" defer></script>
+<script src="cloud.js?v=0.30.2" defer></script>
+<script src="cloud-store.js?v=0.30.2" defer></script>
+<script src="app.js?v=0.30.2" defer></script>
 </body>
 </html>

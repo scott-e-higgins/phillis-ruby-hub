@@ -13,6 +13,14 @@ Travel Journal is Scott and Kayla's private travel companion.
   read-only calendar subscription remains a fallback if a native companion is
   not pursued.
 
+## Version 0.30.2
+
+- Adds ZIP code to the popup trip-stay form and the standalone stay editor.
+- Saves ZIP codes to the existing Supabase postal-code field.
+- Replaces free-typed stay states with a dropdown containing all 50 two-letter
+  state abbreviations.
+- Keeps city, state, ZIP, site number, and cost clearly separated.
+
 ## Version 0.30.1
 
 - Corrects the Harvest Host value sent to Supabase so it matches the database
