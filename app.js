@@ -1,4 +1,4 @@
-const APP_VERSION='0.19.1';
+const APP_VERSION='0.19.2';
 const SEED={"tripSummaries":[],"stays":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const $=s=>document.querySelector(s), $$=(s,root=document)=>[...root.querySelectorAll(s)];
@@ -781,7 +781,7 @@ $('#export').onclick=()=>{const a=document.createElement('a');a.href=URL.createO
 $('#importFile').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{db=migrate(JSON.parse(r.result));applyDataMigrations();save();renderHome();renderTrips();renderNotes();alert('Backup imported.')}catch{alert('That file could not be imported.')}};r.readAsText(f)};
 async function loadCloudData(){
   const status=$('#cloudAccountStatus');
-  if(status)status.textContent='Loading shared Adventure Hub records…';
+  if(status)status.textContent='Loading shared Travel Journal records…';
   try{
     db=migrate(await window.ADVENTURE_HUB_STORE.load());
     TODAY=new Date(); TODAY.setHours(0,0,0,0);

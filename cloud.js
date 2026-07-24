@@ -2,7 +2,7 @@
   const config = window.ADVENTURE_HUB_SUPABASE;
   const library = window.supabase;
   if (!config?.url || !config?.publishableKey || !library?.createClient) {
-    console.error('Adventure Hub cloud configuration could not be loaded.');
+    console.error('Travel Journal cloud configuration could not be loaded.');
     return;
   }
 

@@ -1,6 +1,14 @@
-# Phillis & Ruby Adventure Hub
+# Phillis & Ruby Travel Journal
 
-Adventure Hub is Scott and Kayla's private travel companion.
+Travel Journal is Scott and Kayla's private travel companion.
+
+## Version 0.19.2
+
+- Renamed the app to **Phillis & Ruby Travel Journal**.
+- Updated the visible header, sign-in screen, browser title, installed-app
+  name, manifest, and loading copy.
+- Kept the existing website address, database, accounts, records, and technical
+  identifiers unchanged.
 
 ## Version 0.19.1
 
