@@ -2,6 +2,15 @@
 
 Travel Journal is Scott and Kayla's private travel companion.
 
+## Someday roadmap
+
+- **Automatic Apple Calendar subscription:** Create a private, read-only
+  Phillis Trips calendar generated from Travel Journal trips and campground
+  stays. Scott and Kayla would subscribe once in Apple Calendar; future trip
+  additions and changes would then appear automatically with dates, check-in
+  and checkout times, locations, site and reservation details, notes, and a
+  link back to the trip. The Travel Journal would remain the source of truth.
+
 ## Version 0.20.9
 
 - Shows the complete On the Road Again photo in the trip header instead of cropping faces.
