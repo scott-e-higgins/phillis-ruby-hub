@@ -2,6 +2,11 @@
 
 Adventure Hub is Scott and Kayla's private travel companion.
 
+## Version 0.19.1
+
+- Added an installed-app update check so Scott and Kayla receive new Hub behavior more reliably.
+- The shared-account status now shows the active app version for easy troubleshooting.
+
 ## Version 0.19.0
 
 - Added an optional checklist mode to shared notes.

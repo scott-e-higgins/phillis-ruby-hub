@@ -1,4 +1,5 @@
-const SEED={"tripSummaries":[],"stays":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"meta":{"source":"Supabase","version":"0.19.0"},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
+const APP_VERSION='0.19.1';
+const SEED={"tripSummaries":[],"stays":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const $=s=>document.querySelector(s), $$=(s,root=document)=>[...root.querySelectorAll(s)];
 const clone=x=>JSON.parse(JSON.stringify(x));
@@ -787,7 +788,7 @@ async function loadCloudData(){
     cloudLoaded=true;
     localStorage.setItem(KEY,JSON.stringify(db));
     renderHome();renderTrips();renderNotes();
-    if(status&&window.ADVENTURE_HUB_CLOUD)status.textContent=`Connected as ${window.ADVENTURE_HUB_CLOUD.user.email} · Higgins Hub · Cloud sync is on`;
+    if(status&&window.ADVENTURE_HUB_CLOUD)status.textContent=`Connected as ${window.ADVENTURE_HUB_CLOUD.user.email} · Higgins Hub · Cloud sync is on · v${APP_VERSION}`;
     return true;
   }catch(error){
     console.error(error);
@@ -859,3 +860,19 @@ window.addEventListener('adventure-store-ready',loadCloudData);
 if(window.ADVENTURE_HUB_STORE)loadCloudData();
 enablePullToRefresh();
 renderHome(); renderTrips(); renderNotes();
+async function checkForAppUpdate(){
+  try{
+    const response=await fetch(`version.json?checked=${Date.now()}`,{cache:'no-store'});
+    if(!response.ok)return;
+    const latest=await response.json();
+    if(latest.version&&latest.version!==APP_VERSION){
+      const url=new URL(window.location.href);
+      url.searchParams.set('v',latest.version);
+      window.location.replace(url);
+    }
+  }catch(error){
+    console.debug('Update check unavailable',error);
+  }
+}
+window.addEventListener('pageshow',checkForAppUpdate);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkForAppUpdate()});
