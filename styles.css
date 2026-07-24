@@ -115,11 +115,11 @@ main{max-width:920px;margin:auto;padding:22px 16px 10px}
 .trip-card-photo,.trip-hero-photo,.trip-detail-photo{position:relative;display:block;padding:0;border:1px solid #536159;border-radius:8px;background:#161d19;color:#fff;overflow:hidden;box-shadow:0 8px 20px rgba(0,0,0,.24)}
 .trip-card-photo{width:116px;flex:0 0 116px;margin:0}
 .trip-hero-photo{width:min(320px,70%);margin:16px 0 22px}
-.trip-detail-photo{width:104px;flex:0 0 104px;margin:0 0 0 2px}
+.trip-detail-photo{width:116px;flex:0 0 116px;margin:0 0 0 2px}
 .trip-card-photo img,.trip-hero-photo img,.trip-detail-photo img{display:block;width:100%;object-fit:cover;transition:transform .25s var(--ease),filter .25s var(--ease)}
 .trip-card-photo img{height:76px}
 .trip-hero-photo img{height:170px}
-.trip-detail-photo img{height:auto;max-height:78px;object-fit:contain;background:#101512}
+.trip-detail-photo img{height:82px;object-fit:cover;object-position:center}
 .trip-card-photo:hover img,.trip-hero-photo:hover img,.trip-detail-photo:hover img{transform:scale(1.02);filter:brightness(1.06)}
 .trip-card-photo span,.trip-hero-photo span,.trip-detail-photo span{display:block;padding:6px 8px;background:#29332e;color:#c9d3ce;font-size:9px;font-weight:850;text-align:left;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap}
 .trip-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
@@ -345,8 +345,9 @@ fieldset legend{font-weight:850;padding:0 7px}
 }
 @media(max-width:430px){
   .dialog-title-row{gap:7px}
-  .trip-detail-photo{width:88px;flex-basis:88px}
-  .trip-detail-photo img{height:auto;max-height:66px}
+  .trip-detail-photo{width:104px;flex-basis:104px}
+  .trip-detail-photo img{height:74px}
+  .trip-detail-photo span{padding:5px 6px;font-size:8px}
   .trip-numbers{grid-template-columns:repeat(2,1fr);row-gap:14px}
   .trip-detail-top{align-items:flex-start;flex-direction:column}
   .trip-detail-top .primary,.record-detail-actions .primary{width:100%}
