@@ -13,6 +13,11 @@ Travel Journal is Scott and Kayla's private travel companion.
   read-only calendar subscription remains a fallback if a native companion is
   not pursued.
 
+## Version 0.33.9
+
+- Stabilizes the fixed bottom navigation during iPad Safari and installed-app scrolling.
+- Keeps the existing grass treatment while avoiding iOS fixed-layer rendering glitches.
+
 ## Version 0.33.8
 
 - Replaces the generic green pickup emoji on Ruby's Upgrades row.

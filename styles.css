@@ -781,6 +781,24 @@ body{
   background-position:center,bottom center;
   background-repeat:repeat,no-repeat;
 }
+
+/* v0.33.9 — keep the navigation pinned during iPad Safari/PWA scrolling */
+.bottom-nav{
+  position:fixed!important;
+  inset:auto 0 0!important;
+  -webkit-transform:translate3d(0,0,0);
+  transform:translate3d(0,0,0);
+  -webkit-backface-visibility:hidden;
+  backface-visibility:hidden;
+  will-change:transform;
+  contain:layout paint style;
+  -webkit-backdrop-filter:none;
+  backdrop-filter:none;
+}
+@supports (-webkit-touch-callout:none){
+  body{background-attachment:scroll}
+}
+
 .ruby-truck-icon{display:block;width:29px;height:21px}
 .ruby-truck-body{fill:#a93743;stroke:#e5a3aa;stroke-width:1}
 .ruby-truck-window{fill:#bcd1d9;stroke:#dce8eb;stroke-width:.7}
