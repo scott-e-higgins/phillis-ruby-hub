@@ -744,7 +744,7 @@ dialog::backdrop{background:rgba(4,9,7,.66)}
   border-color:#c1737f;
 }
 
-/* v0.33.6 — leaf-vein header and grass navigation */
+/* v0.33.7 — mockup-matched botanical header and meadow navigation */
 html{
   background:#302018;
 }
@@ -762,9 +762,9 @@ body{
 .topbar{
   background-color:#17392f;
   background-image:
-    url("header-leaf-veins.svg"),
-    linear-gradient(135deg,#10241d,#1f4437);
-  background-size:cover,auto;
+    linear-gradient(135deg,rgba(7,25,19,.14),rgba(24,56,45,.08)),
+    url("header-leaf-texture-v2.jpg");
+  background-size:auto,cover;
   background-position:center,center;
   background-repeat:no-repeat;
 }
@@ -775,9 +775,9 @@ body{
 .bottom-nav{
   background-color:rgba(23,32,27,.96);
   background-image:
-    url("bottom-grass.svg"),
-    linear-gradient(rgba(22,31,26,.95),rgba(15,22,18,.98));
-  background-size:100% 100%,auto;
+    linear-gradient(rgba(9,16,13,.16),rgba(9,16,13,.3)),
+    url("bottom-grass-texture-v2.jpg");
+  background-size:auto,100% 100%;
   background-position:center,bottom center;
   background-repeat:repeat,no-repeat;
 }
