@@ -1,4 +1,4 @@
-const APP_VERSION='0.20.9';
+const APP_VERSION='0.21.0';
 const SEED={"tripSummaries":[],"stays":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const $=s=>document.querySelector(s), $$=(s,root=document)=>[...root.querySelectorAll(s)];
@@ -83,12 +83,15 @@ function setDetailHeader(kicker,title,trip=null,metaHtml=''){
 function stayTypeBadges(stay){
   return `${stay.harvestHost||stay.stayType==='harvest-host'?'<span class="stay-badge">Harvest Host</span>':''}${stay.moochdocking||stay.stayType==='moochdocking'?'<span class="stay-badge">Moochdocking</span>':''}${stay.boondocking||stay.stayType==='boondocking'?'<span class="stay-badge">Boondocking</span>':''}`;
 }
+function stayLocationHtml(stay){
+  const location=[stay.address,stay.city,stay.state,stay.zip].filter(Boolean).join(', ');
+  if(!location)return '';
+  const mapsUrl=`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;
+  return `<p><a class="stay-address-link" href="${escapeHtml(mapsUrl)}" target="_blank" rel="noopener" data-map-address="${escapeHtml(location)}" aria-label="Open ${escapeHtml(location)} in Google Maps"><span aria-hidden="true">⌖</span>${escapeHtml(location)}<small>Open in Maps</small></a></p>`;
+}
 function stayListing(stay,{viewer=false}={}){
-  const location=viewer
-    ?escapeHtml([stay.address,stay.city,stay.state,stay.zip].filter(Boolean).join(', '))
-    :escapeHtml([stay.city,stay.state].filter(Boolean).join(', '));
   const index=db.stays.indexOf(stay);
-  return `<article class="stay-listing-card"><div class="stay-listing-main"><div class="stay-listing-copy"><h4>${escapeHtml(stay.name)}</h4><p>${date(stay.arrival)}${stay.checkInTime?` · Check in ${clockTime(stay.checkInTime)}`:''} – ${date(stay.departure)}${stay.checkOutTime?` · Check out ${clockTime(stay.checkOutTime)}`:''}</p>${location?`<p>${location}</p>`:''}${stay.site?`<p>Site ${escapeHtml(stay.site)}</p>`:''}<div class="stay-badges">${stayTypeBadges(stay)}</div></div>${stayPhotoGallery(stay)}${viewer?'':`<div class="detail-value-actions"><span>${money(stay.price)}</span><button class="small-button" data-edit-stay="${index}">Edit</button></div>`}</div></article>`;
+  return `<article class="stay-listing-card"><div class="stay-listing-main"><div class="stay-listing-copy"><h4>${escapeHtml(stay.name)}</h4><p>${date(stay.arrival)}${stay.checkInTime?` · Check in ${clockTime(stay.checkInTime)}`:''} – ${date(stay.departure)}${stay.checkOutTime?` · Check out ${clockTime(stay.checkOutTime)}`:''}</p>${stayLocationHtml(stay)}${stay.site?`<p>Site ${escapeHtml(stay.site)}</p>`:''}<div class="stay-badges">${stayTypeBadges(stay)}</div></div>${stayPhotoGallery(stay)}${viewer?'':`<div class="detail-value-actions"><span>${money(stay.price)}</span><button class="small-button" data-edit-stay="${index}">Edit</button></div>`}</div></article>`;
 }
 function bindStayPhotoButtons(root=document){
   $$('[data-photo-url]',root).forEach(button=>button.onclick=()=>{
@@ -97,6 +100,12 @@ function bindStayPhotoButtons(root=document){
     $('#photoDialogImage').alt=button.dataset.photoLabel||'Stay photo';
     $('#photoDialogCaption').textContent=button.dataset.photoLabel||'Stay photo';
     dialog.showModal();
+  });
+}
+function bindStayMapLinks(root=document){
+  $$('[data-map-address]',root).forEach(link=>link.onclick=event=>{
+    const address=link.dataset.mapAddress;
+    if(!confirm(`Open this address in Google Maps?\n\n${address}`))event.preventDefault();
   });
 }
 let TODAY=new Date(); TODAY.setHours(0,0,0,0);
@@ -344,6 +353,7 @@ function showTrip(index){
   if(window.ADVENTURE_HUB_CLOUD?.role==='viewer'){
     $('#detailBody').innerHTML=`${t.destination?`<div class="detail-section"><h3>Destination</h3><p>${escapeHtml(t.destination)}</p></div>`:''}<div class="detail-section"><h3>Itinerary</h3><div class="stay-listing-stack">${stays.map(x=>stayListing(x,{viewer:true})).join('')||'<p class="intro">No campground details have been added yet.</p>'}</div></div>`;
     bindStayPhotoButtons($('#detailBody'));
+    bindStayMapLinks($('#detailBody'));
     $('#detailDialog').showModal();
     return;
   }
@@ -353,6 +363,7 @@ function showTrip(index){
   $$('[data-edit-stay]').forEach(button=>button.onclick=()=>{$('#detailDialog').close();openEntry('stay',+button.dataset.editStay,index)});
   $$('[data-edit-fuel]').forEach(button=>button.onclick=()=>{$('#detailDialog').close();openEntry('fuel',+button.dataset.editFuel,index)});
   bindStayPhotoButtons($('#detailBody'));
+  bindStayMapLinks($('#detailBody'));
   $('#deleteTripButton').onclick=()=>deleteTrip(index);
   $('#detailDialog').showModal();
 }

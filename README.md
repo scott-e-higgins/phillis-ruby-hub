@@ -13,6 +13,13 @@ Travel Journal is Scott and Kayla's private travel companion.
   read-only calendar subscription remains a fallback if a native companion is
   not pursued.
 
+## Version 0.21.0
+
+- Shows each stay’s complete address in its trip listing.
+- Makes the address tappable on phones and computers.
+- Asks for confirmation before opening the location in Google Maps.
+- Includes the map link in both the full-access and itinerary-only views.
+
 ## Version 0.20.9
 
 - Shows the complete On the Road Again photo in the trip header instead of cropping faces.
