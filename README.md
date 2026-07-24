@@ -2,6 +2,12 @@
 
 Adventure Hub is Scott and Kayla's private travel companion.
 
+## Version 0.17.5
+
+- Uses the iPhone’s reserved status-bar area instead of drawing the header
+  underneath the camera cutout.
+- Retains safe-area padding for devices that report their inset correctly.
+
 ## Version 0.17.4
 
 - Adds iPhone safe-area spacing so the header clears the camera cutout.
