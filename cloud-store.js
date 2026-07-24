@@ -471,7 +471,12 @@
       return {
         tripSummaries,
         stays: localStays,
-        fuel: fuel.map(row => ({
+        fuel: fuel.map(row => {
+          const legacyLocation = String(row.location || '').trim();
+          const legacyMatch = legacyLocation.match(/^(.*?),\s*([A-Za-z]{2})$/);
+          const legacyCity = legacyMatch ? legacyMatch[1].trim() : legacyLocation;
+          const legacyState = legacyMatch ? legacyMatch[2].toUpperCase() : '';
+          return {
           _cloudId: row.id,
           _tripId: row.trip_id,
           _vehicleId: row.vehicle_id || tripById.get(row.trip_id)?.tow_vehicle_id || null,
@@ -479,7 +484,9 @@
           vehicle: vehicleById.get(row.vehicle_id || tripById.get(row.trip_id)?.tow_vehicle_id)?.name || '',
           date: row.fuel_date,
           station: row.station || '',
-          location: row.location || '',
+          city: row.city || legacyCity,
+          state: row.state || legacyState,
+          location: [row.city || legacyCity,row.state || legacyState].filter(Boolean).join(', '),
           odometer: num(row.odometer),
           tripMiles: num(row.trip_meter),
           gallons: num(row.gallons) || 0,
@@ -487,7 +494,7 @@
           price: num(row.gallons) ? num(row.total_cost) / num(row.gallons) : 0,
           fuelType: row.fuel_type || '',
           notes: row.notes || ''
-        })),
+        }}),
         siteFees,
         electric: localElectric,
         sharedNotes: localNotes,
@@ -563,7 +570,9 @@
       const fuelRows = snapshot.fuel.map(x => ({
         id: x._cloudId, trip_id: x._tripId || tripFor(x.trip, x.date)?._cloudId,
         vehicle_id: x._vehicleId || tripFor(x.trip, x.date)?._towVehicleId || ruby.id,
-        fuel_date: x.date, station: x.station || null, location: x.location || null,
+        fuel_date: x.date, station: x.station || null,
+        city: x.city || null, state: x.state || null,
+        location: [x.city,x.state].filter(Boolean).join(', ') || x.location || null,
         odometer: x.odometer, trip_meter: x.tripMiles, gallons: x.gallons,
         total_cost: x.total, fuel_type: x.fuelType || (Number(String(x.date).slice(0, 4)) >= 2025 ? 'diesel' : 'gasoline'),
         notes: x.notes || null

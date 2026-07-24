@@ -13,6 +13,15 @@ Travel Journal is Scott and Kayla's private travel companion.
   read-only calendar subscription remains a fallback if a native companion is
   not pursued.
 
+## Version 0.31.0
+
+- Replaces the single fuel-stop location field with separate City and State
+  fields.
+- Uses the same 50-state abbreviation dropdown as campground stays.
+- Separates existing `City, ST` fuel locations automatically, preserving all
+  historical fuel records.
+- Shows City and State as distinct rows in fuel-stop details.
+
 ## Version 0.30.4
 
 - Adds Ruby's and Phillis II.0's license plates directly above their VINs on

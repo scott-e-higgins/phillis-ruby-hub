@@ -3,7 +3,7 @@
   "short_name": "Travel Journal",
   "description": "The private travel, maintenance and seasonal-site hub for Phillis & Ruby.",
   "id": "./",
-  "start_url": "./?v=0.30.4",
+  "start_url": "./?v=0.31.0",
   "scope": "./",
   "display": "standalone",
   "background_color": "#202722",
