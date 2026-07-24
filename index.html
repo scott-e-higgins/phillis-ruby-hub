@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-title" content="Travel Journal">
   <meta name="description" content="The private travel, maintenance and seasonal-site hub for Phillis & Ruby.">
   <title>Phillis & Ruby Travel Journal</title>
-  <link rel="manifest" href="manifest.webmanifest?v=0.25.0">
+  <link rel="manifest" href="manifest.webmanifest?v=0.26.0">
   <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
   <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
   <script>
@@ -20,7 +20,7 @@
       document.documentElement.classList.add('standalone-app');
     }
   </script>
-  <link rel="stylesheet" href="styles.css?v=0.25.0">
+  <link rel="stylesheet" href="styles.css?v=0.26.0">
 </head>
 <body>
 <div id="pullRefresh" class="pull-refresh" aria-live="polite">
@@ -147,9 +147,13 @@
     <article class="card updates-card">
       <div class="updates-heading">
         <div><small>WHAT'S NEW</small><h3>Recent updates</h3></div>
-        <span class="version-badge">v0.25.0</span>
+        <span class="version-badge">v0.26.0</span>
       </div>
       <div class="updates-list">
+        <div>
+          <b>v0.26.0</b>
+          <span>Added Last Trip, Next Trip, and After That cards to Home, plus a full-width active trip.</span>
+        </div>
         <div>
           <b>v0.25.0</b>
           <span>Gave completed, planned, next, and current trips distinct colors.</span>
@@ -158,12 +162,8 @@
           <b>v0.24.0</b>
           <span>Limited Recent Records to three and made every card open its full details.</span>
         </div>
-        <div>
-          <b>v0.23.1</b>
-          <span>Moved Recent Updates to the bottom of the More page.</span>
-        </div>
       </div>
-      <a class="secondary update-history-link" href="https://github.com/scott-e-higgins/phillis-ruby-hub#version-0250" target="_blank" rel="noopener">View complete update history</a>
+      <a class="secondary update-history-link" href="https://github.com/scott-e-higgins/phillis-ruby-hub#version-0260" target="_blank" rel="noopener">View complete update history</a>
     </article>
   </section>
 </main>
@@ -226,8 +226,8 @@
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
 <script src="supabase-config.js" defer></script>
-<script src="cloud.js?v=0.25.0" defer></script>
-<script src="cloud-store.js?v=0.25.0" defer></script>
-<script src="app.js?v=0.25.0" defer></script>
+<script src="cloud.js?v=0.26.0" defer></script>
+<script src="cloud-store.js?v=0.26.0" defer></script>
+<script src="app.js?v=0.26.0" defer></script>
 </body>
 </html>

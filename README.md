@@ -13,6 +13,15 @@ Travel Journal is Scott and Kayla's private travel companion.
   read-only calendar subscription remains a fallback if a native companion is
   not pursued.
 
+## Version 0.26.0
+
+- Replaces Home's two-card countdown with three compact trip cards.
+- Shows the last completed trip in gray with days since it ended.
+- Shows the next trip in gold and the following trip in forest green.
+- Adds a full-width cranberry active-trip card above the three-card row whenever
+  a trip is underway.
+- Keeps every trip card clickable.
+
 ## Version 0.25.0
 
 - Gives completed, planned, next-up, and current trip cards distinct colors.

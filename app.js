@@ -1,4 +1,4 @@
-const APP_VERSION='0.25.0';
+const APP_VERSION='0.26.0';
 const SEED={"tripSummaries":[],"stays":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const $=s=>document.querySelector(s), $$=(s,root=document)=>[...root.querySelectorAll(s)];
@@ -154,6 +154,7 @@ function tripProgress(t){
   const length=Math.floor((new Date(end+'T00:00:00')-new Date(start+'T00:00:00'))/86400000)+1;
   return {day:Math.max(1,elapsed),length:Math.max(1,length)};
 }
+function daysSince(d){return Math.max(0,Math.floor((TODAY-new Date(d+'T00:00:00'))/86400000))}
 function go(view){
   if(view==='notes'&&window.ADVENTURE_HUB_CLOUD?.role==='viewer')view='home';
   $$('.view').forEach(v=>v.classList.toggle('active',v.id===view));
@@ -268,12 +269,23 @@ function renderHome(){
   });
   const activeTrip=upcoming.find(trip=>tripStatus(trip)==='current');
   const plannedTrips=upcoming.filter(trip=>tripStatus(trip)==='planned').slice(0,2);
-  const featuredTrips=activeTrip?[activeTrip,...plannedTrips]:plannedTrips;
-  $('#nextTrips').innerHTML=featuredTrips.length?featuredTrips.map((trip,index)=>{
-    const [start,end]=tripDates(trip),status=tripStatus(trip),progress=tripProgress(trip),tripIndex=db.tripSummaries.indexOf(trip);
-    const plannedPosition=activeTrip?index:index+1;
-    return `<button type="button" class="next-trip ${status==='current'?'next-trip-current':plannedPosition===2?'next-trip-secondary':''}" data-trip-index="${tripIndex}" aria-label="Open ${escapeHtml(trip.name)} trip"><small>${status==='current'?'● ACTIVE TRIP':plannedPosition===1?'NEXT TRIP':'AFTER THAT'}</small><h2>${escapeHtml(trip.name)}</h2><p>${date(start)} – ${date(end)}</p>${rigLineHtml(trip,true)}<div class="countdown"><strong>${status==='current'?`Day ${progress.day}`:daysUntil(start)}</strong><span>${status==='current'?`of ${progress.length}`:'days to go'}</span></div><span class="countdown-open">Open ›</span></button>`;
-  }).join(''):`<article class="next-trip next-trip-empty"><small>NEXT TRIP</small><h2>Nothing planned yet</h2><p>Add the next adventure whenever you're ready.</p><div class="button-row"><button class="secondary" data-open="trip">Add a trip</button></div></article>`;
+  const lastTrip=db.tripSummaries
+    .filter(trip=>tripStatus(trip)==='completed')
+    .sort((a,b)=>tripDates(b)[1].localeCompare(tripDates(a)[1]))[0];
+  const homeTripSquare=(trip,type)=>{
+    const labels={last:'LAST TRIP',next:'NEXT TRIP',after:'AFTER THAT'};
+    if(!trip)return `<article class="next-trip next-trip-glance next-trip-${type} next-trip-placeholder"><small>${labels[type]}</small><h2>${type==='last'?'No earlier trip':'Nothing planned'}</h2></article>`;
+    const [start,end]=tripDates(trip),tripIndex=db.tripSummaries.indexOf(trip),isLast=type==='last';
+    const count=isLast?`-${daysSince(end)}`:daysUntil(start);
+    return `<button type="button" class="next-trip next-trip-glance next-trip-${type}" data-trip-index="${tripIndex}" aria-label="Open ${escapeHtml(trip.name)} trip"><small>${labels[type]}</small><h2>${escapeHtml(trip.name)}</h2><p>${isLast?'Ended ':''}${date(isLast?end:start)}</p><div class="countdown"><strong>${count}</strong><span>${isLast?'days ago':'days to go'}</span></div><span class="countdown-open">Open ›</span></button>`;
+  };
+  const activeCard=activeTrip?(()=>{
+    const [start,end]=tripDates(activeTrip),progress=tripProgress(activeTrip),tripIndex=db.tripSummaries.indexOf(activeTrip);
+    return `<button type="button" class="next-trip next-trip-current" data-trip-index="${tripIndex}" aria-label="Open ${escapeHtml(activeTrip.name)} trip"><small>● ACTIVE TRIP</small><h2>${escapeHtml(activeTrip.name)}</h2><p>${date(start)} – ${date(end)}</p>${rigLineHtml(activeTrip,true)}<div class="countdown"><strong>Day ${progress.day}</strong><span>of ${progress.length}</span></div><span class="countdown-open">Open ›</span></button>`;
+  })():'';
+  $('#nextTrips').innerHTML=(activeTrip||lastTrip||plannedTrips.length)
+    ?activeCard+homeTripSquare(lastTrip,'last')+homeTripSquare(plannedTrips[0],'next')+homeTripSquare(plannedTrips[1],'after')
+    :`<article class="next-trip next-trip-empty"><small>NEXT TRIP</small><h2>Nothing planned yet</h2><p>Add the next adventure whenever you're ready.</p><div class="button-row"><button class="secondary" data-open="trip">Add a trip</button></div></article>`;
   $('#upcomingList').innerHTML=upcoming.slice(0,3).map(t=>{const [s,e]=tripDates(t),tripIndex=db.tripSummaries.indexOf(t);return `<button class="list-item" data-trip-index="${tripIndex}"><div class="date-box"><small>${new Date(s+'T12:00:00').toLocaleDateString(undefined,{month:'short'})}</small><b>${new Date(s+'T12:00:00').getDate()}</b></div><div class="item-copy"><h3>${escapeHtml(t.name)}</h3><p>${date(s)} – ${date(e)}</p>${rigLineHtml(t,true)}</div><span class="item-chevron">›</span></button>`}).join('')||'<div class="empty">No upcoming trips yet.</div>';
   const recentNotes=sortedSharedNotes().slice(0,3);
   $('#recentNotes').innerHTML=recentNotes.map(note=>noteCardHtml(note,true)).join('')||'<div class="empty">New notes will appear here.</div>';
