@@ -2,6 +2,12 @@
 
 Adventure Hub is Scott and Kayla's private travel companion.
 
+## Version 0.17.1
+
+- Renames stay-photo labels to “Campsite” and “Sign.”
+- Restyles campsite, sign, and On the Road Again photos as smaller thumbnail
+  cards with matching corners, borders, and comfortable spacing.
+
 ## Version 0.17.0
 
 - Adds one shared “On the Road Again” cover photo to every trip.
