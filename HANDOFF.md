@@ -465,6 +465,8 @@ Database delta files:
 - `database-add-trip-photos.sql`
 - `database-add-hub-notes.sql`
 - `database-add-fuel-city-state.sql`
+- `database-allow-everyday-fuel.sql`
+- `database-add-record-receipts.sql`
 
 Icons:
 
@@ -506,6 +508,18 @@ Never place the service-role key, database password, or user passwords in fronte
 - GitHub Pages, not Netlify, is production.
 
 ## 9. Exact next step
+
+Run `database-allow-everyday-fuel.sql`, followed by
+`database-add-record-receipts.sql`, in the Supabase SQL editor. Then publish the
+v0.32.0 source to GitHub Pages and verify:
+
+1. A fuel stop can be saved as **No trip · Everyday Ruby**.
+2. It appears in Ruby's fuel history but not in any trip totals.
+3. An active trip still loads automatically in the fuel form.
+4. A receipt photo can be added, opened, replaced, and removed from fuel and
+   electric-bill records.
+5. Maintenance, upgrades, and seasonal-fee payments can each hold, open, and
+   edit up to six receipt or document pictures.
 
 Start the new cloud Work conversation with this instruction:
 

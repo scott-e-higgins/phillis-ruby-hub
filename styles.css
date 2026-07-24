@@ -396,6 +396,12 @@ fieldset legend{font-weight:850;padding:0 7px}
 .fuel-calculations{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:13px}
 .fuel-calculations span{display:flex;justify-content:space-between;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:#171f1b;color:var(--muted);font-size:13px}
 .fuel-calculations b{color:var(--ink);font-variant-numeric:tabular-nums}
+.fuel-receipt-editor{margin-top:17px}
+.fuel-receipt-editor .stay-photo-editor{margin:0}
+.fuel-receipt-detail{margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
+.fuel-receipt-detail>small{display:block;margin-bottom:8px;color:#9eaaa4;font-size:11px;font-weight:850;letter-spacing:.08em}
+.fuel-receipt-thumb{width:92px;flex-basis:92px}
+.fuel-receipt-thumb img{height:112px;object-fit:contain;background:#f1eee7}
 
 @media(max-width:620px){
   main{padding:18px 13px 10px}

@@ -14,6 +14,7 @@
     const photoBucket = client.storage.from('stay-photos');
     const tripPhotoBucket = client.storage.from('trip-photos');
     const notePhotoBucket = client.storage.from('note-photos');
+    const receiptBucket = client.storage.from('record-receipts');
 
     async function signedPhotoUrl(bucket, path) {
       if (!path) return '';
@@ -47,6 +48,24 @@
         note.photoUrls = await Promise.all((note.photoPaths || []).map(path => signedPhotoUrl(notePhotoBucket, path)));
       }));
       return notes;
+    }
+
+    async function hydrateReceiptUrls(records) {
+      await Promise.all(records.map(record =>
+        record.receiptPhotoPath
+          ? signedPhotoUrl(receiptBucket, record.receiptPhotoPath).then(url => { record.receiptPhotoUrl = url; })
+          : null
+      ).filter(Boolean));
+      return records;
+    }
+
+    async function hydrateMultiReceiptUrls(records) {
+      await Promise.all(records.map(async record => {
+        record.receiptPhotoUrls = await Promise.all(
+          (record.receiptPhotoPaths || []).map(path => signedPhotoUrl(receiptBucket, path))
+        );
+      }));
+      return records;
     }
 
     async function preparePhoto(file) {
@@ -216,6 +235,114 @@
       if (removed.error) throw removed.error;
       note.photoPaths = [];
       note.photoUrls = [];
+    }
+
+    async function setRecordReceipt(record, recordKind, file) {
+      if (role === 'viewer') throw new Error('Family Viewer accounts cannot change receipts.');
+      if (!record?._cloudId) throw new Error('Save this record before adding its receipt.');
+      const recordTypes = {
+        fuel: { table: 'trip_fuel', folder: 'fuel' },
+        maintenance: { table: 'maintenance', folder: 'maintenance' },
+        'seasonal-payment': { table: 'seasonal_payments', folder: 'seasonal-payment' },
+        electric: { table: 'electric_bills', folder: 'electric' }
+      };
+      const target = recordTypes[recordKind];
+      if (!target) throw new Error('That receipt type is not supported.');
+      const oldPath = record.receiptPhotoPath || '';
+
+      if (!file) {
+        const update = await client.from(target.table).update({ receipt_photo_path: null }).eq('id', record._cloudId);
+        if (update.error) throw update.error;
+        if (oldPath) {
+          const removed = await receiptBucket.remove([oldPath]);
+          if (removed.error) console.warn('The old receipt could not be removed.', removed.error);
+        }
+        record.receiptPhotoPath = '';
+        record.receiptPhotoUrl = '';
+        return record;
+      }
+
+      const prepared = await preparePhoto(file);
+      const path = `${householdId}/${target.folder}/${record._cloudId}/receipt-${Date.now()}.${prepared.extension}`;
+      const upload = await receiptBucket.upload(path, prepared.blob, {
+        cacheControl: '3600',
+        contentType: prepared.contentType,
+        upsert: false
+      });
+      if (upload.error) throw upload.error;
+
+      const update = await client.from(target.table).update({ receipt_photo_path: path }).eq('id', record._cloudId);
+      if (update.error) {
+        await receiptBucket.remove([path]);
+        throw update.error;
+      }
+      if (oldPath && oldPath !== path) {
+        const removed = await receiptBucket.remove([oldPath]);
+        if (removed.error) console.warn('The replaced receipt could not be removed.', removed.error);
+      }
+      record.receiptPhotoPath = path;
+      record.receiptPhotoUrl = await signedPhotoUrl(receiptBucket, path);
+      return record;
+    }
+
+    async function deleteRecordReceipt(record) {
+      if (role === 'viewer') throw new Error('Family Viewer accounts cannot delete receipts.');
+      const paths = [
+        ...(record?.receiptPhotoPath ? [record.receiptPhotoPath] : []),
+        ...(record?.receiptPhotoPaths || [])
+      ];
+      if (!paths.length) return;
+      const removed = await receiptBucket.remove(paths);
+      if (removed.error) throw removed.error;
+      record.receiptPhotoPath = '';
+      record.receiptPhotoUrl = '';
+      record.receiptPhotoPaths = [];
+      record.receiptPhotoUrls = [];
+    }
+
+    async function setMultiRecordReceipts(record, recordKind, { addFiles = [], removePaths = [] } = {}) {
+      if (role === 'viewer') throw new Error('Family Viewer accounts cannot change receipts.');
+      if (!record?._cloudId) throw new Error('Save this record before adding receipts.');
+      const recordTypes = {
+        maintenance: { table: 'maintenance', folder: 'maintenance' },
+        'seasonal-payment': { table: 'seasonal_payments', folder: 'seasonal-payment' }
+      };
+      const target = recordTypes[recordKind];
+      if (!target) throw new Error('That receipt type is not supported.');
+      const removeSet = new Set(removePaths);
+      const existingPaths = (record.receiptPhotoPaths || []).filter(path => !removeSet.has(path));
+      const existingUrls = (record.receiptPhotoUrls || []).filter((_, index) => !removeSet.has((record.receiptPhotoPaths || [])[index]));
+      const allowedFiles = addFiles.slice(0, Math.max(0, 6 - existingPaths.length));
+      const uploaded = [];
+
+      try {
+        for (const file of allowedFiles) {
+          const prepared = await preparePhoto(file);
+          const path = `${householdId}/${target.folder}/${record._cloudId}/receipt-${Date.now()}-${uuid()}.${prepared.extension}`;
+          const upload = await receiptBucket.upload(path, prepared.blob, {
+            cacheControl: '3600',
+            contentType: prepared.contentType,
+            upsert: false
+          });
+          if (upload.error) throw upload.error;
+          uploaded.push({ path, url: await signedPhotoUrl(receiptBucket, path) });
+        }
+
+        const nextPaths = [...existingPaths, ...uploaded.map(photo => photo.path)];
+        const update = await client.from(target.table).update({ receipt_photo_paths: nextPaths }).eq('id', record._cloudId);
+        if (update.error) throw update.error;
+
+        if (removePaths.length) {
+          const removed = await receiptBucket.remove(removePaths);
+          if (removed.error) console.warn('Some removed receipts could not be deleted.', removed.error);
+        }
+        record.receiptPhotoPaths = nextPaths;
+        record.receiptPhotoUrls = [...existingUrls, ...uploaded.map(photo => photo.url)];
+        return record;
+      } catch (error) {
+        if (uploaded.length) await receiptBucket.remove(uploaded.map(photo => photo.path));
+        throw error;
+      }
     }
 
     async function load() {
@@ -422,9 +549,12 @@
           description: row.description,
           location: row.vendor || '',
           price: num(row.cost) || 0,
+          receiptPhotoPaths: Array.isArray(row.receipt_photo_paths) ? row.receipt_photo_paths : [],
+          receiptPhotoUrls: [],
           notes: row.notes || ''
         });
       });
+      await hydrateMultiReceiptUrls(Object.values(maintenanceGroups).flat());
 
       const siteFees = payments.map(row => ({
         _cloudId: row.id,
@@ -433,8 +563,11 @@
         date: row.payment_date,
         payment: num(row.amount) || 0,
         check: row.check_number || '',
+        receiptPhotoPaths: Array.isArray(row.receipt_photo_paths) ? row.receipt_photo_paths : [],
+        receiptPhotoUrls: [],
         notes: row.notes || ''
       }));
+      await hydrateMultiReceiptUrls(siteFees);
 
       const electricRows = [...electric].sort((a, b) => String(a.bill_date).localeCompare(String(b.bill_date)));
       const priorBySeason = new Map();
@@ -453,9 +586,12 @@
           total: num(row.amount) || 0,
           paid: row.payment_date || '',
           check: row.check_number || '',
+          receiptPhotoPath: row.receipt_photo_path || '',
+          receiptPhotoUrl: '',
           notes: row.notes || ''
         };
       });
+      await hydrateReceiptUrls(localElectric);
 
       const localNotes = notes.map(row=>({
         _cloudId:row.id,
@@ -468,15 +604,12 @@
       }));
       await hydrateNotePhotoUrls(localNotes);
 
-      return {
-        tripSummaries,
-        stays: localStays,
-        fuel: fuel.map(row => {
-          const legacyLocation = String(row.location || '').trim();
-          const legacyMatch = legacyLocation.match(/^(.*?),\s*([A-Za-z]{2})$/);
-          const legacyCity = legacyMatch ? legacyMatch[1].trim() : legacyLocation;
-          const legacyState = legacyMatch ? legacyMatch[2].toUpperCase() : '';
-          return {
+      const localFuel = fuel.map(row => {
+        const legacyLocation = String(row.location || '').trim();
+        const legacyMatch = legacyLocation.match(/^(.*?),\s*([A-Za-z]{2})$/);
+        const legacyCity = legacyMatch ? legacyMatch[1].trim() : legacyLocation;
+        const legacyState = legacyMatch ? legacyMatch[2].toUpperCase() : '';
+        return {
           _cloudId: row.id,
           _tripId: row.trip_id,
           _vehicleId: row.vehicle_id || tripById.get(row.trip_id)?.tow_vehicle_id || null,
@@ -493,8 +626,17 @@
           total: num(row.total_cost) || 0,
           price: num(row.gallons) ? num(row.total_cost) / num(row.gallons) : 0,
           fuelType: row.fuel_type || '',
+          receiptPhotoPath: row.receipt_photo_path || '',
+          receiptPhotoUrl: '',
           notes: row.notes || ''
-        }}),
+        };
+      });
+      await hydrateReceiptUrls(localFuel);
+
+      return {
+        tripSummaries,
+        stays: localStays,
+        fuel: localFuel,
         siteFees,
         electric: localElectric,
         sharedNotes: localNotes,
@@ -568,15 +710,17 @@
 
       snapshot.fuel.forEach(x => { if (!x._cloudId) x._cloudId = uuid(); });
       const fuelRows = snapshot.fuel.map(x => ({
-        id: x._cloudId, trip_id: x._tripId || tripFor(x.trip, x.date)?._cloudId,
+        id: x._cloudId, household_id: householdId,
+        trip_id: x._tripId || tripFor(x.trip, x.date)?._cloudId || null,
         vehicle_id: x._vehicleId || tripFor(x.trip, x.date)?._towVehicleId || ruby.id,
         fuel_date: x.date, station: x.station || null,
         city: x.city || null, state: x.state || null,
         location: [x.city,x.state].filter(Boolean).join(', ') || x.location || null,
         odometer: x.odometer, trip_meter: x.tripMiles, gallons: x.gallons,
         total_cost: x.total, fuel_type: x.fuelType || (Number(String(x.date).slice(0, 4)) >= 2025 ? 'diesel' : 'gasoline'),
+        receipt_photo_path: x.receiptPhotoPath || null,
         notes: x.notes || null
-      })).filter(x => x.trip_id);
+      }));
       if (fuelRows.length) assert(await client.from('trip_fuel').upsert(fuelRows));
 
       const maintSets = [
@@ -587,7 +731,9 @@
         const assignedVehicleId=key.startsWith('phillis')?trailerForRecord(x).id:vehicleId;
         return { ...(x._cloudId != null ? { id: x._cloudId } : {}), _local: x,
           vehicle_id: assignedVehicleId, date: x.date, description: x.description,
-          cost: x.price || 0, vendor: x.location || null, notes: x.notes || null, record_type: recordType };
+          cost: x.price || 0, vendor: x.location || null,
+          receipt_photo_paths: Array.isArray(x.receiptPhotoPaths) ? x.receiptPhotoPaths : [],
+          notes: x.notes || null, record_type: recordType };
       }));
       const existingMaint = maintRows.filter(x => x.id != null).map(({ _local, ...row }) => row);
       if (existingMaint.length) assert(await client.from('maintenance').upsert(existingMaint));
@@ -611,7 +757,9 @@
       const paymentRows = snapshot.siteFees.map(x => ({
         ...(x._cloudId != null ? { id: x._cloudId } : {}), _local: x,
         season_id: x._seasonId || seasonForYear(x.year)?._cloudId,
-        payment_date: x.date, amount: x.payment, check_number: x.check || null, notes: x.notes || null
+        payment_date: x.date, amount: x.payment, check_number: x.check || null,
+        receipt_photo_paths: Array.isArray(x.receiptPhotoPaths) ? x.receiptPhotoPaths : [],
+        notes: x.notes || null
       })).filter(x => x.season_id);
       const existingPayments = paymentRows.filter(x => x.id != null).map(({ _local, ...row }) => row);
       if (existingPayments.length) assert(await client.from('seasonal_payments').upsert(existingPayments));
@@ -630,6 +778,7 @@
           id: x._cloudId, season_id: x._seasonId || seasonForYear(year)?._cloudId,
           bill_date: x.date, meter_reading: x.current, amount: x.total,
           rate: x.unitPrice, payment_date: x.paid || null, check_number: x.check || null,
+          receipt_photo_path: x.receiptPhotoPath || null,
           notes: x.notes || null
         };
       }).filter(x => x.season_id);
@@ -675,7 +824,10 @@
       setStayPhoto,
       setTripPhoto,
       setNotePhotos,
-      deleteNotePhotos
+      deleteNotePhotos,
+      setRecordReceipt,
+      deleteRecordReceipt,
+      setMultiRecordReceipts
     };
   }
 

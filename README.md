@@ -13,6 +13,29 @@ Travel Journal is Scott and Kayla's private travel companion.
   read-only calendar subscription remains a fallback if a native companion is
   not pursued.
 
+## Version 0.32.0
+
+- Adds **No trip · Everyday Ruby** to the fuel form for ordinary driving.
+- Automatically selects the active trip while traveling and otherwise defaults
+  to Everyday Ruby.
+- Keeps Everyday Ruby fuel in Ruby's fuel history and recent records without
+  adding it to any trip's mileage, MPG, or fuel-cost totals.
+- Adds one optional receipt photo to fuel stops and electric bills.
+- Ruby and Phillis maintenance, upgrades, and seasonal-fee payments can each
+  hold up to six receipt or document pictures.
+- Lets Scott and Kayla take a new picture or choose an existing receipt,
+  invoice, work order, or bill from the phone's photo library.
+- Compresses the pictures before storing them privately in Supabase.
+- Shows a small tappable receipt thumbnail beneath the record details.
+- Lets the receipt be replaced or removed while editing its record.
+- Keeps all receipts unavailable to Family Viewer accounts.
+- Removes an attached receipt from storage when its record is deleted.
+
+Run these files in Supabase before publishing this version:
+
+1. `database-allow-everyday-fuel.sql`
+2. `database-add-record-receipts.sql`
+
 ## Version 0.31.2
 
 - Makes every fuel stop listed inside a trip tappable, matching campground
