@@ -13,6 +13,13 @@ Travel Journal is Scott and Kayla's private travel companion.
   read-only calendar subscription remains a fallback if a native companion is
   not pursued.
 
+## Version 0.25.0
+
+- Gives completed, planned, next-up, and current trip cards distinct colors.
+- Uses muted slate for completed trips, forest green for planned trips, gold for
+  the next trip, and cranberry for an active trip.
+- Changes the next planned trip's label to `NEXT TRIP`.
+
 ## Version 0.24.0
 
 - Limits Home's Recent Records section to the three newest records.

@@ -618,3 +618,57 @@ dialog::backdrop{background:rgba(4,9,7,.66)}
 .viewer-mode .bottom-nav [data-view="notes"]{display:none!important}
 .viewer-mode .bottom-nav{grid-template-columns:repeat(2,1fr)}
 .viewer-mode .trip-year-content{margin-top:12px}
+
+/* v0.25.0 — distinct trip status cards */
+.trip-status-pill{border:1px solid transparent}
+.trip-item-completed{
+  background:linear-gradient(145deg,#303733,#29302c);
+  border-color:#465049;
+}
+.trip-status-completed{
+  background:#3b4540;
+  border-color:#59655f;
+  color:#c1cbc6;
+}
+.trip-item-planned{border-color:#567965}
+.trip-status-planned{
+  background:#244739;
+  border-color:#48765f;
+  color:#abe0c4;
+}
+.trip-item-next{
+  background:linear-gradient(145deg,#4a4432,#34392f);
+  border-color:#b5954d;
+  box-shadow:0 12px 30px rgba(0,0,0,.3),0 0 0 1px rgba(227,194,118,.1) inset;
+}
+.trip-status-next{
+  background:#5a4824;
+  border-color:#a88743;
+  color:#f5d990;
+}
+.trip-item-current{
+  background:linear-gradient(145deg,#63313b,#3e3033);
+  border-color:#a95d68;
+  box-shadow:0 12px 30px rgba(0,0,0,.32),0 0 0 1px rgba(255,210,210,.08) inset;
+}
+.trip-status-current{
+  background:#7d3441;
+  border-color:#bd6b76;
+  color:#ffe0c5;
+}
+.trip-item-completed:hover{
+  background:linear-gradient(145deg,#37403b,#303833);
+  border-color:#5d6b63;
+}
+.trip-item-planned:hover{
+  background:linear-gradient(145deg,#35483f,#304039);
+  border-color:#6c967d;
+}
+.trip-item-next:hover{
+  background:linear-gradient(145deg,#554e39,#3d4236);
+  border-color:#d2b25f;
+}
+.trip-item-current:hover{
+  background:linear-gradient(145deg,#713844,#49363a);
+  border-color:#c1737f;
+}

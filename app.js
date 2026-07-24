@@ -1,4 +1,4 @@
-const APP_VERSION='0.24.0';
+const APP_VERSION='0.25.0';
 const SEED={"tripSummaries":[],"stays":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const $=s=>document.querySelector(s), $$=(s,root=document)=>[...root.querySelectorAll(s)];
@@ -304,11 +304,20 @@ function tripStayNights(stay){
   const departure=stay.departure&&stay.departure!=='Season'?new Date(stay.departure+'T12:00:00'):null;
   return arrival&&departure?Math.max(0,Math.round((departure-arrival)/86400000)):0;
 }
+function nextPlannedTrip(){
+  return db.tripSummaries
+    .filter(t=>tripStatus(t)==='planned')
+    .sort((a,b)=>tripStamp(a).localeCompare(tripStamp(b)))[0]||null;
+}
 function tripCardHtml(t){
   const [s,e]=tripDates(t),stays=matchingStays(t),tripIndex=db.tripSummaries.indexOf(t);
   const stayCost=stays.reduce((sum,stay)=>sum+(Number(stay.price)||0),0);
   const nights=stays.reduce((sum,stay)=>sum+tripStayNights(stay),0);
-  return `<article class="trip-item" data-trip-index="${tripIndex}"><div class="trip-top"><div class="trip-card-heading"><div class="trip-card-title"><small class="pill">${tripStatus(t)==='planned'?'PLANNED':tripStatus(t)==='current'?'CURRENT':'COMPLETED'}</small><h3>${escapeHtml(t.name)}</h3><div class="trip-meta">${tripHasDates(t)?`${date(s)} – ${date(e)}`:String(t.year)}</div>${rigLineHtml(t)}</div>${tripPhotoHtml(t)}</div><span>›</span></div><div class="trip-numbers"><div><small>Miles</small><b>${number(t.distance,1)}</b></div><div><small>Fuel</small><b>${money(t.cost)}</b></div><div><small>MPG</small><b>${number(t.mpg,2)}</b></div><div><small>Stay cost</small><b>${money(stayCost)}</b></div><div><small>Nights</small><b>${nights}</b></div><div><small>Stays</small><b>${stays.length}</b></div></div></article>`;
+  const status=tripStatus(t);
+  const isNext=status==='planned'&&nextPlannedTrip()===t;
+  const visualStatus=status==='current'?'current':isNext?'next':status;
+  const statusLabel=status==='current'?'CURRENT':isNext?'NEXT TRIP':status==='planned'?'PLANNED':'COMPLETED';
+  return `<article class="trip-item trip-item-${visualStatus}" data-trip-index="${tripIndex}"><div class="trip-top"><div class="trip-card-heading"><div class="trip-card-title"><small class="pill trip-status-pill trip-status-${visualStatus}">${statusLabel}</small><h3>${escapeHtml(t.name)}</h3><div class="trip-meta">${tripHasDates(t)?`${date(s)} – ${date(e)}`:String(t.year)}</div>${rigLineHtml(t)}</div>${tripPhotoHtml(t)}</div><span>›</span></div><div class="trip-numbers"><div><small>Miles</small><b>${number(t.distance,1)}</b></div><div><small>Fuel</small><b>${money(t.cost)}</b></div><div><small>MPG</small><b>${number(t.mpg,2)}</b></div><div><small>Stay cost</small><b>${money(stayCost)}</b></div><div><small>Nights</small><b>${nights}</b></div><div><small>Stays</small><b>${stays.length}</b></div></div></article>`;
 }
 function yearTotals(trips){
   const allStays=trips.flatMap(matchingStays);
