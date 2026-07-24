@@ -1,4 +1,4 @@
-const SEED={"tripSummaries":[],"stays":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"meta":{"source":"Supabase","version":"0.18.0"},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
+const SEED={"tripSummaries":[],"stays":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"meta":{"source":"Supabase","version":"0.18.1"},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const $=s=>document.querySelector(s), $$=(s,root=document)=>[...root.querySelectorAll(s)];
 const clone=x=>JSON.parse(JSON.stringify(x));
@@ -588,14 +588,7 @@ function openEntry(type,index=null,returnTripIndex=null){
     const record=db[key]?.[index];
     if(record){$('#date').value=record.date||today;$('#description').value=record.description||'';$('#location').value=record.location||'';$('#total').value=record.price??'';$('#notes').value=record.notes||'';}
   }
-  if(type==='hub-note'){
-    const index=$('#entryIndex').value===''?null:+$('#entryIndex').value;
-    const prior=index===null?null:db.sharedNotes[index];
-    const now=new Date().toISOString();
-    const record={...(prior||{}),title:$('#name').value.trim(),body:notes,createdAt:prior?.createdAt||now,updatedAt:now};
-    if(index===null)db.sharedNotes.push(record);else db.sharedNotes[index]=record;
-  }
-  else if(type==='trip'){
+  if(type==='trip'){
     if(index!==null){
       const t=db.tripSummaries[index], [start,end]=tripDates(t), stays=matchingStays(t);
       $('#name').value=t.name||''; $('#startDate').value=start; $('#endDate').value=end; $('#notes').value=t.notes||'';
@@ -629,7 +622,14 @@ $('#entryForm').onsubmit=async e=>{
   const tripPhotoChange=type==='trip'&&($('#onRoadPhotoFile')?.files?.[0]||$('#onRoadPhotoFile')?.dataset.remove==='true')
     ?{file:$('#onRoadPhotoFile')?.files?.[0]||null,remove:$('#onRoadPhotoFile')?.dataset.remove==='true'}
     :null;
-  if(type==='trip'){
+  if(type==='hub-note'){
+    const index=$('#entryIndex').value===''?null:+$('#entryIndex').value;
+    const prior=index===null?null:db.sharedNotes[index];
+    const now=new Date().toISOString();
+    const record={...(prior||{}),title:$('#name').value.trim(),body:notes,createdAt:prior?.createdAt||now,updatedAt:now};
+    if(index===null)db.sharedNotes.push(record);else db.sharedNotes[index]=record;
+  }
+  else if(type==='trip'){
     const s=$('#startDate').value,eDate=$('#endDate').value,name=$('#name').value.trim(),index=$('#entryIndex').value===''?null:+$('#entryIndex').value;
     const duplicateIndex=db.tripSummaries.findIndex((trip,i)=>i!==index&&(trip.name||'').trim().toLocaleLowerCase()===name.toLocaleLowerCase());
     if(duplicateIndex!==-1){

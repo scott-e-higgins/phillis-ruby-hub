@@ -2,6 +2,10 @@
 
 Adventure Hub is Scott and Kayla's private travel companion.
 
+## Version 0.18.1
+
+- Fixed the shared Notes form so the Save button creates and updates notes correctly.
+
 ## Version 0.18.0
 
 - Replaces the bottom More tab with private shared Notes for Scott and Kayla.
