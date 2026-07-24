@@ -2,6 +2,13 @@
 
 Travel Journal is Scott and Kayla's private travel companion.
 
+## Version 0.19.4
+
+- Makes the document itself the explicit vertical scroll area.
+- Removes scroll containment that could trap wheel gestures in an embedded
+  browser.
+- Preserves touch momentum and the existing phone pull-to-refresh behavior.
+
 ## Version 0.19.3
 
 - Adds **Add note** beside the Home screen's trip and fuel shortcuts.

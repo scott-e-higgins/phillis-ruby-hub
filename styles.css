@@ -19,8 +19,8 @@
   --radius-lg:12px;
   --ease:cubic-bezier(.2,.8,.2,1);
 }*{box-sizing:border-box}
-html{width:100%;max-width:100%;overflow-x:hidden;background:var(--cream);scroll-behavior:smooth;color-scheme:dark;overscroll-behavior-y:contain;-webkit-text-size-adjust:100%;text-size-adjust:100%}
-body{width:100%;max-width:100%;overflow-x:hidden;margin:0;color:var(--ink);background:radial-gradient(circle at 50% -120px,#20332b 0,#151d19 340px,var(--cream) 760px);font:16px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;padding-bottom:calc(94px + env(safe-area-inset-bottom));-webkit-font-smoothing:antialiased;overscroll-behavior-y:contain}
+html{width:100%;max-width:100%;min-height:100%;overflow-x:hidden;overflow-y:scroll;background:var(--cream);scroll-behavior:smooth;color-scheme:dark;overscroll-behavior-y:auto;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{width:100%;max-width:100%;min-height:100vh;overflow-x:hidden;overflow-y:visible;margin:0;color:var(--ink);background:radial-gradient(circle at 50% -120px,#20332b 0,#151d19 340px,var(--cream) 760px);font:16px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;padding-bottom:calc(94px + env(safe-area-inset-bottom));-webkit-font-smoothing:antialiased;overscroll-behavior-y:auto;-webkit-overflow-scrolling:touch}
 button,input,select,textarea{font-family:inherit}
 button{font:inherit}
 input,select,textarea{font-size:16px;line-height:1.35}
