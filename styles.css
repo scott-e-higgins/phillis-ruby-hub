@@ -744,7 +744,7 @@ dialog::backdrop{background:rgba(4,9,7,.66)}
   border-color:#c1737f;
 }
 
-/* v0.33.4 — chunky pine-bark journal canvas */
+/* v0.33.5 — leaf-vein header and grass navigation */
 html{
   background:#302018;
 }
@@ -761,9 +761,23 @@ body{
 }
 .topbar{
   background-color:#17392f;
-  background-image:linear-gradient(135deg,#10241d,#1f4437);
+  background-image:
+    linear-gradient(135deg,rgba(16,36,29,.93),rgba(31,68,55,.91)),
+    url("header-leaf-veins.svg");
+  background-size:auto,cover;
+  background-position:center,center;
+  background-repeat:no-repeat;
 }
 .topbar::before,
 .topbar::after{
   display:none;
+}
+.bottom-nav{
+  background-color:rgba(23,32,27,.96);
+  background-image:
+    linear-gradient(rgba(18,26,22,.64),rgba(18,26,22,.82)),
+    url("bottom-grass.svg");
+  background-size:auto,100% 100%;
+  background-position:center,bottom center;
+  background-repeat:repeat,no-repeat;
 }
