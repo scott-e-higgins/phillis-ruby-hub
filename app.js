@@ -1,4 +1,4 @@
-const APP_VERSION='0.33.9';
+const APP_VERSION='0.34.0';
 const SEED={"tripSummaries":[],"stays":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"vehicleDetails":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const NO_TRIP_VALUE='__everyday_ruby__';
@@ -183,7 +183,9 @@ function go(view){
   if(view==='notes'&&window.ADVENTURE_HUB_CLOUD?.role==='viewer')view='home';
   $$('.view').forEach(v=>v.classList.toggle('active',v.id===view));
   $$('.bottom-nav [data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
-  window.scrollTo(0,0);
+  const appScroll=$('#appScroll');
+  if(appScroll)appScroll.scrollTop=0;
+  else window.scrollTo(0,0);
   if(view==='home') renderHome();
   if(view==='trips') renderTrips();
   if(view==='notes') renderNotes();
@@ -1334,6 +1336,8 @@ function enablePullToRefresh(){
   const indicator=$('#pullRefresh');
   const refreshButton=$('#cloudRefresh');
   if(!indicator)return;
+  const scroller=$('#appScroll')||document;
+  const scrollTop=()=>scroller===document?window.scrollY:scroller.scrollTop;
   const label=indicator.querySelector('b');
   const threshold=44;
   let startY=0,startX=0,distance=0,pulling=false,refreshing=false;
@@ -1363,14 +1367,14 @@ function enablePullToRefresh(){
     },refreshed?800:1500);
   };
   refreshButton?.addEventListener('click',runRefresh);
-  document.addEventListener('touchstart',event=>{
-    if(refreshing||window.scrollY>2||document.querySelector('dialog[open]')||event.touches.length!==1)return;
+  scroller.addEventListener('touchstart',event=>{
+    if(refreshing||scrollTop()>2||document.querySelector('dialog[open]')||event.touches.length!==1)return;
     startY=event.touches[0].clientY;
     startX=event.touches[0].clientX;
     distance=0;
     pulling=true;
   },{passive:true});
-  document.addEventListener('touchmove',event=>{
+  scroller.addEventListener('touchmove',event=>{
     if(!pulling||refreshing||event.touches.length!==1)return;
     const deltaY=event.touches[0].clientY-startY;
     const deltaX=Math.abs(event.touches[0].clientX-startX);
@@ -1382,13 +1386,13 @@ function enablePullToRefresh(){
     indicator.classList.toggle('ready',ready);
     label.textContent=ready?'Release to refresh':'Pull down to refresh';
   },{passive:false});
-  document.addEventListener('touchend',async()=>{
+  scroller.addEventListener('touchend',async()=>{
     if(!pulling||refreshing)return;
     pulling=false;
     if(distance<threshold){hide();return;}
     await runRefresh();
   },{passive:true});
-  document.addEventListener('touchcancel',()=>{if(!refreshing){pulling=false;hide()}},{passive:true});
+  scroller.addEventListener('touchcancel',()=>{if(!refreshing){pulling=false;hide()}},{passive:true});
 }
 window.addEventListener('adventure-store-ready',loadCloudData);
 if(window.ADVENTURE_HUB_STORE)loadCloudData();
