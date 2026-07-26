@@ -2,6 +2,18 @@
 
 Travel Journal is Scott and Kayla's private travel companion.
 
+## Version 0.41.0
+
+- Adds one private PDF attachment to every trip activity or reservation.
+- Preserves the original PDF, including all of its pages, instead of
+  converting it into pictures.
+- Opens saved PDFs from the activity detail card in the phone or computer's
+  normal PDF viewer.
+- Stores activity PDFs in Higgins Documents so a future Filing Cabinet can
+  display the same underlying document without copying it.
+- Keeps the existing six confirmation pictures available alongside the PDF.
+- Makes no paid AI calls.
+
 ## Version 0.40.0
 
 - Adds the reusable Higgins Documents database foundation for Travel Journal,

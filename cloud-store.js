@@ -406,14 +406,14 @@
       return record;
     }
 
-    async function detachElectricBillDocuments(record) {
+    async function detachLinkedDocuments(record, recordType, linkRole) {
       const linked = assert(await client
         .from('hub_document_links')
         .select('id, document_id')
         .eq('source_app', 'travel-journal')
-        .eq('record_type', 'electric_bill')
+        .eq('record_type', recordType)
         .eq('record_id', String(record._cloudId))
-        .eq('link_role', 'bill_scan'));
+        .eq('link_role', linkRole));
       if (!linked.length) return;
 
       const documentIds = [...new Set(linked.map(link => link.document_id))];
@@ -450,7 +450,7 @@
       const oldLegacyPath = record.receiptPhotoPath || '';
 
       if (!file) {
-        await detachElectricBillDocuments(record);
+        await detachLinkedDocuments(record, 'electric_bill', 'bill_scan');
         const update = await client.from('electric_bills').update({ receipt_photo_path: null }).eq('id', record._cloudId);
         if (update.error) throw update.error;
         if (oldLegacyPath && !(record.documentFiles || []).some(storedFile =>
@@ -589,6 +589,129 @@
         }];
         record.receiptPhotoPath = '';
         record.receiptPhotoUrl = url;
+        return record;
+      } catch (error) {
+        if (uploaded) await hubDocumentBucket.remove([storagePath]);
+        if (documentCreated) await client.from('hub_documents').delete().eq('id', documentId);
+        throw error;
+      }
+    }
+
+    async function setTripPlanPdfDocument(record, file) {
+      if (role === 'viewer') throw new Error('Family Viewer accounts cannot change reservation documents.');
+      if (!record?._cloudId) throw new Error('Save this activity before adding its PDF.');
+
+      if (!file) {
+        await detachLinkedDocuments(record, 'trip_plan', 'supporting_document');
+        record.documentAttachments = [];
+        return record;
+      }
+
+      const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '');
+      if (!isPdf) throw new Error('Please choose a PDF file.');
+      if (file.size > 25 * 1024 * 1024) throw new Error('That PDF is larger than the 25 MB document limit.');
+
+      const userResult = await client.auth.getUser();
+      if (userResult.error) throw userResult.error;
+      const userId = userResult.data?.user?.id;
+      if (!userId) throw new Error('Please sign in again before saving this document.');
+
+      const documentId = uuid();
+      const fileId = uuid();
+      const displayTitle = `${record.title || 'Trip activity'} · confirmation PDF`;
+      const originalFilename = file.name || `trip-activity-${record._cloudId}.pdf`;
+      const storagePath = `${householdId}/${documentId}/${fileId}.pdf`;
+      let uploaded = false;
+      let documentCreated = false;
+
+      try {
+        const documentInsert = await client.from('hub_documents').insert({
+          id: documentId,
+          household_id: householdId,
+          display_title: displayTitle,
+          document_type: 'trip_activity_document',
+          document_date: record.date || null,
+          source_app: 'travel-journal',
+          processing_status: 'approved',
+          ai_processing_status: 'not_requested',
+          retention_status: 'keep',
+          created_by: userId,
+          uploaded_at: new Date().toISOString()
+        });
+        if (documentInsert.error) throw documentInsert.error;
+        documentCreated = true;
+
+        const upload = await hubDocumentBucket.upload(storagePath, file, {
+          cacheControl: '3600',
+          contentType: 'application/pdf',
+          upsert: false
+        });
+        if (upload.error) throw upload.error;
+        uploaded = true;
+
+        const fileInsert = await client.from('hub_document_files').insert({
+          id: fileId,
+          document_id: documentId,
+          page_number: 1,
+          original_filename: originalFilename,
+          mime_type: 'application/pdf',
+          file_size_bytes: Number(file.size) || 0,
+          storage_bucket: 'hub-documents',
+          storage_path: storagePath,
+          cleanup_metadata: { preserved_as_pdf: true }
+        });
+        if (fileInsert.error) throw fileInsert.error;
+
+        const linkInsert = await client.from('hub_document_links').insert({
+          document_id: documentId,
+          source_app: 'travel-journal',
+          record_type: 'trip_plan',
+          record_id: String(record._cloudId),
+          link_role: 'supporting_document',
+          is_primary: true,
+          created_by: userId
+        });
+        if (linkInsert.error) throw linkInsert.error;
+
+        const previousAttachments = [...(record.documentAttachments || [])];
+        assert(await client.from('hub_document_links')
+          .delete()
+          .eq('source_app', 'travel-journal')
+          .eq('record_type', 'trip_plan')
+          .eq('record_id', String(record._cloudId))
+          .eq('link_role', 'supporting_document')
+          .neq('document_id', documentId));
+
+        for (const attachment of previousAttachments) {
+          if (!attachment.documentId || attachment.documentId === documentId) continue;
+          const remainingLinks = assert(await client.from('hub_document_links').select('id').eq('document_id', attachment.documentId).limit(1));
+          if (remainingLinks.length) continue;
+          const priorFiles = assert(await client.from('hub_document_files').select('storage_bucket, storage_path').eq('document_id', attachment.documentId));
+          assert(await client.from('hub_documents').delete().eq('id', attachment.documentId));
+          for (const [bucketName, paths] of Object.entries(priorFiles.reduce((groups, storedFile) => {
+            if (!storedFile.storage_path) return groups;
+            (groups[storedFile.storage_bucket || 'hub-documents'] ||= []).push(storedFile.storage_path);
+            return groups;
+          }, {}))) {
+            const removed = await client.storage.from(bucketName).remove(paths);
+            if (removed.error) console.warn('A replaced reservation document could not be removed.', removed.error);
+          }
+        }
+
+        const url = await signedPhotoUrl(hubDocumentBucket, storagePath);
+        record.documentAttachments = [{
+          documentId,
+          documentTitle: displayTitle,
+          documentStatus: 'approved',
+          fileId,
+          pageNumber: 1,
+          originalFilename,
+          mimeType: 'application/pdf',
+          fileSizeBytes: Number(file.size) || 0,
+          storageBucket: 'hub-documents',
+          storagePath,
+          url
+        }];
         return record;
       } catch (error) {
         if (uploaded) await hubDocumentBucket.remove([storagePath]);
@@ -800,6 +923,14 @@
           .sort((a, b) => Number(Boolean(b.is_primary)) - Number(Boolean(a.is_primary)))
           .map(link => [String(link.record_id), link])
       );
+      const planDocumentLinksByRecordId = new Map();
+      documentLinks
+        .filter(link => link.record_type === 'trip_plan' && link.link_role === 'supporting_document')
+        .forEach(link => {
+          const key = String(link.record_id);
+          if (!planDocumentLinksByRecordId.has(key)) planDocumentLinksByRecordId.set(key, []);
+          planDocumentLinksByRecordId.get(key).push(link);
+        });
       const site = sites[0] || {};
       const siteLocation = String(site.location || '');
       const siteLocationParts = siteLocation.split(',').map(x => x.trim());
@@ -992,28 +1123,54 @@
       }));
       await hydrateNotePhotoUrls(localNotes);
 
-      const localPlans = plans.map(row => ({
-        _cloudId: row.id,
-        _tripId: row.trip_id,
-        title: row.title,
-        planType: row.plan_type || 'activity',
-        status: row.status || 'planned',
-        date: row.plan_date,
-        startTime: time(row.start_time),
-        endTime: time(row.end_time),
-        locationName: row.location_name || '',
-        address: row.address || '',
-        city: row.city || '',
-        state: row.state || '',
-        zip: row.postal_code || '',
-        confirmationCode: row.confirmation_code || '',
-        cost: num(row.cost) || 0,
-        websiteUrl: row.website_url || '',
-        receiptPhotoPaths: Array.isArray(row.receipt_photo_paths) ? row.receipt_photo_paths : [],
-        receiptPhotoUrls: [],
-        notes: row.notes || ''
-      }));
+      const localPlans = plans.map(row => {
+        const links = planDocumentLinksByRecordId.get(String(row.id)) || [];
+        const documentAttachments = links.flatMap(link => {
+          const document = documentById.get(link.document_id);
+          return (documentFilesById.get(link.document_id) || []).map(file => ({
+            documentId: link.document_id,
+            documentTitle: document?.display_title || '',
+            documentStatus: document?.processing_status || '',
+            fileId: file.id,
+            pageNumber: Number(file.page_number) || 1,
+            originalFilename: file.original_filename || '',
+            mimeType: file.mime_type || '',
+            fileSizeBytes: Number(file.file_size_bytes) || 0,
+            storageBucket: file.storage_bucket || 'hub-documents',
+            storagePath: file.storage_path || '',
+            url: ''
+          }));
+        });
+        return {
+          _cloudId: row.id,
+          _tripId: row.trip_id,
+          title: row.title,
+          planType: row.plan_type || 'activity',
+          status: row.status || 'planned',
+          date: row.plan_date,
+          startTime: time(row.start_time),
+          endTime: time(row.end_time),
+          locationName: row.location_name || '',
+          address: row.address || '',
+          city: row.city || '',
+          state: row.state || '',
+          zip: row.postal_code || '',
+          confirmationCode: row.confirmation_code || '',
+          cost: num(row.cost) || 0,
+          websiteUrl: row.website_url || '',
+          receiptPhotoPaths: Array.isArray(row.receipt_photo_paths) ? row.receipt_photo_paths : [],
+          receiptPhotoUrls: [],
+          documentAttachments,
+          notes: row.notes || ''
+        };
+      });
       await hydrateMultiReceiptUrls(localPlans);
+      await Promise.all(localPlans.flatMap(plan => (plan.documentAttachments || []).map(async attachment => {
+        const bucket = attachment.storageBucket === 'hub-documents'
+          ? hubDocumentBucket
+          : client.storage.from(attachment.storageBucket);
+        attachment.url = await signedPhotoUrl(bucket, attachment.storagePath);
+      })));
 
       const localFuel = fuel.map(row => {
         const legacyLocation = String(row.location || '').trim();
@@ -1269,6 +1426,7 @@
       deleteNotePhotos,
       setRecordReceipt,
       setElectricBillDocument,
+      setTripPlanPdfDocument,
       deleteRecordReceipt,
       setMultiRecordReceipts,
       getStorageUsage,
