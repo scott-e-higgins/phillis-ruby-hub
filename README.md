@@ -2,6 +2,15 @@
 
 Travel Journal is Scott and Kayla's private travel companion.
 
+## Version 0.44.0
+
+- Adds a compact Seasonal documents section inside every Lehigh Gorge year.
+- Saves welcome letters, registration forms, and other yearly paperwork as
+  reusable Higgins Documents linked to the season.
+- Accepts camera scans, existing pictures, and intact PDFs, including
+  multi-page documents without an arbitrary page limit.
+- Keeps document cleanup local and does not trigger paid AI processing.
+
 ## Version 0.43.3
 
 - Calculates electric usage automatically as current meter minus previous meter.
