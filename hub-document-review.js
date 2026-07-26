@@ -19,7 +19,7 @@
     { key: 'bill_date', label: 'Bill date', type: 'date', group: 'Bill details' },
     { key: 'previous_meter_reading', label: 'Previous meter', type: 'number', step: 'any', group: 'Readings', automatic: true },
     { key: 'current_meter_reading', label: 'Current meter', type: 'number', step: 'any', group: 'Readings' },
-    { key: 'electricity_usage', label: 'Usage (kWh)', type: 'number', step: 'any', group: 'Readings' },
+    { key: 'electricity_usage', label: 'Usage (kWh)', type: 'number', step: 'any', group: 'Readings', automatic: true },
     { key: 'rate', label: 'Rate / kWh', type: 'number', step: '0.001', group: 'Amounts' },
     { key: 'amount_due', label: 'Amount due', type: 'number', step: '0.01', group: 'Amounts' },
     { key: 'payment_date', label: 'Handwritten paid date', type: 'date', group: 'Payment notes' },
@@ -47,11 +47,17 @@
     const keepValues = values => Object.fromEntries(
       Object.entries(values || {}).filter(([, value]) => value !== null && value !== undefined && value !== '')
     );
-    return {
+    const data = {
       ...defaults,
       ...keepValues(extracted.fields || extracted || {}),
       ...keepValues(corrections.fields || corrections || {})
     };
+    const previous = Number(data.previous_meter_reading);
+    const current = Number(data.current_meter_reading);
+    if (Number.isFinite(previous) && Number.isFinite(current) && current >= previous) {
+      data.electricity_usage = current - previous;
+    }
+    return data;
   }
 
   function currentConfidence() {

@@ -2,6 +2,11 @@
 
 Travel Journal is Scott and Kayla's private travel companion.
 
+## Version 0.43.3
+
+- Calculates electric usage automatically as current meter minus previous meter.
+- Usage no longer depends on the paper bill printing a separate kWh value.
+
 ## Version 0.43.2
 
 - Preserves automatic Site 39 and previous-meter values when the bill reader
