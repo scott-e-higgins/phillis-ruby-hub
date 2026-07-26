@@ -21,6 +21,7 @@
     cleanup: null,
     cropEditing: false,
     manualCorners: null,
+    activeCropCorner: null,
     onUse: null,
     allowPdfUse: false,
     busy: false
@@ -55,6 +56,7 @@
       cleanup: null,
       cropEditing: false,
       manualCorners: null,
+      activeCropCorner: null,
       busy: false
     });
     const camera = $('#scannerCameraInput');
@@ -130,7 +132,9 @@
     ];
     if (state.cleanup) {
       details.push(
-        `${state.cleanup.cropped ? 'Paper edges detected and squared' : 'Full image retained'} · ${state.cleanup.width} × ${state.cleanup.height}`
+        `${state.cleanup.manual
+          ? 'Manual crop applied and squared'
+          : (state.cleanup.cropped ? 'Paper edges detected and squared' : 'Full image retained')} · ${state.cleanup.width} × ${state.cleanup.height}`
       );
     }
     meta.innerHTML = details.map(line => `<span>${line}</span>`).join('');
@@ -611,14 +615,20 @@
       handle.addEventListener('pointerdown', event => {
         if (!state.cropEditing) return;
         const index = Number(handle.dataset.scannerCorner);
+        state.activeCropCorner = index;
         handle.setPointerCapture?.(event.pointerId);
+        event.preventDefault();
         moveCropCorner(index, event.clientX, event.clientY);
       });
-      handle.addEventListener('pointermove', event => {
-        if (!state.cropEditing || !handle.hasPointerCapture?.(event.pointerId)) return;
-        moveCropCorner(Number(handle.dataset.scannerCorner), event.clientX, event.clientY);
-      });
     });
+    document.addEventListener('pointermove', event => {
+      if (!state.cropEditing || state.activeCropCorner == null) return;
+      event.preventDefault();
+      moveCropCorner(state.activeCropCorner, event.clientX, event.clientY);
+    }, { passive: false });
+    const endCropDrag = () => { state.activeCropCorner = null; };
+    document.addEventListener('pointerup', endCropDrag);
+    document.addEventListener('pointercancel', endCropDrag);
     dialog.querySelectorAll('[data-close-scanner]').forEach(button => button.addEventListener('click', () => dialog.close()));
     dialog.addEventListener('close', () => {
       state.onUse = null;

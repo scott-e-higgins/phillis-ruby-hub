@@ -2,6 +2,11 @@
 
 Travel Journal is Scott and Kayla's private travel companion.
 
+## Version 0.39.2
+
+- Made the four manual crop corners track touch and pointer movement reliably on iPhone and iPad.
+- Clarified the preview when a manual crop has been applied.
+
 ## Version 0.39.1
 
 - Tightened automatic document-edge crops so background slivers are less likely to remain.
