@@ -838,6 +838,17 @@ body{
   contain:none;
 }
 
+/* v0.34.1 — fill the complete installed-iPhone viewport, including its bottom edge */
+body{
+  position:fixed;
+  inset:0;
+  height:auto!important;
+  min-height:0!important;
+}
+html.standalone-app .pull-refresh{
+  transform:translate(-50%,-120px);
+}
+
 .ruby-truck-icon{display:block;width:29px;height:21px}
 .ruby-truck-body{fill:#a93743;stroke:#e5a3aa;stroke-width:1}
 .ruby-truck-window{fill:#bcd1d9;stroke:#dce8eb;stroke-width:.7}
