@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-title" content="Travel Journal">
   <meta name="description" content="The private travel, maintenance and seasonal-site hub for Phillis & Ruby.">
   <title>Phillis & Ruby Travel Journal</title>
-  <link rel="manifest" href="manifest.webmanifest?v=0.42.0">
+  <link rel="manifest" href="manifest.webmanifest?v=0.42.1">
   <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
   <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
   <script>
@@ -21,7 +21,7 @@
       document.documentElement.style.setProperty('--standalone-screen-height', `${window.screen.height}px`);
     }
   </script>
-  <link rel="stylesheet" href="styles.css?v=0.42.0">
+  <link rel="stylesheet" href="styles.css?v=0.42.1">
 </head>
 <body>
 <div id="pullRefresh" class="pull-refresh" aria-live="polite">
@@ -216,12 +216,12 @@
     <article class="card updates-card">
       <div class="updates-heading">
         <div><small>WHAT'S NEW</small><h3>Recent updates</h3></div>
-        <span class="version-badge">v0.42.0</span>
+        <span class="version-badge">v0.42.1</span>
       </div>
       <div class="updates-list">
         <div>
-          <b>v0.42.0</b>
-          <span>Electric bills can now keep flexible multi-page scans, images, and PDFs together as one Higgins document.</span>
+          <b>v0.42.1</b>
+          <span>Polished the shared scanner with clearer progress, simpler page controls, and safer save and removal guidance.</span>
         </div>
         <div>
           <b>v0.38.0</b>
@@ -295,7 +295,7 @@
 
 <dialog id="entryDialog">
   <form id="entryForm">
-    <div class="dialog-head"><div><small>NEW RECORD</small><h2 id="entryTitle"></h2></div><button type="button" class="close">×</button></div>
+    <div class="dialog-head"><div><small id="entryKicker">NEW RECORD</small><h2 id="entryTitle"></h2></div><button type="button" class="close">×</button></div>
     <input id="entryType" type="hidden">
     <input id="entryIndex" type="hidden">
     <input id="entryStayIndex" type="hidden">
@@ -331,13 +331,13 @@
     <button type="button" class="close" data-close-scanner>×</button>
   </div>
   <div class="scanner-stage-strip" aria-label="Scanner workflow">
-    <span class="current">1 Capture</span>
-    <span>2 Auto clean</span>
-    <span>3 Review</span>
-    <span>4 Attach</span>
+    <span class="current" data-scanner-step="1" aria-current="step">1 Choose</span>
+    <span data-scanner-step="2">2 Prepare</span>
+    <span data-scanner-step="3">3 Review</span>
+    <span data-scanner-step="4">4 Add</span>
   </div>
   <section class="scanner-capture-actions">
-    <label class="primary scanner-picker">Take picture<input id="scannerCameraInput" type="file" accept="image/*" capture="environment" hidden></label>
+    <label class="primary scanner-picker">Take a picture<input id="scannerCameraInput" type="file" accept="image/*" capture="environment" hidden></label>
     <label class="secondary scanner-picker">Choose image or PDF<input id="scannerFileInput" type="file" accept="image/*,application/pdf,.pdf" hidden></label>
   </section>
   <section id="scannerEmpty" class="scanner-empty">
@@ -409,9 +409,9 @@
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
 <script src="supabase-config.js" defer></script>
-<script src="cloud.js?v=0.42.0" defer></script>
-<script src="cloud-store.js?v=0.42.0" defer></script>
-<script src="document-scanner.js?v=0.42.0" defer></script>
-<script src="app.js?v=0.42.0" defer></script>
+<script src="cloud.js?v=0.42.1" defer></script>
+<script src="cloud-store.js?v=0.42.1" defer></script>
+<script src="document-scanner.js?v=0.42.1" defer></script>
+<script src="app.js?v=0.42.1" defer></script>
 </body>
 </html>

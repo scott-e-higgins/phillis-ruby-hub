@@ -75,6 +75,15 @@
     status.dataset.tone = tone;
   }
 
+  function setScannerStage(step) {
+    document.querySelectorAll('[data-scanner-step]').forEach(item => {
+      const current = Number(item.dataset.scannerStep) === step;
+      item.classList.toggle('current', current);
+      if (current) item.setAttribute('aria-current', 'step');
+      else item.removeAttribute('aria-current');
+    });
+  }
+
   function render() {
     const empty = $('#scannerEmpty');
     const preview = $('#scannerPreview');
@@ -92,6 +101,7 @@
     if (!empty || !preview) return;
 
     const hasFile = Boolean(state.file);
+    setScannerStage(!hasFile ? 1 : state.busy || !state.processedFile ? 2 : 3);
     empty.hidden = hasFile;
     preview.hidden = !hasFile;
     remove.hidden = !hasFile;
@@ -201,6 +211,8 @@
     render();
 
     if (isPdf) {
+      state.busy = true;
+      render();
       setStatus('Checking whether this PDF already contains selectable text…');
       try {
         const hasText = await inspectPdf(file);
@@ -213,6 +225,8 @@
         );
       } catch {
         setStatus('The PDF is being previewed as-is. Text inspection was inconclusive.');
+      } finally {
+        state.busy = false;
       }
       render();
     } else {
@@ -591,6 +605,7 @@
       setStatus('PDF cloud saving begins in the next shared-document stage. This version safely previews it without changing the database.');
       return;
     }
+    setScannerStage(4);
     const accepted = state.onUse?.({
       file: state.processedFile,
       originalFile: state.file,
@@ -601,7 +616,10 @@
         hasSelectableText: state.kind === 'pdf' ? state.pdfHasSelectableText : null
       }
     });
-    if (accepted === false) return;
+    if (accepted === false) {
+      setScannerStage(3);
+      return;
+    }
     $('#documentScannerDialog')?.close();
   }
 

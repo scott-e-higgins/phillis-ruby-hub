@@ -1,4 +1,4 @@
-const APP_VERSION='0.42.0';
+const APP_VERSION='0.42.1';
 const SEED={"tripSummaries":[],"stays":[],"tripPlans":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"vehicleDetails":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const NO_TRIP_VALUE='__everyday_ruby__';
@@ -906,7 +906,7 @@ function receiptEditorFields(help='Optional. Take a picture or choose one from y
   return `<section class="fuel-receipt-editor"><article class="stay-photo-editor"><div class="stay-photo-editor-copy"><b>Receipt</b><p>${help}</p></div><div class="stay-photo-preview" id="receiptPhotoPreview"><span>No receipt yet</span></div><div class="stay-photo-actions"><label class="secondary photo-picker">Take photo<input id="receiptCameraFile" type="file" accept="image/*" capture="environment" hidden></label><label class="secondary photo-picker">Choose photo<input id="receiptPhotoFile" type="file" accept="image/*" hidden></label><button class="delete-link remove-stay-photo" id="removeReceiptPhoto" type="button" hidden>Remove</button></div></article></section>`;
 }
 function documentScannerFields(){
-  return `<section class="document-scanner-entry"><div class="document-scanner-entry-heading"><div><small>HIGGINS HUB SCANNER</small><b>Bill pages &amp; PDFs</b><p>Scan another page or add an existing image or PDF. There is no fixed page-count limit.</p></div><button class="secondary" id="openDocumentScanner" type="button">Add page or PDF</button></div><div id="electricDocumentEditorList" class="electric-document-editor-list"></div><div class="electric-document-editor-footer"><p id="documentScannerAttachStatus">Pages are saved together as one Higgins document.</p><small id="electricDocumentEditorCount">0 files</small></div></section>`;
+  return `<section class="document-scanner-entry"><div class="document-scanner-entry-heading"><div><small>HIGGINS HUB SCANNER</small><b>Bill pages &amp; PDFs</b><p>Scan a page, choose a picture, or add a PDF. Add as many files as this bill needs.</p></div><button class="secondary" id="openDocumentScanner" type="button">Scan or add document</button></div><div id="electricDocumentEditorList" class="electric-document-editor-list"></div><div class="electric-document-editor-footer"><p id="documentScannerAttachStatus">Everything here will be saved together as one Higgins document.</p><small id="electricDocumentEditorCount">0 files attached</small></div></section>`;
 }
 function multiReceiptFields(help){
   return `<section class="note-photo-editor seasonal-receipt-editor"><div class="note-photo-editor-heading"><div><b>Receipts and documents</b><p>${help}</p></div><div class="stay-photo-actions"><label class="secondary photo-picker">Take photo<input id="multiReceiptCameraFile" type="file" accept="image/*" capture="environment" hidden></label><label class="secondary photo-picker">Choose pictures<input id="multiReceiptFiles" type="file" accept="image/*" multiple hidden></label></div></div><div id="multiReceiptGrid" class="note-photo-editor-grid"></div><small id="multiReceiptCount">0 of 6 pictures</small></section>`;
@@ -1125,9 +1125,12 @@ function renderElectricDocumentEditor(){
       :item.url
         ?`<button class="electric-document-editor-image" type="button" data-photo-url="${escapeHtml(item.url)}" data-photo-label="${escapeHtml(`Electric bill page ${index+1}`)}"><img src="${escapeHtml(item.url)}" alt="${escapeHtml(`Electric bill page ${index+1}`)}"></button>`
         :`<span class="note-photo-missing">Page ${index+1}</span>`;
-    return `<article class="electric-document-editor-item"><span class="electric-document-page-number">${index+1}</span>${preview}<div class="electric-document-editor-copy"><b>${isPdf?'PDF document':`Page ${index+1}`}</b><small>${item.fileSizeBytes?`${number(item.fileSizeBytes/1024,0)} KB · `:''}${item.kind==='pending'?'Ready to save':'Saved'}</small></div><div class="electric-document-order-actions"><button class="secondary" type="button" data-electric-document-up="${index}" ${index===0?'disabled':''} aria-label="Move file up">↑</button><button class="secondary" type="button" data-electric-document-down="${index}" ${index===items.length-1?'disabled':''} aria-label="Move file down">↓</button><button class="delete-link" type="button" data-electric-document-remove="${index}">Remove</button></div></article>`;
+    const orderButtons=items.length>1?`<button class="secondary" type="button" data-electric-document-up="${index}" ${index===0?'disabled':''} aria-label="Move file earlier">↑</button><button class="secondary" type="button" data-electric-document-down="${index}" ${index===items.length-1?'disabled':''} aria-label="Move file later">↓</button>`:'';
+    return `<article class="electric-document-editor-item"><span class="electric-document-page-number">${index+1}</span>${preview}<div class="electric-document-editor-copy"><b>${isPdf?'PDF document':`Page ${index+1}`}</b><small>${item.fileSizeBytes?`${number(item.fileSizeBytes/1024,0)} KB · `:''}${item.kind==='pending'?'Ready to save':'Saved'}</small></div><div class="electric-document-order-actions">${orderButtons}<button class="delete-link" type="button" data-electric-document-remove="${index}">Remove ${isPdf?'PDF':'page'}</button></div></article>`;
   }).join(''):'<div class="note-photo-empty">No bill pages or PDFs attached yet.</div>';
-  count.textContent=`${items.length} ${items.length===1?'file':'files'} · no page limit`;
+  count.textContent=`${items.length} ${items.length===1?'file':'files'} attached · no set limit`;
+  const launch=$('#openDocumentScanner');
+  if(launch)launch.textContent=items.length?'Add another page or PDF':'Scan or add document';
   $$('[data-electric-document-up]',host).forEach(button=>button.onclick=()=>moveElectricDocumentItem(+button.dataset.electricDocumentUp,-1));
   $$('[data-electric-document-down]',host).forEach(button=>button.onclick=()=>moveElectricDocumentItem(+button.dataset.electricDocumentDown,1));
   $$('[data-electric-document-remove]',host).forEach(button=>button.onclick=()=>removeElectricDocumentItem(+button.dataset.electricDocumentRemove));
@@ -1140,12 +1143,18 @@ function moveElectricDocumentItem(index,direction){
   electricDocumentEditorState.items.splice(target,0,item);
   electricDocumentEditorState.changed=true;
   renderElectricDocumentEditor();
+  const status=$('#documentScannerAttachStatus');
+  if(status)status.textContent='Page order updated. Tap Save bill to confirm the new order.';
 }
 function removeElectricDocumentItem(index){
   const [removed]=electricDocumentEditorState.items.splice(index,1);
   if(removed?.kind==='pending'&&removed.url)URL.revokeObjectURL(removed.url);
   electricDocumentEditorState.changed=true;
   renderElectricDocumentEditor();
+  const status=$('#documentScannerAttachStatus');
+  if(status)status.textContent=removed?.kind==='pending'
+    ?'The unsaved file was removed.'
+    :'The saved file will be removed when you tap Save bill. Tap Cancel to keep it.';
 }
 function addElectricDocumentFile(file,metadata={}){
   if(!file)return;
@@ -1190,6 +1199,10 @@ function bindElectricDocumentEditor(record={}){
   electricDocumentEditorState.initialOrder=files.map(electricDocumentItemKey).join('|');
   electricDocumentEditorState.changed=false;
   renderElectricDocumentEditor();
+  const status=$('#documentScannerAttachStatus');
+  if(status)status.textContent=files.length
+    ?'Everything shown here is part of this bill document.'
+    :'Add the first page, picture, or PDF for this bill.';
   bindDocumentScannerLauncher();
 }
 function electricDocumentChanges(){
@@ -1427,7 +1440,9 @@ function notePhotoChanges(){
 function openEntry(type,index=null,returnTripIndex=null){
   const titles={'hub-note':index===null?'Add note':'Edit note',trip:index===null?'Add trip':'Edit trip','trip-plan':index===null?'Add plan or reservation':'Edit plan or reservation',fuel:index===null?'Add fuel':'Edit fuel stop',stay:index===null?'Add campground':'Edit stay','phillis-maint':index===null?'Add Phillis maintenance':'Edit Phillis maintenance','phillis-upgrade':index===null?'Add Phillis upgrade':'Edit Phillis upgrade','ruby-maint':index===null?'Add Ruby maintenance':'Edit Ruby maintenance','ruby-upgrade':index===null?'Add Ruby upgrade':'Edit Ruby upgrade',electric:index===null?'Add electric reading':'Edit electric reading',sitepayment:index===null?'Add seasonal payment':'Edit seasonal payment',sitefee:index===null?'Add season':'Edit season'};
   $('#entryType').value=type; $('#entryIndex').value=index===null?'':index; $('#entryStayIndex').value=returnTripIndex===null?'':returnTripIndex;
+  $('#entryKicker').textContent=index===null?'NEW RECORD':'EDIT RECORD';
   $('#entryTitle').textContent=titles[type]; $('#entryFields').innerHTML=fields(type); $('#entryExtras').innerHTML=type==='hub-note'?notePhotoFields():''; $('#entryNotes').value='';
+  $('#entryForm').querySelector('.form-actions .primary').textContent=type==='electric'?'Save bill':'Save';
   $('#entryNotesLabel').textContent=type==='hub-note'?'Note':'Notes';
   const deleteEntry=$('#deleteEntryNote');
   deleteEntry.hidden=true;

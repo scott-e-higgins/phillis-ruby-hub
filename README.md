@@ -2,6 +2,15 @@
 
 Travel Journal is Scott and Kayla's private travel companion.
 
+## Version 0.42.1
+
+- Makes the four-step scanner indicator follow the actual choose, prepare,
+  review, and add stages.
+- Uses clearer electric-bill wording and an explicit “Save bill” action.
+- Hides unnecessary ordering arrows when a bill has only one file.
+- Explains when removal or reordering is pending until the bill is saved.
+- Keeps all document storage and multi-page behavior unchanged.
+
 ## Version 0.42.0
 
 - Lets one electric bill contain any practical number of scanned pages, images,

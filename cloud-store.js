@@ -624,7 +624,7 @@
             cleanup_metadata: isPdf
               ? { preserved_as_pdf: true }
               : file?.higginsDocumentScan
-                ? { cleaned_locally: true, scanner_version: '0.42.0', ...dimensions }
+                ? { cleaned_locally: true, scanner_version: '0.42.1', ...dimensions }
                 : { optimized_locally: true }
           });
           if (fileInsert.error) throw fileInsert.error;
