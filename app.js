@@ -1,4 +1,4 @@
-const APP_VERSION='0.41.2';
+const APP_VERSION='0.41.3';
 const SEED={"tripSummaries":[],"stays":[],"tripPlans":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"vehicleDetails":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const NO_TRIP_VALUE='__everyday_ruby__';
@@ -810,7 +810,7 @@ function showFuelRecord(index,returnTripIndex=null){
 }
 function showSeasonRecord(index){
   const record=db.stays?.[index]; if(!record||record.arrival!=='Season')return;
-  const payments=(db.siteFees||[]).filter(x=>+x.year===+record.year).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  const payments=(db.siteFees||[]).filter(x=>+x.year===+record.year).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
   const yearElectric=(db.electric||[]).filter(x=>String(x.date||'').startsWith(String(record.year)));
   const electricTotal=yearElectric.reduce((sum,x)=>sum+(+x.total||0),0);
   setDetailHeader('LEHIGH GORGE SEASON',String(record.year));
@@ -860,8 +860,8 @@ function showPanel(page,{toggle=false}={}){
     const electricTotal=db.electric.reduce((sum,x)=>sum+(+x.total||0),0);
     const seasonCards=seasonal.map((season,position)=>{
       const year=+season.year;
-      const payments=(db.siteFees||[]).filter(x=>+x.year===year).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
-      const electric=(db.electric||[]).filter(x=>String(x.date||'').startsWith(String(year))).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+      const payments=(db.siteFees||[]).filter(x=>+x.year===year).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+      const electric=(db.electric||[]).filter(x=>String(x.date||'').startsWith(String(year))).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
       const paymentTotal=payments.reduce((sum,x)=>sum+(+x.payment||0),0);
       const siteFee=+season.price||paymentTotal;
       const yearElectric=electric.reduce((sum,x)=>sum+(+x.total||0),0);

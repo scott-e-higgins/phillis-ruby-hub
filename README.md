@@ -2,6 +2,12 @@
 
 Travel Journal is Scott and Kayla's private travel companion.
 
+## Version 0.41.3
+
+- Sorts Lehigh Gorge seasonal-site payments from newest to oldest.
+- Sorts electric bills from newest to oldest within each season.
+- Uses the same newest-first order in the season detail view.
+
 ## Version 0.41.2
 
 - Combines activity pictures and PDF documents into one “Pictures & PDFs”
