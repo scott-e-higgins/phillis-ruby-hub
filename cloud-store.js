@@ -423,7 +423,8 @@
       if (!record?._cloudId) throw new Error('Save this record before adding receipts.');
       const recordTypes = {
         maintenance: { table: 'maintenance', folder: 'maintenance' },
-        'seasonal-payment': { table: 'seasonal_payments', folder: 'seasonal-payment' }
+        'seasonal-payment': { table: 'seasonal_payments', folder: 'seasonal-payment' },
+        'trip-plan': { table: 'trip_plans', folder: 'trip-plan' }
       };
       const target = recordTypes[recordKind];
       if (!target) throw new Error('That receipt type is not supported.');
@@ -465,7 +466,10 @@
 
     async function load() {
       if (role === 'viewer') {
-        const rows = assert(await client.rpc('get_family_itinerary_v4'));
+        const [rows, planRows] = (await Promise.all([
+          client.rpc('get_family_itinerary_v4'),
+          client.rpc('get_family_trip_plans')
+        ])).map(assert);
         const trips = new Map();
         const stays = [];
         rows.forEach(row => {
@@ -516,10 +520,33 @@
           }
         });
         const tripSummaries = [...trips.values()];
+        const tripPlans = planRows.map(row => ({
+          _cloudId: row.plan_id,
+          _tripId: row.trip_id,
+          title: row.title,
+          planType: row.plan_type || 'activity',
+          status: row.status || 'planned',
+          date: row.plan_date,
+          startTime: time(row.start_time),
+          endTime: time(row.end_time),
+          locationName: row.location_name || '',
+          address: row.address || '',
+          city: row.city || '',
+          state: row.state || '',
+          zip: row.postal_code || '',
+          confirmationCode: '',
+          cost: 0,
+          websiteUrl: '',
+          receiptPhotoPaths: [],
+          receiptPhotoUrls: [],
+          notes: '',
+          viewerSafe: true
+        }));
         await Promise.all([hydrateStayPhotoUrls(stays), hydrateTripPhotoUrls(tripSummaries)]);
         return {
           tripSummaries,
           stays,
+          tripPlans,
           fuel: [],
           siteFees: [],
           electric: [],
@@ -543,9 +570,10 @@
         client.from('seasonal_payments').select('*'),
         client.from('electric_bills').select('*'),
         client.from('hub_notes').select('*').eq('household_id', householdId),
+        client.from('trip_plans').select('*').eq('household_id', householdId),
         client.from('vehicle_private_details').select('vehicle_id, vin, license_plate').eq('household_id', householdId)
       ]);
-      const [trips, stays, fuel, vehicles, maintenance, sites, seasons, payments, electric, notes, privateVehicleDetails] = results.map(assert);
+      const [trips, stays, fuel, vehicles, maintenance, sites, seasons, payments, electric, notes, plans, privateVehicleDetails] = results.map(assert);
       known = {
         trips: new Set(trips.map(x => x.id)),
         campground_stays: new Set(stays.map(x => x.id)),
@@ -554,7 +582,8 @@
         site_seasons: new Set(seasons.map(x => x.id)),
         seasonal_payments: new Set(payments.map(x => x.id)),
         electric_bills: new Set(electric.map(x => x.id)),
-        hub_notes: new Set(notes.map(x => x.id))
+        hub_notes: new Set(notes.map(x => x.id)),
+        trip_plans: new Set(plans.map(x => x.id))
       };
 
       const tripById = new Map(trips.map(x => [x.id, x]));
@@ -725,6 +754,29 @@
       }));
       await hydrateNotePhotoUrls(localNotes);
 
+      const localPlans = plans.map(row => ({
+        _cloudId: row.id,
+        _tripId: row.trip_id,
+        title: row.title,
+        planType: row.plan_type || 'activity',
+        status: row.status || 'planned',
+        date: row.plan_date,
+        startTime: time(row.start_time),
+        endTime: time(row.end_time),
+        locationName: row.location_name || '',
+        address: row.address || '',
+        city: row.city || '',
+        state: row.state || '',
+        zip: row.postal_code || '',
+        confirmationCode: row.confirmation_code || '',
+        cost: num(row.cost) || 0,
+        websiteUrl: row.website_url || '',
+        receiptPhotoPaths: Array.isArray(row.receipt_photo_paths) ? row.receipt_photo_paths : [],
+        receiptPhotoUrls: [],
+        notes: row.notes || ''
+      }));
+      await hydrateMultiReceiptUrls(localPlans);
+
       const localFuel = fuel.map(row => {
         const legacyLocation = String(row.location || '').trim();
         const legacyMatch = legacyLocation.match(/^(.*?),\s*([A-Za-z]{2})$/);
@@ -761,6 +813,7 @@
         siteFees,
         electric: localElectric,
         sharedNotes: localNotes,
+        tripPlans: localPlans,
         vehicleDetails: vehicles.map(vehicle => ({
           _cloudId: vehicle.id,
           name: vehicle.name,
@@ -919,6 +972,31 @@
       }));
       if(noteRows.length)assert(await client.from('hub_notes').upsert(noteRows));
 
+      snapshot.tripPlans.forEach(x => { if (!x._cloudId) x._cloudId = uuid(); });
+      const planRows = snapshot.tripPlans.map(x => ({
+        id: x._cloudId,
+        household_id: householdId,
+        trip_id: x._tripId,
+        title: x.title,
+        plan_type: x.planType || 'activity',
+        status: x.status || 'planned',
+        plan_date: x.date,
+        start_time: x.startTime || null,
+        end_time: x.endTime || null,
+        location_name: x.locationName || null,
+        address: x.address || null,
+        city: x.city || null,
+        state: x.state || null,
+        postal_code: x.zip || null,
+        confirmation_code: x.confirmationCode || null,
+        cost: x.cost || 0,
+        website_url: x.websiteUrl || null,
+        receipt_photo_paths: Array.isArray(x.receiptPhotoPaths) ? x.receiptPhotoPaths : [],
+        notes: x.notes || null,
+        updated_at: new Date().toISOString()
+      })).filter(x => x.trip_id);
+      if (planRows.length) assert(await client.from('trip_plans').upsert(planRows));
+
       await removeMissing('campground_stays', new Set(ordinaryStays.map(x => x._cloudId)));
       await removeMissing('trip_fuel', new Set(snapshot.fuel.map(x => x._cloudId)));
       await removeMissing('maintenance', new Set(maintRows.map(x => x.id)));
@@ -926,6 +1004,7 @@
       await removeMissing('electric_bills', new Set(snapshot.electric.map(x => x._cloudId)));
       await removeMissing('site_seasons', new Set(seasonEntries.map(x => x._cloudId)));
       await removeMissing('hub_notes', new Set(snapshot.sharedNotes.map(x => x._cloudId)));
+      await removeMissing('trip_plans', new Set(snapshot.tripPlans.map(x => x._cloudId)));
       await removeMissing('trips', new Set(snapshot.tripSummaries.map(x => x._cloudId)));
       Object.keys(known).forEach(table => {
         const source = table === 'campground_stays' ? ordinaryStays :
@@ -935,7 +1014,8 @@
           table === 'seasonal_payments' ? snapshot.siteFees :
           table === 'electric_bills' ? snapshot.electric :
           table === 'hub_notes' ? snapshot.sharedNotes : snapshot.tripSummaries;
-        known[table] = new Set(source.map(x => x._cloudId));
+        const resolvedSource = table === 'trip_plans' ? snapshot.tripPlans : source;
+        known[table] = new Set(resolvedSource.map(x => x._cloudId));
       });
     }
 

@@ -6,12 +6,25 @@ Travel Journal is Scott and Kayla's private travel companion.
 
 - **Native Apple Calendar integration (preferred):** Add a future iPhone
   companion using Apple's EventKit framework so Travel Journal trips and
-  campground stays can be written directly to the existing shared Phillis
-  calendar. Include dates, check-in and checkout times, locations, site and
-  reservation details, notes, and a link back to the trip. Both Scott and Kayla
+  campground stays and trip plans can be written directly to the existing
+  shared Phillis calendar. Include dates, check-in and checkout times,
+  locations, site and reservation details, notes, and a link back to the trip.
+  Both Scott and Kayla
   would then see the events through the shared iCloud calendar. A private,
   read-only calendar subscription remains a fallback if a native companion is
   not pursued.
+
+## Version 0.38.0
+
+- Adds chronological **Plans & reservations** inside every trip.
+- Stores activity type, reservation status, date and time, location, clickable
+  address, confirmation code, cost, website or ticket link, and notes.
+- Adds up to six automatically compressed pictures for confirmations, tickets,
+  reservations, and supporting documents.
+- Keeps costs, confirmation codes, private notes, links, and uploaded documents
+  hidden from Family Viewer accounts.
+- Shows Family Viewers the useful itinerary details: activity name, type,
+  status, date, time, and location.
 
 ## Version 0.37.0
 

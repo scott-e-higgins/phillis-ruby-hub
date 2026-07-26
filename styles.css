@@ -401,6 +401,27 @@ fieldset legend{font-weight:850;padding:0 7px}
 .note-photo-editor>small{color:var(--muted);font-size:11px;font-weight:750}
 .trip-linked-notes{display:grid;gap:9px}
 .trip-linked-notes .note-card{margin:0}
+.trip-plan-list{display:grid;gap:9px}
+.plan-listing-card{display:flex;width:100%;align-items:center;justify-content:space-between;gap:14px;padding:14px 15px;border:1px solid #4d5b53;border-radius:8px;background:linear-gradient(145deg,#303c36,#29342e);color:var(--ink);text-align:left;box-shadow:var(--shadow-sm)}
+button.plan-listing-card{cursor:pointer}
+button.plan-listing-card:hover{border-color:#78927f;background:linear-gradient(145deg,#37463e,#303c35)}
+.plan-card-copy{min-width:0}
+.plan-card-copy h4{margin:5px 0 4px;font-size:17px;line-height:1.15}
+.plan-card-copy>p{margin:2px 0;color:var(--muted);font-size:12px}
+.plan-card-flags{display:flex;flex-wrap:wrap;gap:6px}
+.plan-card-flags small,.plan-confirmation{display:inline-flex;align-items:center;padding:3px 7px;border:1px solid #5d7568;border-radius:5px;background:#253a31;color:#acd9c1;font-size:9px;font-weight:850;letter-spacing:.075em;text-transform:uppercase}
+.plan-card-flags .plan-status-reserved,.plan-card-flags .plan-status-paid{border-color:#8e7942;background:#4b4024;color:#f0d688}
+.plan-card-flags .plan-status-completed{border-color:#617069;background:#344039;color:#c4d0ca}
+.plan-card-flags .plan-status-cancelled{border-color:#75464d;background:#452b30;color:#efb1ba}
+.plan-confirmation{margin-top:7px;border-color:#665e49;background:#3a3528;color:#d9c893;text-transform:none}
+.plan-card-end{display:grid;flex:0 0 auto;justify-items:end;gap:5px;color:var(--gold)}
+.plan-card-end b{font-size:13px}
+.plan-card-end span{font-size:22px;color:#9eaaa4}
+.viewer-plan-card{align-items:flex-start}
+.plan-detail-address{padding:11px 0;border-bottom:1px solid var(--line)}
+.plan-detail-address p{margin:0}
+.confirmation-code{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;letter-spacing:.04em;user-select:all}
+.plan-website-link{font-size:13px}
 .archived-notes-section{margin-top:22px;padding:0;border:1px solid #4a5650;border-radius:8px;background:rgba(32,40,35,.76);overflow:hidden}
 .archived-notes-section[hidden]{display:none}
 .archived-notes-section summary{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:15px 16px;color:#c8d1cc;font-size:15px;font-weight:850;cursor:pointer;list-style:none}
