@@ -13,6 +13,18 @@ Travel Journal is Scott and Kayla's private travel companion.
   read-only calendar subscription remains a fallback if a native companion is
   not pursued.
 
+## Version 0.36.0
+
+- Adds cloud-synced pinned notes.
+- Sorts pinned notes above unpinned notes while keeping each group ordered by
+  most recently edited.
+- Guarantees every pinned note appears on Home, then fills the list to at least
+  three notes with the latest unpinned notes.
+- Adds an optional related-trip selection to notes and shows those notes inside
+  the relevant trip card.
+- Keeps all shared notes private to owners and editors, including trip-linked
+  notes.
+
 ## Version 0.35.2
 
 - Compresses future pictures and receipt images to a maximum 1,400-pixel

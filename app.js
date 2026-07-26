@@ -1,4 +1,4 @@
-const APP_VERSION='0.35.2';
+const APP_VERSION='0.36.0';
 const SEED={"tripSummaries":[],"stays":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"vehicleDetails":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const NO_TRIP_VALUE='__everyday_ruby__';
@@ -26,6 +26,8 @@ function migrate(x){
     });
   }
   x.sharedNotes.forEach(note=>{
+    note.pinned=Boolean(note.pinned);
+    note.tripId=note.tripId||null;
     note.photoPaths=Array.isArray(note.photoPaths)?note.photoPaths:[];
     note.photoUrls=Array.isArray(note.photoUrls)?note.photoUrls:[];
   });
@@ -392,7 +394,18 @@ function setupNoteEditor(body=''){
   sync();
 }
 function sortedSharedNotes(){
-  return [...(db.sharedNotes||[])].sort((a,b)=>String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||'')));
+  return [...(db.sharedNotes||[])].sort((a,b)=>
+    Number(Boolean(b.pinned))-Number(Boolean(a.pinned))||
+    String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||''))
+  );
+}
+function noteTrip(note){
+  if(!note?.tripId)return null;
+  return db.tripSummaries.find(trip=>trip._cloudId===note.tripId)||null;
+}
+function notesForTrip(trip){
+  if(!trip?._cloudId)return [];
+  return sortedSharedNotes().filter(note=>note.tripId===trip._cloudId);
 }
 function noteCardHtml(note,compact=false){
   const index=db.sharedNotes.indexOf(note);
@@ -407,10 +420,15 @@ function noteCardHtml(note,compact=false){
   const content=checklist
     ?`<div class="note-checklist-preview">${checklist.slice(0,previewLimit).map(item=>`<span><i class="${item.checked?'checked':''}">${item.checked?'✓':''}</i><b class="${item.checked?'completed':''}">${escapeHtml(item.text)}</b></span>`).join('')}${checklist.length>previewLimit?`<em>+${checklist.length-previewLimit} more</em>`:''}</div>`
     :preview?`<p>${escapeHtml(preview)}</p>`:'<p class="note-empty-copy">No text yet.</p>';
-  return `<button class="note-card${compact?' home-note-card':''}" type="button" data-note-index="${index}"><div class="note-card-top"><h3>${escapeHtml(note.title||'Untitled note')}</h3><span>Edit ›</span></div>${content}${photoContent}<small>${noteWhen(note.updatedAt||note.createdAt)?`Updated ${noteWhen(note.updatedAt||note.createdAt)}`:'Shared note'}</small></button>`;
+  const linkedTrip=noteTrip(note);
+  const flags=`${note.pinned?'<span class="note-card-pin">◆ PINNED</span>':''}${linkedTrip?`<span class="note-card-trip">◇ ${escapeHtml(linkedTrip.name)}</span>`:''}`;
+  return `<button class="note-card${compact?' home-note-card':''}${note.pinned?' note-card-pinned':''}" type="button" data-note-index="${index}"><div class="note-card-top"><h3>${escapeHtml(note.title||'Untitled note')}</h3><span>Edit ›</span></div>${flags?`<span class="note-card-flags">${flags}</span>`:''}${content}${photoContent}<small>${noteWhen(note.updatedAt||note.createdAt)?`Updated ${noteWhen(note.updatedAt||note.createdAt)}`:'Shared note'}</small></button>`;
 }
-function bindNoteCards(host){
-  $$('[data-note-index]',host).forEach(button=>button.onclick=()=>openEntry('hub-note',+button.dataset.noteIndex));
+function bindNoteCards(host,returnTripIndex=null){
+  $$('[data-note-index]',host).forEach(button=>button.onclick=()=>{
+    if(returnTripIndex!==null&&$('#detailDialog').open)$('#detailDialog').close();
+    openEntry('hub-note',+button.dataset.noteIndex,returnTripIndex);
+  });
 }
 function renderNotes(){
   const host=$('#noteList'); if(!host)return;
@@ -445,7 +463,9 @@ function renderHome(){
     ?activeCard+homeTripSquare(lastTrip,'last')+homeTripSquare(plannedTrips[0],'next')+homeTripSquare(plannedTrips[1],'after')
     :`<article class="next-trip next-trip-empty"><small>NEXT TRIP</small><h2>Nothing planned yet</h2><p>Add the next adventure whenever you're ready.</p><div class="button-row"><button class="secondary" data-open="trip">Add a trip</button></div></article>`;
   $('#upcomingList').innerHTML=upcoming.slice(0,3).map(t=>{const [s,e]=tripDates(t),tripIndex=db.tripSummaries.indexOf(t);return `<button class="list-item" data-trip-index="${tripIndex}"><div class="date-box"><small>${new Date(s+'T12:00:00').toLocaleDateString(undefined,{month:'short'})}</small><b>${new Date(s+'T12:00:00').getDate()}</b></div><div class="item-copy"><h3>${escapeHtml(t.name)}</h3><p>${date(s)} – ${date(e)}</p>${rigLineHtml(t,true)}</div><span class="item-chevron">›</span></button>`}).join('')||'<div class="empty">No upcoming trips yet.</div>';
-  const recentNotes=sortedSharedNotes().slice(0,3);
+  const sortedNotes=sortedSharedNotes();
+  const pinnedNotes=sortedNotes.filter(note=>note.pinned);
+  const recentNotes=[...pinnedNotes,...sortedNotes.filter(note=>!note.pinned).slice(0,Math.max(0,3-pinnedNotes.length))];
   $('#recentNotes').innerHTML=recentNotes.map(note=>noteCardHtml(note,true)).join('')||'<div class="empty">New notes will appear here.</div>';
   bindNoteCards($('#recentNotes'));
   const recent=[];
@@ -566,7 +586,7 @@ function refreshTripFuelSummaries(){
 function bindTripButtons(){$$('[data-trip-index]').forEach(b=>b.onclick=()=>showTrip(+b.dataset.tripIndex))}
 function showTrip(index){
   const t=db.tripSummaries[index]; if(!t)return;
-  const [s,e]=tripDates(t), stays=matchingStays(t), fuel=matchingFuel(t);
+  const [s,e]=tripDates(t), stays=matchingStays(t), fuel=matchingFuel(t), linkedNotes=notesForTrip(t);
   const stayCost=stays.reduce((total,stay)=>total+(Number(stay.price)||0),0);
   const fuelCost=fuel.length?fuel.reduce((total,stop)=>total+(Number(stop.total)||0),0):Number(t.cost)||0;
   const headerMeta=`<p class="detail-header-dates">${tripHasDates(t)?`${date(s)} – ${date(e)}`:t.year}</p>${rigLineHtml(t)}`;
@@ -579,10 +599,12 @@ function showTrip(index){
     $('#detailDialog').showModal();
     return;
   }
-  $('#detailBody').innerHTML=`<div class="record-detail-actions"><button class="primary" id="editTripButton">Edit trip</button></div><div class="detail-section trip-totals-section"><h3>Trip totals</h3><div class="trip-totals-compact"><div><small>Stay cost</small><b>${money(stayCost)}</b></div><div><small>Fuel cost</small><b>${money(fuelCost)}</b></div><div><small>Miles</small><b>${number(t.distance,1)}</b></div><div><small>MPG</small><b>${number(t.mpg,2)}</b></div></div></div><div class="detail-section"><h3>Campgrounds & hosts</h3><div class="stay-listing-stack">${stays.map(x=>stayListing(x)).join('')||'<p class="intro">No campground stays linked yet.</p>'}</div></div><div class="detail-section"><div class="detail-section-head"><h3>Fuel stops</h3><button class="text-button" id="addTripFuelButton">Add fuel</button></div>${fuel.map(x=>`<button class="detail-row editable-detail-row trip-fuel-record record-link" type="button" data-trip-fuel-record-index="${db.fuel.indexOf(x)}"><span><b>${escapeHtml(x.station||'Fuel stop')}</b><br><small>${date(x.date)}${fuelLocation(x)?` · ${escapeHtml(fuelLocation(x))}`:''} · ${escapeHtml(x.vehicle||t.towVehicle||'')} · ${x.fuelType==='diesel'?'Diesel':'Gasoline'} · ${number(x.gallons,2)} gal</small></span><span class="trip-fuel-record-end"><b>${money(x.total)}</b><span class="record-chevron">›</span></span></button>`).join('')||'<p class="intro">No fuel stops linked yet.</p>'}</div>${t.notes?`<div class="detail-section"><h3>Notes</h3><p>${escapeHtml(t.notes)}</p></div>`:''}<div class="trip-delete-area"><button class="delete-link" id="deleteTripButton">Delete trip</button></div>`;
+  $('#detailBody').innerHTML=`<div class="record-detail-actions"><button class="primary" id="editTripButton">Edit trip</button></div><div class="detail-section trip-totals-section"><h3>Trip totals</h3><div class="trip-totals-compact"><div><small>Stay cost</small><b>${money(stayCost)}</b></div><div><small>Fuel cost</small><b>${money(fuelCost)}</b></div><div><small>Miles</small><b>${number(t.distance,1)}</b></div><div><small>MPG</small><b>${number(t.mpg,2)}</b></div></div></div><div class="detail-section"><h3>Campgrounds & hosts</h3><div class="stay-listing-stack">${stays.map(x=>stayListing(x)).join('')||'<p class="intro">No campground stays linked yet.</p>'}</div></div><div class="detail-section"><div class="detail-section-head"><h3>Fuel stops</h3><button class="text-button" id="addTripFuelButton">Add fuel</button></div>${fuel.map(x=>`<button class="detail-row editable-detail-row trip-fuel-record record-link" type="button" data-trip-fuel-record-index="${db.fuel.indexOf(x)}"><span><b>${escapeHtml(x.station||'Fuel stop')}</b><br><small>${date(x.date)}${fuelLocation(x)?` · ${escapeHtml(fuelLocation(x))}`:''} · ${escapeHtml(x.vehicle||t.towVehicle||'')} · ${x.fuelType==='diesel'?'Diesel':'Gasoline'} · ${number(x.gallons,2)} gal</small></span><span class="trip-fuel-record-end"><b>${money(x.total)}</b><span class="record-chevron">›</span></span></button>`).join('')||'<p class="intro">No fuel stops linked yet.</p>'}</div><div class="detail-section trip-linked-notes-section"><div class="detail-section-head"><h3>Linked notes</h3><button class="text-button" id="addTripNoteButton">Add note</button></div><div class="trip-linked-notes">${linkedNotes.map(note=>noteCardHtml(note,true)).join('')||'<p class="intro">No notes linked to this trip yet.</p>'}</div></div>${t.notes?`<div class="detail-section"><h3>Trip description</h3><p>${escapeHtml(t.notes)}</p></div>`:''}<div class="trip-delete-area"><button class="delete-link" id="deleteTripButton">Delete trip</button></div>`;
   $('#editTripButton').onclick=()=>{$('#detailDialog').close();openEntry('trip',index)};
   $('#addTripFuelButton').onclick=()=>{$('#detailDialog').close();openEntry('fuel',null,index)};
+  $('#addTripNoteButton').onclick=()=>{$('#detailDialog').close();openEntry('hub-note',null,index)};
   $$('[data-trip-fuel-record-index]').forEach(button=>button.onclick=()=>showFuelRecord(+button.dataset.tripFuelRecordIndex,index));
+  bindNoteCards($('#detailBody'),index);
   bindStayPhotoButtons($('#detailBody'));
   bindStayMapLinks($('#detailBody'));
   bindStayCards($('#detailBody'),index);
@@ -595,6 +617,7 @@ function deleteTrip(index){
   const message=linkedStays.length?`Delete “${t.name}” and its ${linkedStays.length} linked campground ${linkedStays.length===1?'stay':'stays'}? Fuel records will remain.`:`Delete “${t.name}”?`;
   if(!confirm(message))return;
   linkedStays.forEach(stay=>{const i=db.stays.indexOf(stay);if(i>=0)db.stays.splice(i,1)});
+  db.sharedNotes.forEach(note=>{if(note.tripId&&note.tripId===t._cloudId)note.tripId=null});
   db.tripSummaries.splice(index,1);
   save(); $('#detailDialog').close(); renderHome(); renderTrips();
 }
@@ -762,8 +785,14 @@ function multiReceiptFields(help){
 function notePhotoFields(){
   return `<section class="note-photo-editor"><div class="note-photo-editor-heading"><div><b>Pictures</b><p>Add up to six pictures from your phone.</p></div><label class="secondary photo-picker">Choose pictures<input id="notePhotoFiles" type="file" accept="image/*" multiple hidden></label></div><div id="notePhotoEditorGrid" class="note-photo-editor-grid"></div><small id="notePhotoCount">0 of 6 pictures</small></section>`;
 }
+function noteTripOptions(){
+  return db.tripSummaries.slice().sort((a,b)=>tripStamp(b).localeCompare(tripStamp(a))).map(trip=>{
+    const [start]=tripDates(trip);
+    return `<option value="${escapeHtml(trip._cloudId||'')}" ${trip._cloudId?'':'disabled'}>${escapeHtml(trip.name)} · ${date(start)}</option>`;
+  }).join('');
+}
 function fields(type){
-  if(type==='hub-note') return `<label>Title<input id="name" required maxlength="120"></label><label class="note-checklist-toggle"><input id="noteChecklist" type="checkbox"> Use checkboxes</label><div class="checklist-editor" id="checklistEditor" hidden></div><button type="button" class="secondary add-checklist-item" id="addChecklistItem" hidden>+ Add item</button>`;
+  if(type==='hub-note') return `<label>Title<input id="name" required maxlength="120"></label><label>Related trip<select id="noteTripId"><option value="">No related trip</option>${noteTripOptions()}</select></label><label class="note-pinned-toggle"><input id="notePinned" type="checkbox"><span><b>Pin this note</b><small>Keep it at the top of Notes and guarantee it appears on Home.</small></span></label><label class="note-checklist-toggle"><input id="noteChecklist" type="checkbox"> Use checkboxes</label><div class="checklist-editor" id="checklistEditor" hidden></div><button type="button" class="secondary add-checklist-item" id="addChecklistItem" hidden>+ Add item</button>`;
   if(type==='trip') return `<label>Trip name<input id="name" required></label><div class="two"><label>Start date<input id="startDate" type="date" required></label><label>End date<input id="endDate" type="date" required></label></div><section class="trip-photo-editor"><div class="stay-photo-editors-heading"><b>On the Road Again</b><p>The photo you take near the start of this trip. It becomes the cover of the trip card.</p></div><div class="trip-photo-preview" id="onRoadPhotoPreview"><span>No photo yet</span></div><div class="stay-photo-actions"><label class="secondary photo-picker">Choose photo<input id="onRoadPhotoFile" type="file" accept="image/*" hidden></label><button class="delete-link remove-stay-photo" id="removeOnRoadPhoto" type="button" hidden>Remove</button></div></section><div class="trip-stays-heading"><div><b>Places you are staying</b><p class="field-help">Each stop opens in its own window, then appears here as a card.</p></div><button type="button" class="secondary small-add" id="addTripStay">Add stay</button></div><div id="tripStaysEditor" class="trip-stays-editor"></div>`;
   if(type==='fuel'){
     const options=db.tripSummaries.slice().sort((a,b)=>tripStamp(b).localeCompare(tripStamp(a))).map(t=>`<option value="${escapeHtml(t.name)}">${escapeHtml(t.name)}</option>`).join('');
@@ -1068,7 +1097,8 @@ function openEntry(type,index=null,returnTripIndex=null){
   const today=new Date().toISOString().slice(0,10), d=$('#date')||$('#arrival')||$('#startDate'); if(d)d.value=today; if(type==='trip')$('#endDate').value=$('#startDate').value;
   if(type==='hub-note'){
     const note=index===null?null:db.sharedNotes?.[index];
-    if(note){$('#name').value=note.title||'';$('#entryNotes').value=note.body||'';}
+    if(note){$('#name').value=note.title||'';$('#entryNotes').value=note.body||'';$('#notePinned').checked=Boolean(note.pinned);$('#noteTripId').value=note.tripId||'';}
+    else if(returnTripIndex!==null)$('#noteTripId').value=db.tripSummaries[returnTripIndex]?._cloudId||'';
     setupNoteEditor(note?.body||'');
     bindNotePhotoEditor(note||{});
     if(note){
@@ -1288,6 +1318,8 @@ $('#entryForm').onsubmit=async e=>{
       ...(prior||{}),
       title:$('#name').value.trim(),
       body:notes,
+      pinned:Boolean($('#notePinned')?.checked),
+      tripId:$('#noteTripId')?.value||null,
       photoPaths:[...(prior?.photoPaths||[])],
       photoUrls:[...(prior?.photoUrls||[])],
       createdAt:prior?.createdAt||now,

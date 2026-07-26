@@ -715,6 +715,8 @@
         _cloudId:row.id,
         title:row.title,
         body:row.body||'',
+        pinned:Boolean(row.is_pinned),
+        tripId:row.trip_id||null,
         photoPaths:Array.isArray(row.photo_paths)?row.photo_paths:[],
         photoUrls:[],
         createdAt:row.created_at,
@@ -908,6 +910,8 @@
         household_id:householdId,
         title:x.title,
         body:x.body||null,
+        is_pinned:Boolean(x.pinned),
+        trip_id:x.tripId||null,
         photo_paths:Array.isArray(x.photoPaths)?x.photoPaths:[],
         updated_at:x.updatedAt||x.createdAt||new Date().toISOString()
       }));

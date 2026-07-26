@@ -346,6 +346,11 @@ fieldset legend{font-weight:850;padding:0 7px}
 .note-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
 .note-card h3{margin:0;font-size:18px;letter-spacing:-.015em}
 .note-card-top span{font-size:12px;line-height:1.4;color:#a8b3ad;font-weight:800}
+.note-card-pinned{border-color:#9e8140;background:linear-gradient(135deg,#344039,#3c3525)}
+.note-card-flags{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 2px}
+.note-card-flags>span{display:inline-flex;padding:4px 7px;border:1px solid #53635b;border-radius:5px;color:#b9c5bf;font-size:9px;font-weight:850;letter-spacing:.07em;text-transform:uppercase}
+.note-card-flags .note-card-pin{border-color:#8e7438;background:#493d24;color:#f1cf7d}
+.note-card-flags .note-card-trip{background:#263b32;color:#9ed7ba}
 .note-card p{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;white-space:pre-wrap;margin:7px 0 10px;color:#c3cdc8;font-size:14px;line-height:1.45}
 .note-card .note-empty-copy{color:var(--muted);font-style:italic}
 .note-card small{color:var(--muted);font-size:11px;font-weight:750;letter-spacing:.02em}
@@ -363,6 +368,12 @@ fieldset legend{font-weight:850;padding:0 7px}
 .home-note-card .note-card-photo{width:100%;height:72px}
 .note-body{min-height:120px;margin-top:16px;padding:17px;border:1px solid var(--line);border-radius:8px;background:#202823;color:#e1e9e5;white-space:pre-wrap;overflow-wrap:anywhere}
 .note-detail-updated{margin:10px 2px 0;color:var(--muted);font-size:12px}
+.note-pinned-toggle{display:flex;align-items:flex-start;gap:10px;padding:12px;border:1px solid #4b5b53;border-radius:7px;background:#28322d}
+.note-pinned-toggle input{width:20px;height:20px;flex:0 0 20px;margin:1px 0 0;padding:0;border:0;border-radius:4px;background:transparent;box-shadow:none;accent-color:#d5af55}
+.note-pinned-toggle input:focus{border:0;box-shadow:0 0 0 3px rgba(213,175,85,.2)}
+.note-pinned-toggle span,.note-pinned-toggle small{display:block}
+.note-pinned-toggle b{color:var(--ink)}
+.note-pinned-toggle small{margin-top:3px;color:var(--muted);font-size:11px;line-height:1.35}
 .note-checklist-preview{display:grid;gap:6px;margin:10px 0 12px}
 .note-checklist-preview span{display:grid;grid-template-columns:18px 1fr;gap:8px;align-items:start}
 .note-checklist-preview i{width:17px;height:17px;border:1px solid #718078;border-radius:4px;display:grid;place-items:center;color:#fff;font-size:11px;font-style:normal}
@@ -389,6 +400,8 @@ fieldset legend{font-weight:850;padding:0 7px}
 .remove-note-photo{width:100%;padding:7px;border:0;border-top:1px solid #39463f;background:#252f2a;color:var(--danger);font-size:11px;font-weight:850}
 .note-photo-empty{grid-column:1/-1;padding:14px;border:1px dashed #4c5a53;border-radius:7px;color:var(--muted);font-size:13px;text-align:center}
 .note-photo-editor>small{color:var(--muted);font-size:11px;font-weight:750}
+.trip-linked-notes{display:grid;gap:9px}
+.trip-linked-notes .note-card{margin:0}
 .form-actions #deleteEntryNote{margin-right:auto}
 .form-actions #deleteEntryNote[hidden]{display:none}
 .record-notes p{margin:6px 0 0;white-space:pre-wrap;color:var(--ink)}
