@@ -44,7 +44,14 @@
     const defaults = active?.defaultFields || {};
     const corrections = active?.record?.documentUserCorrections || {};
     const extracted = active?.record?.documentExtractedData || {};
-    return { ...defaults, ...(extracted.fields || extracted || {}), ...(corrections.fields || corrections || {}) };
+    const keepValues = values => Object.fromEntries(
+      Object.entries(values || {}).filter(([, value]) => value !== null && value !== undefined && value !== '')
+    );
+    return {
+      ...defaults,
+      ...keepValues(extracted.fields || extracted || {}),
+      ...keepValues(corrections.fields || corrections || {})
+    };
   }
 
   function currentConfidence() {

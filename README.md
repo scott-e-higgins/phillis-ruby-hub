@@ -2,6 +2,11 @@
 
 Travel Journal is Scott and Kayla's private travel companion.
 
+## Version 0.43.2
+
+- Preserves automatic Site 39 and previous-meter values when the bill reader
+  correctly returns no paper value for those fields.
+
 ## Version 0.43.1
 
 - Treats Lehigh Gorge as Site 39 automatically instead of asking AI to find a
