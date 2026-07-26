@@ -13,6 +13,13 @@ Travel Journal is Scott and Kayla's private travel companion.
   read-only calendar subscription remains a fallback if a native companion is
   not pursued.
 
+## Version 0.35.2
+
+- Compresses future pictures and receipt images to a maximum 1,400-pixel
+  dimension at 78% JPEG quality.
+- Adds a safe stored-picture optimizer that keeps every image attached to its
+  existing record and replaces it only when the optimized copy is smaller.
+
 ## Version 0.35.1
 
 - Shows storage as usage out of the Supabase Free plan's 1 GB allowance.

@@ -16,6 +16,8 @@
     const notePhotoBucket = client.storage.from('note-photos');
     const receiptBucket = client.storage.from('record-receipts');
     let storageUsageCache = null;
+    const photoMaxDimension = 1400;
+    const photoQuality = .78;
 
     async function signedPhotoUrl(bucket, path) {
       if (!path) return '';
@@ -86,15 +88,14 @@
           image.src = url;
         });
         URL.revokeObjectURL(url);
-        const maxDimension = 1800;
-        const scale = Math.min(1, maxDimension / Math.max(image.naturalWidth, image.naturalHeight));
+        const scale = Math.min(1, photoMaxDimension / Math.max(image.naturalWidth, image.naturalHeight));
         const width = Math.max(1, Math.round(image.naturalWidth * scale));
         const height = Math.max(1, Math.round(image.naturalHeight * scale));
         const canvas = document.createElement('canvas');
         canvas.width = width;
         canvas.height = height;
         canvas.getContext('2d').drawImage(image, 0, 0, width, height);
-        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', .84));
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', photoQuality));
         if (!blob) return fallback();
         return { blob, extension: 'jpg', contentType: 'image/jpeg' };
       } catch {
@@ -102,12 +103,9 @@
       }
     }
 
-    async function getStorageUsage(force = false) {
-      const cacheAge = storageUsageCache ? Date.now() - storageUsageCache.checkedAt : Infinity;
-      if (!force && cacheAge < 5 * 60 * 1000) return storageUsageCache;
+    async function listStorageFiles() {
       const bucketNames = ['stay-photos', 'trip-photos', 'note-photos', 'record-receipts'];
-      let bytes = 0;
-      let files = 0;
+      const files = [];
 
       for (const bucketName of bucketNames) {
         const bucket = client.storage.from(bucketName);
@@ -125,8 +123,13 @@
           for (const entry of result.data || []) {
             const path = `${folder}/${entry.name}`;
             if (entry.id || entry.metadata) {
-              bytes += Number(entry.metadata?.size) || 0;
-              files += 1;
+              files.push({
+                bucketName,
+                path,
+                name: entry.name,
+                bytes: Number(entry.metadata?.size) || 0,
+                contentType: entry.metadata?.mimetype || entry.metadata?.contentType || ''
+              });
             } else {
               folders.push(path);
             }
@@ -134,8 +137,86 @@
         }
       }
 
-      storageUsageCache = { bytes, files, checkedAt: Date.now() };
+      return files;
+    }
+
+    async function getStorageUsage(force = false) {
+      const cacheAge = storageUsageCache ? Date.now() - storageUsageCache.checkedAt : Infinity;
+      if (!force && cacheAge < 5 * 60 * 1000) return storageUsageCache;
+      const storedFiles = await listStorageFiles();
+      storageUsageCache = {
+        bytes: storedFiles.reduce((sum, file) => sum + file.bytes, 0),
+        files: storedFiles.length,
+        checkedAt: Date.now()
+      };
       return storageUsageCache;
+    }
+
+    async function optimizeStoredPhotos(onProgress = () => {}) {
+      if (role === 'viewer') throw new Error('Family Viewer accounts cannot optimize pictures.');
+      const files = await listStorageFiles();
+      const beforeBytes = files.reduce((sum, file) => sum + file.bytes, 0);
+      let optimized = 0;
+      let skipped = 0;
+      let failed = 0;
+      let savedBytes = 0;
+
+      for (let index = 0; index < files.length; index += 1) {
+        const storedFile = files[index];
+        onProgress({
+          current: index + 1,
+          total: files.length,
+          optimized,
+          skipped,
+          failed,
+          name: storedFile.name
+        });
+        try {
+          const bucket = client.storage.from(storedFile.bucketName);
+          const download = await bucket.download(storedFile.path);
+          if (download.error) throw download.error;
+          const original = download.data;
+          const contentType = original.type || storedFile.contentType || 'image/jpeg';
+          if (!contentType.startsWith('image/')) {
+            skipped += 1;
+            continue;
+          }
+          const source = typeof File === 'function'
+            ? new File([original], storedFile.name, { type: contentType })
+            : original;
+          if (!source.name) {
+            try { Object.defineProperty(source, 'name', { value: storedFile.name }); } catch {}
+          }
+          const prepared = await preparePhoto(source);
+          if (prepared.contentType !== 'image/jpeg' || prepared.blob.size >= original.size * .98) {
+            skipped += 1;
+            continue;
+          }
+          const update = await bucket.update(storedFile.path, prepared.blob, {
+            cacheControl: '3600',
+            contentType: prepared.contentType,
+            upsert: true
+          });
+          if (update.error) throw update.error;
+          optimized += 1;
+          savedBytes += original.size - prepared.blob.size;
+        } catch (error) {
+          failed += 1;
+          console.warn(`The stored picture ${storedFile.path} could not be optimized.`, error);
+        }
+      }
+
+      storageUsageCache = null;
+      const usage = await getStorageUsage(true);
+      return {
+        total: files.length,
+        optimized,
+        skipped,
+        failed,
+        beforeBytes,
+        afterBytes: usage.bytes,
+        savedBytes: Math.max(savedBytes, beforeBytes - usage.bytes)
+      };
     }
 
     async function setStayPhoto(stay, kind, file) {
@@ -865,7 +946,8 @@
       setRecordReceipt,
       deleteRecordReceipt,
       setMultiRecordReceipts,
-      getStorageUsage
+      getStorageUsage,
+      optimizeStoredPhotos
     };
   }
 
