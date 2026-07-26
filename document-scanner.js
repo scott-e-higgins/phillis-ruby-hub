@@ -93,7 +93,7 @@
     empty.hidden = hasFile;
     preview.hidden = !hasFile;
     remove.hidden = !hasFile;
-    process.hidden = state.kind !== 'image';
+    process.hidden = state.kind !== 'image' || Boolean(state.processedFile) || state.cropEditing;
     adjustCrop.hidden = state.kind !== 'image';
     rotateLeft.hidden = state.kind !== 'image';
     rotateRight.hidden = state.kind !== 'image';
@@ -213,7 +213,9 @@
       }
       render();
     } else {
-      setStatus('Original image loaded. Review it, then choose Clean up scan.');
+      setStatus('Original image loaded. Cleaning and squaring it automatically…');
+      await new Promise(resolve => setTimeout(resolve, 300));
+      await processImage();
     }
   }
 

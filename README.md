@@ -2,6 +2,12 @@
 
 Travel Journal is Scott and Kayla's private travel companion.
 
+## Version 0.39.3
+
+- Simplified scanning to take or choose, automatic cleanup, review, and attach.
+- Removed the duplicate empty-document panel after a file is selected.
+- Kept rotation and precise four-corner cropping available only when needed.
+
 ## Version 0.39.2
 
 - Made the four manual crop corners track touch and pointer movement reliably on iPhone and iPad.

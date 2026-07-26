@@ -959,6 +959,7 @@ html.standalone-app body{
 .scanner-capture-actions{display:flex;flex-wrap:wrap;gap:9px;padding:17px 18px 0}
 .scanner-picker{display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
 .scanner-empty{display:grid;justify-items:center;gap:7px;margin:17px 18px;padding:34px 18px;border:1px dashed #607368;border-radius:8px;background:#202b26;text-align:center}
+.scanner-empty[hidden],.scanner-preview[hidden]{display:none}
 .scanner-empty>span{display:grid;place-items:center;width:58px;height:58px;border:1px solid #667b70;border-radius:50%;background:#2d3b34;color:var(--gold);font-size:28px}
 .scanner-empty p{margin:0;color:var(--muted);font-size:12px}
 .scanner-preview{display:grid;gap:10px;margin:17px 18px 12px}

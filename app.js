@@ -1,4 +1,4 @@
-const APP_VERSION='0.39.2';
+const APP_VERSION='0.39.3';
 const SEED={"tripSummaries":[],"stays":[],"tripPlans":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"vehicleDetails":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const NO_TRIP_VALUE='__everyday_ruby__';
@@ -1081,7 +1081,7 @@ function bindDocumentScannerLauncher(record={}){
     }
     window.HIGGINS_DOCUMENT_SCANNER.open({
       title:'Lehigh Gorge electric bill',
-      useLabel:'Use with this bill',
+      useLabel:'Attach to bill',
       allowPdfUse:false,
       onUse:({file,metadata})=>{
         input._selectReceiptFile?.(file);
