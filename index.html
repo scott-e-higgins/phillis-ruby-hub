@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-title" content="Travel Journal">
   <meta name="description" content="The private travel, maintenance and seasonal-site hub for Phillis & Ruby.">
   <title>Phillis & Ruby Travel Journal</title>
-  <link rel="manifest" href="manifest.webmanifest?v=0.38.0">
+  <link rel="manifest" href="manifest.webmanifest?v=0.39.0">
   <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
   <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
   <script>
@@ -21,7 +21,7 @@
       document.documentElement.style.setProperty('--standalone-screen-height', `${window.screen.height}px`);
     }
   </script>
-  <link rel="stylesheet" href="styles.css?v=0.38.0">
+  <link rel="stylesheet" href="styles.css?v=0.39.0">
 </head>
 <body>
 <div id="pullRefresh" class="pull-refresh" aria-live="polite">
@@ -216,9 +216,13 @@
     <article class="card updates-card">
       <div class="updates-heading">
         <div><small>WHAT'S NEW</small><h3>Recent updates</h3></div>
-        <span class="version-badge">v0.38.0</span>
+        <span class="version-badge">v0.39.0</span>
       </div>
       <div class="updates-list">
+        <div>
+          <b>v0.39.0</b>
+          <span>Introduced the reusable Higgins Hub document scanner preview with camera, image, and PDF support plus local cleanup and rotation.</span>
+        </div>
         <div>
           <b>v0.38.0</b>
           <span>Added trip plans and reservations with itinerary details and private supporting pictures.</span>
@@ -276,7 +280,7 @@
           <span>Fixed the fuel editor’s delete action and removed its incorrect Notes label.</span>
         </div>
       </div>
-      <a class="secondary update-history-link" href="https://github.com/scott-e-higgins/phillis-ruby-hub#version-0380" target="_blank" rel="noopener">View complete update history</a>
+      <a class="secondary update-history-link" href="https://github.com/scott-e-higgins/phillis-ruby-hub#version-0390" target="_blank" rel="noopener">View complete update history</a>
     </article>
   </section>
 </main>
@@ -321,6 +325,49 @@
   <div class="dialog-head"><div class="dialog-title-row"><div class="dialog-title-copy"><small id="detailKicker">DETAILS</small><h2 id="detailTitle"></h2><div id="detailHeaderMeta" class="detail-header-meta"></div></div><div id="detailHeaderMedia" class="detail-header-media"></div></div><button type="button" class="close">×</button></div>
   <div id="detailBody"></div>
 </dialog>
+<dialog id="documentScannerDialog" class="document-scanner-dialog">
+  <div class="dialog-head">
+    <div><small>HIGGINS HUB SCANNER</small><h2 id="scannerContext">Electric bill document</h2></div>
+    <button type="button" class="close" data-close-scanner>×</button>
+  </div>
+  <div class="scanner-stage-strip" aria-label="Scanner workflow">
+    <span class="current">1 Capture</span>
+    <span>2 Clean up</span>
+    <span>3 Preview</span>
+    <span>4 Save later</span>
+  </div>
+  <section class="scanner-capture-actions">
+    <label class="primary scanner-picker">Take picture<input id="scannerCameraInput" type="file" accept="image/*" capture="environment" hidden></label>
+    <label class="secondary scanner-picker">Choose image or PDF<input id="scannerFileInput" type="file" accept="image/*,application/pdf,.pdf" hidden></label>
+  </section>
+  <section id="scannerEmpty" class="scanner-empty">
+    <span aria-hidden="true">▤</span>
+    <b>No document selected</b>
+    <p>Your file stays on this device until you approve and save it.</p>
+  </section>
+  <section id="scannerPreview" class="scanner-preview" hidden>
+    <div class="scanner-preview-frame">
+      <img id="scannerPreviewImage" alt="Document preview" hidden>
+      <iframe id="scannerPreviewPdf" title="PDF document preview" hidden></iframe>
+    </div>
+    <div id="scannerFileMeta" class="scanner-file-meta"></div>
+  </section>
+  <label class="scanner-cleanup-toggle">
+    <input id="scannerAutoCleanup" type="checkbox" checked>
+    <span><b>Automatically detect and square the paper</b><small>If the boundary is uncertain, the full image is kept.</small></span>
+  </label>
+  <div class="scanner-tools">
+    <button id="scannerProcess" class="primary" type="button" hidden>Clean up scan</button>
+    <button id="scannerRotateLeft" class="secondary" type="button" hidden>↶ Rotate left</button>
+    <button id="scannerRotateRight" class="secondary" type="button" hidden>↷ Rotate right</button>
+    <button id="scannerRemove" class="delete-link" type="button" hidden>Remove</button>
+  </div>
+  <p id="scannerStatus" class="scanner-status" aria-live="polite">Choose a camera photo, an existing image, or a PDF to begin.</p>
+  <div class="scanner-footer">
+    <button class="secondary" type="button" data-close-scanner>Cancel</button>
+    <button class="primary" id="scannerUse" type="button" disabled>Use this scan</button>
+  </div>
+</dialog>
 <dialog id="photoDialog" class="photo-dialog">
   <div class="dialog-head"><div><small>PHOTO</small><h2 id="photoDialogCaption">Travel Journal picture</h2></div><button type="button" class="close">×</button></div>
   <img id="photoDialogImage" alt="">
@@ -354,8 +401,9 @@
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
 <script src="supabase-config.js" defer></script>
-<script src="cloud.js?v=0.38.0" defer></script>
-<script src="cloud-store.js?v=0.38.0" defer></script>
-<script src="app.js?v=0.38.0" defer></script>
+<script src="cloud.js?v=0.39.0" defer></script>
+<script src="cloud-store.js?v=0.39.0" defer></script>
+<script src="document-scanner.js?v=0.39.0" defer></script>
+<script src="app.js?v=0.39.0" defer></script>
 </body>
 </html>

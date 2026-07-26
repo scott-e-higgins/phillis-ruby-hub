@@ -2,6 +2,24 @@
 
 Travel Journal is Scott and Kayla's private travel companion.
 
+## Version 0.39.0
+
+- Introduces the reusable Higgins Hub scanner inside Lehigh Gorge electric
+  bills without changing the production database.
+- Supports phone-camera capture, existing images, and PDF selection.
+- Shows the original file before processing and supports replace, retake,
+  rotate, remove, and final preview.
+- Performs document-image cleanup locally: best-effort paper-edge detection,
+  perspective squaring, readability enhancement, resizing to a 2,400-pixel
+  maximum dimension, and document-specific JPEG compression.
+- Preserves PDFs as PDFs, previews them without conversion, and performs a
+  best-effort check for existing selectable text.
+- Does not call OpenAI or any other paid AI service.
+- Keeps the existing electric-bill image-saving path working while the shared
+  document, expense, and payment schema is reviewed.
+- Documents the proposed reusable architecture in
+  `HIGGINS_SCANNER_ARCHITECTURE.md`.
+
 ## Someday roadmap
 
 - **Native Apple Calendar integration (preferred):** Add a future iPhone

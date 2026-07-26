@@ -1,4 +1,4 @@
-const APP_VERSION='0.38.0';
+const APP_VERSION='0.39.0';
 const SEED={"tripSummaries":[],"stays":[],"tripPlans":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"vehicleDetails":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const NO_TRIP_VALUE='__everyday_ruby__';
@@ -873,6 +873,9 @@ function stayPhotoEditorSlot(kind,title,help){
 function receiptEditorFields(help='Optional. Take a picture or choose one from your photo library.'){
   return `<section class="fuel-receipt-editor"><article class="stay-photo-editor"><div class="stay-photo-editor-copy"><b>Receipt</b><p>${help}</p></div><div class="stay-photo-preview" id="receiptPhotoPreview"><span>No receipt yet</span></div><div class="stay-photo-actions"><label class="secondary photo-picker">Take photo<input id="receiptCameraFile" type="file" accept="image/*" capture="environment" hidden></label><label class="secondary photo-picker">Choose photo<input id="receiptPhotoFile" type="file" accept="image/*" hidden></label><button class="delete-link remove-stay-photo" id="removeReceiptPhoto" type="button" hidden>Remove</button></div></article></section>`;
 }
+function documentScannerFields(){
+  return `<section class="document-scanner-entry"><div class="document-scanner-entry-heading"><div><small>HIGGINS HUB SCANNER · STAGE 1</small><b>Electric bill document</b><p>Capture or choose an image or PDF, clean images locally, and review the result before saving.</p></div><button class="secondary" id="openDocumentScanner" type="button">Scan or choose document</button></div><div class="document-scanner-current"><div class="stay-photo-preview" id="receiptPhotoPreview"><span>No saved bill image yet</span></div><div><b>Attached to this bill</b><p id="documentScannerAttachStatus">Cleaned images can be saved now. PDF cloud storage begins in the next shared-document stage.</p><button class="delete-link remove-stay-photo" id="removeReceiptPhoto" type="button" hidden>Remove saved image</button></div></div><input id="receiptCameraFile" type="file" accept="image/*" capture="environment" hidden><input id="receiptPhotoFile" type="file" accept="image/*" hidden></section>`;
+}
 function multiReceiptFields(help){
   return `<section class="note-photo-editor seasonal-receipt-editor"><div class="note-photo-editor-heading"><div><b>Receipts and documents</b><p>${help}</p></div><div class="stay-photo-actions"><label class="secondary photo-picker">Take photo<input id="multiReceiptCameraFile" type="file" accept="image/*" capture="environment" hidden></label><label class="secondary photo-picker">Choose pictures<input id="multiReceiptFiles" type="file" accept="image/*" multiple hidden></label></div></div><div id="multiReceiptGrid" class="note-photo-editor-grid"></div><small id="multiReceiptCount">0 of 6 pictures</small></section>`;
 }
@@ -894,7 +897,7 @@ function fields(type){
     return `<div class="two"><label>Date<input id="date" type="date" required></label><label>Trip<select id="tripName" required><option value="${NO_TRIP_VALUE}">${NO_TRIP_LABEL}</option>${options}</select></label></div><p class="field-help fuel-trip-help">Not traveling? Keep “Everyday Ruby.” It stays in Ruby’s fuel history without changing any trip totals.</p><label>Station<input id="station" required></label><div class="two"><label>City<input id="city" autocomplete="address-level2"></label><label>State<select id="state" autocomplete="address-level1">${stateOptions()}</select></label></div><div class="three"><label>Gallons<input id="gallons" type="number" min=".001" step=".001" required></label><label>Total<input id="total" type="number" min="0" step=".01" required></label><label>Fuel type<select id="fuelType" required><option value="diesel">Diesel</option><option value="gasoline">Gasoline</option></select></label></div><div class="two"><label>Trip meter<input id="tripMeter" type="number" min="0" step=".1" required></label><label>Odometer<input id="odometer" type="number" min="0" step=".1"></label></div><div class="fuel-calculations" id="fuelCalculations"><span>MPG <b>—</b></span><span>Price / gallon <b>—</b></span></div>${receiptEditorFields('Optional. Save a private photo of the fuel receipt with this stop.')}`;
   }
   if(type==='stay') return `<div class="two"><label>Arrival<input id="arrival" type="date" required></label><label>Departure<input id="departure" type="date"></label></div><div class="two"><label>Check-in time<input id="checkInTime" type="time" value="12:00"></label><label>Check-out time<input id="checkOutTime" type="time" value="12:00"></label></div><label>Campground<input id="name" required></label><label>Address<input id="address"></label><div class="three"><label>City<input id="city"></label><label>State<select id="state">${stateOptions()}</select></label><label>ZIP code<input id="zip" inputmode="numeric" autocomplete="postal-code" maxlength="10"></label></div><div class="two"><label>Site<input id="site"></label><label>Total cost<input id="total" type="number" step=".01"></label></div><div class="stay-type-options"><label><input id="harvestHost" type="checkbox"> Harvest Host</label><label><input id="moochdocking" type="checkbox"> Moochdocking</label><label><input id="boondocking" type="checkbox"> Boondocking</label></div><section class="stay-photo-editors"><div class="stay-photo-editors-heading"><b>Stay photos</b><p>Add these from Kayla’s photo library now or come back later.</p></div>${stayPhotoEditorSlot('site','Campsite','The campsite photo you take at nearly every stop.')}${stayPhotoEditorSlot('sign','Sign','The entrance, campground, winery, farm, or host sign.')}</section>`;
-  if(type==='electric') return `<div class="two"><label>Reading date<input id="date" type="date" required></label><label>Paid date<input id="paid" type="date"></label></div><div class="three"><label>Previous meter<input id="previous" type="number" required></label><label>Current meter<input id="current" type="number" required></label><label>Rate / kWh<input id="rate" type="number" step=".001" value=".16"></label></div><label>Check number<input id="check"></label>${receiptEditorFields('Optional. Save a private picture of the electric bill or payment receipt.')}`;
+  if(type==='electric') return `<div class="two"><label>Reading date<input id="date" type="date" required></label><label>Paid date<input id="paid" type="date"></label></div><div class="three"><label>Previous meter<input id="previous" type="number" required></label><label>Current meter<input id="current" type="number" required></label><label>Rate / kWh<input id="rate" type="number" step=".001" value=".16"></label></div><label>Check number<input id="check"></label>${documentScannerFields()}`;
   if(type==='sitepayment') return `<div class="three"><label>Season year<input id="year" type="number" value="${new Date().getFullYear()}" required></label><label>Payment date<input id="date" type="date" required></label><label>Amount<input id="payment" type="number" step=".01" required></label></div><label>Check number<input id="check"></label>${multiReceiptFields('Add up to six pictures for this seasonal-fee payment.')}`;
   if(type==='sitefee'){
     const currentSite=db.stays.find(x=>x.arrival==='Season')||{};
@@ -1052,6 +1055,7 @@ function bindReceiptEditor(record={}){
     stayPhotoPreviewUrls.push(url);
     show(url);
   };
+  input._selectReceiptFile=selectFile;
   receiptEditorSelectedFile=null;
   input.dataset.remove='false';
   show(record.receiptPhotoUrl||'');
@@ -1064,6 +1068,32 @@ function bindReceiptEditor(record={}){
     receiptEditorSelectedFile=null;
     show('');
   });
+}
+function bindDocumentScannerLauncher(record={}){
+  const launch=$('#openDocumentScanner');
+  const status=$('#documentScannerAttachStatus');
+  const input=$('#receiptPhotoFile');
+  if(!launch||!input)return;
+  launch.onclick=()=>{
+    if(!window.HIGGINS_DOCUMENT_SCANNER){
+      alert('The scanner is still loading. Please try again in a moment.');
+      return;
+    }
+    window.HIGGINS_DOCUMENT_SCANNER.open({
+      title:'Lehigh Gorge electric bill',
+      useLabel:'Use with this bill',
+      allowPdfUse:false,
+      onUse:({file,metadata})=>{
+        input._selectReceiptFile?.(file);
+        if(status){
+          const saved=Math.max(0,(metadata.originalBytes||0)-(metadata.optimizedBytes||0));
+          status.textContent=`Prepared locally at ${metadata.width||'—'} × ${metadata.height||'—'}${saved?` · ${Math.round(saved/1024)} KB smaller`:''}. It will upload when you save this electric record.`;
+        }
+        return true;
+      }
+    });
+  };
+  if(record.receiptPhotoUrl&&status)status.textContent='A private bill image is already attached. Scan a replacement or remove the saved image.';
 }
 let multiReceiptEditorState={existing:[],pending:[],removedPaths:new Set()};
 function clearMultiReceiptEditor(){
@@ -1411,6 +1441,7 @@ function openEntry(type,index=null,returnTripIndex=null){
   if(['fuel','electric'].includes(type)){
     const key=type==='electric'?'electric':'fuel';
     bindReceiptEditor(index===null?{}:(db[key]?.[index]||{}));
+    if(type==='electric')bindDocumentScannerLauncher(index===null?{}:(db.electric?.[index]||{}));
   }
   if(['phillis-maint','phillis-upgrade','ruby-maint','ruby-upgrade','sitepayment','trip-plan'].includes(type)){
     const key=type==='phillis-maint'?'phillisMaintenance':type==='phillis-upgrade'?'phillisUpgrades':type==='ruby-maint'?'rubyMaintenance':type==='ruby-upgrade'?'rubyUpgrades':type==='trip-plan'?'tripPlans':'siteFees';

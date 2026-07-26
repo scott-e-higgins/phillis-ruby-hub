@@ -380,7 +380,9 @@
         return record;
       }
 
-      const prepared = await preparePhoto(file);
+      const prepared = file?.higginsDocumentScan
+        ? { blob: file, extension: 'jpg', contentType: 'image/jpeg' }
+        : await preparePhoto(file);
       const path = `${householdId}/${target.folder}/${record._cloudId}/receipt-${Date.now()}.${prepared.extension}`;
       const upload = await receiptBucket.upload(path, prepared.blob, {
         cacheControl: '3600',
