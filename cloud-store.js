@@ -554,7 +554,7 @@
             cleanup_metadata: isPdf
               ? { preserved_as_pdf: true }
               : file?.higginsDocumentScan
-                ? { cleaned_locally: true, scanner_version: '0.44.0', ...dimensions }
+                ? { cleaned_locally: true, scanner_version: '0.44.1', ...dimensions }
                 : { optimized_locally: true }
           });
           if (fileInsert.error) throw fileInsert.error;
@@ -1236,7 +1236,7 @@
         const rows = fuelByTrip.get(row.id) || [];
         const gallons = rows.reduce((sum, x) => sum + (num(x.gallons) || 0), 0);
         const cost = rows.reduce((sum, x) => sum + (num(x.total_cost) || 0), 0);
-        const distance = rows.reduce((sum, x) => sum + (num(x.trip_meter) || 0), 0) || null;
+        const distance = rows.reduce((greatest, x) => Math.max(greatest, num(x.trip_meter) || 0), 0) || null;
         const towVehicle = vehicleById.get(row.tow_vehicle_id);
         const rv = vehicleById.get(row.rv_id);
         return {
