@@ -2,6 +2,16 @@
 
 Travel Journal is Scott and Kayla's private travel companion.
 
+## Version 0.44.1
+
+- Corrects trip and yearly distance/MPG totals by treating Ruby's trip meter as
+  a cumulative trip reading instead of adding every fuel-stop reading together.
+- Shows a useful trip-MPG estimate while entering fuel.
+- Safely removes a deleted season's payments, electric bills, documents, and
+  stored receipt files together.
+- Gives narrow-phone countdown cards enough room to prevent overlapping text.
+- Updates the in-app history link to the current release.
+
 ## Version 0.44.0
 
 - Adds a compact Seasonal documents section inside every Lehigh Gorge year.
