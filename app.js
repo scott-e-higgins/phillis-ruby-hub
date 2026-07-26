@@ -1,4 +1,4 @@
-const APP_VERSION='0.41.1';
+const APP_VERSION='0.41.2';
 const SEED={"tripSummaries":[],"stays":[],"tripPlans":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"vehicleDetails":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const NO_TRIP_VALUE='__everyday_ruby__';
@@ -663,7 +663,7 @@ function showPlanRecord(index,returnTripIndex=null){
   const website=normalizedWebsiteUrl(plan.websiteUrl);
   const mapAddress=[plan.address,plan.city,plan.state,plan.zip].filter(Boolean).join(', ');
   const actions=`<div class="record-detail-actions stay-detail-actions">${returnTripIndex!==null?'<button class="text-button" id="backToTripButton">← Back to trip</button>':''}<button class="primary" id="editPlanRecord">Edit plan</button></div>`;
-  $('#detailBody').innerHTML=`${actions}<div class="detail-section"><div class="detail-row"><span>Type</span><span>${escapeHtml(planTypeLabel(plan.planType))}</span></div><div class="detail-row"><span>Status</span><span>${escapeHtml(planStatusLabel(plan.status))}</span></div><div class="detail-row"><span>Date</span><span>${date(plan.date)}</span></div>${plan.startTime||plan.endTime?`<div class="detail-row"><span>Time</span><span>${[plan.startTime?clockTime(plan.startTime):'',plan.endTime?clockTime(plan.endTime):''].filter(Boolean).join(' – ')}</span></div>`:''}${plan.locationName?`<div class="detail-row"><span>Location</span><span>${escapeHtml(plan.locationName)}</span></div>`:''}${mapAddress?`<div class="plan-detail-address">${planLocationHtml(plan,{full:true})}</div>`:''}<div class="detail-row"><span>Cost</span><span>${money(plan.cost||0)}</span></div>${plan.confirmationCode?`<div class="detail-row"><span>Confirmation</span><span class="confirmation-code">${escapeHtml(plan.confirmationCode)}</span></div>`:''}${website?`<div class="detail-row"><span>Website / tickets</span><a class="text-button plan-website-link" href="${escapeHtml(website)}" target="_blank" rel="noopener">Open link ↗</a></div>`:''}${plan.notes?`<div class="record-notes"><small>NOTES</small><p>${escapeHtml(plan.notes)}</p></div>`:''}${multiReceiptDetailHtml(plan,`${plan.title||'Reservation'} document`,'RESERVATION PICTURES')}${pdfDocumentDetailHtml(plan)}</div><div class="trip-delete-area"><button class="delete-link" id="deletePlanRecord">Delete plan</button></div>`;
+  $('#detailBody').innerHTML=`${actions}<div class="detail-section"><div class="detail-row"><span>Type</span><span>${escapeHtml(planTypeLabel(plan.planType))}</span></div><div class="detail-row"><span>Status</span><span>${escapeHtml(planStatusLabel(plan.status))}</span></div><div class="detail-row"><span>Date</span><span>${date(plan.date)}</span></div>${plan.startTime||plan.endTime?`<div class="detail-row"><span>Time</span><span>${[plan.startTime?clockTime(plan.startTime):'',plan.endTime?clockTime(plan.endTime):''].filter(Boolean).join(' – ')}</span></div>`:''}${plan.locationName?`<div class="detail-row"><span>Location</span><span>${escapeHtml(plan.locationName)}</span></div>`:''}${mapAddress?`<div class="plan-detail-address">${planLocationHtml(plan,{full:true})}</div>`:''}<div class="detail-row"><span>Cost</span><span>${money(plan.cost||0)}</span></div>${plan.confirmationCode?`<div class="detail-row"><span>Confirmation</span><span class="confirmation-code">${escapeHtml(plan.confirmationCode)}</span></div>`:''}${website?`<div class="detail-row"><span>Website / tickets</span><a class="text-button plan-website-link" href="${escapeHtml(website)}" target="_blank" rel="noopener">Open link ↗</a></div>`:''}${plan.notes?`<div class="record-notes"><small>NOTES</small><p>${escapeHtml(plan.notes)}</p></div>`:''}${tripPlanAttachmentsDetailHtml(plan)}</div><div class="trip-delete-area"><button class="delete-link" id="deletePlanRecord">Delete plan</button></div>`;
   bindStayPhotoButtons($('#detailBody'));
   bindStayMapLinks($('#detailBody'));
   if(returnTripIndex!==null)$('#backToTripButton').onclick=()=>{$('#detailDialog').close();showTrip(returnTripIndex)};
@@ -740,6 +740,12 @@ function pdfDocumentDetailHtml(record){
   const pdfs=(record?.documentAttachments||[]).filter(file=>file.url&&(file.mimeType==='application/pdf'||/\.pdf$/i.test(file.originalFilename||'')));
   if(!pdfs.length)return '';
   return `<div class="plan-pdf-detail"><small>PDF DOCUMENT${pdfs.length===1?'':'S'}</small>${pdfs.map(file=>`<a class="plan-pdf-link" href="${escapeHtml(file.url)}" target="_blank" rel="noopener"><span class="plan-pdf-icon">PDF</span><span><b>${escapeHtml(file.originalFilename||'Reservation document.pdf')}</b><small>${file.fileSizeBytes?`${number(file.fileSizeBytes/1024,0)} KB · `:''}Open document</small></span><span aria-hidden="true">↗</span></a>`).join('')}</div>`;
+}
+function tripPlanAttachmentsDetailHtml(record){
+  const pictures=Array.isArray(record?.receiptPhotoUrls)?record.receiptPhotoUrls.filter(Boolean):[];
+  const pdfs=(record?.documentAttachments||[]).filter(file=>file.url&&(file.mimeType==='application/pdf'||/\.pdf$/i.test(file.originalFilename||'')));
+  if(!pictures.length&&!pdfs.length)return '';
+  return `<div class="plan-attachments-detail"><small>PICTURES &amp; PDFS</small>${pictures.length?`<div class="stay-photo-strip">${pictures.map((url,index)=>`<button class="stay-photo-thumb fuel-receipt-thumb" type="button" data-photo-url="${escapeHtml(url)}" data-photo-label="${escapeHtml(`${record.title||'Reservation'} picture ${index+1}`)}" aria-label="Open picture ${index+1}"><img src="${escapeHtml(url)}" alt="${escapeHtml(`${record.title||'Reservation'} picture ${index+1}`)}" loading="lazy"><span>Picture ${index+1}</span></button>`).join('')}</div>`:''}${pdfs.map(file=>`<a class="plan-pdf-link" href="${escapeHtml(file.url)}" target="_blank" rel="noopener"><span class="plan-pdf-icon">PDF</span><span><b>${escapeHtml(file.originalFilename||'Reservation document.pdf')}</b><small>${file.fileSizeBytes?`${number(file.fileSizeBytes/1024,0)} KB · `:''}Open document</small></span><span aria-hidden="true">↗</span></a>`).join('')}</div>`;
 }
 const hasReceiptPhotos=record=>Boolean(record?.receiptPhotoPath||(record?.receiptPhotoPaths||[]).length);
 const hasLinkedDocuments=record=>Boolean((record?.documentAttachments||[]).length);
@@ -894,8 +900,8 @@ function documentScannerFields(){
 function multiReceiptFields(help){
   return `<section class="note-photo-editor seasonal-receipt-editor"><div class="note-photo-editor-heading"><div><b>Receipts and documents</b><p>${help}</p></div><div class="stay-photo-actions"><label class="secondary photo-picker">Take photo<input id="multiReceiptCameraFile" type="file" accept="image/*" capture="environment" hidden></label><label class="secondary photo-picker">Choose pictures<input id="multiReceiptFiles" type="file" accept="image/*" multiple hidden></label></div></div><div id="multiReceiptGrid" class="note-photo-editor-grid"></div><small id="multiReceiptCount">0 of 6 pictures</small></section>`;
 }
-function tripPlanPdfFields(){
-  return `<section class="plan-pdf-editor"><div><b>PDF documents</b><p>Add up to six confirmations, tickets, itineraries, or reservation PDFs. Multi-page PDFs stay intact.</p></div><div class="plan-pdf-list" id="planPdfList"><span>No PDFs attached</span></div><div class="stay-photo-actions"><label class="secondary photo-picker">Choose PDFs<input id="planPdfFiles" type="file" accept="application/pdf,.pdf" multiple hidden></label></div><small id="planPdfCount">0 of 6 PDFs</small></section>`;
+function tripPlanAttachmentFields(){
+  return `<section class="trip-plan-attachment-editor note-photo-editor"><div class="note-photo-editor-heading"><div><b>Pictures &amp; PDFs</b><p>Add confirmation pictures, tickets, itineraries, or reservation PDFs in one place.</p></div><div class="stay-photo-actions"><label class="secondary photo-picker">Take photo<input id="multiReceiptCameraFile" type="file" accept="image/*" capture="environment" hidden></label><label class="secondary photo-picker">Choose files<input id="planAttachmentFiles" type="file" accept="image/*,application/pdf,.pdf" multiple hidden></label></div></div><div class="trip-attachment-group"><div class="trip-attachment-subheading"><b>Pictures</b><small id="multiReceiptCount">0 of 6</small></div><div id="multiReceiptGrid" class="note-photo-editor-grid"></div></div><div class="trip-attachment-group"><div class="trip-attachment-subheading"><b>PDF documents</b><small id="planPdfCount">0 of 6</small></div><div class="plan-pdf-list" id="planPdfList"><span>No PDFs attached</span></div></div></section>`;
 }
 function notePhotoFields(){
   return `<section class="note-photo-editor"><div class="note-photo-editor-heading"><div><b>Pictures</b><p>Add up to six pictures from your phone.</p></div><label class="secondary photo-picker">Choose pictures<input id="notePhotoFiles" type="file" accept="image/*" multiple hidden></label></div><div id="notePhotoEditorGrid" class="note-photo-editor-grid"></div><small id="notePhotoCount">0 of 6 pictures</small></section>`;
@@ -909,7 +915,7 @@ function noteTripOptions(){
 function fields(type){
   if(type==='hub-note') return `<label>Title<input id="name" required maxlength="120"></label><label>Related trip<select id="noteTripId"><option value="">No related trip</option>${noteTripOptions()}</select></label><label class="note-pinned-toggle"><input id="notePinned" type="checkbox"><span><b>Pin this note</b><small>Keep it at the top of Notes and guarantee it appears on Home.</small></span></label><label class="note-checklist-toggle"><input id="noteChecklist" type="checkbox"> Use checkboxes</label><div class="checklist-editor" id="checklistEditor" hidden></div><button type="button" class="secondary add-checklist-item" id="addChecklistItem" hidden>+ Add item</button>`;
   if(type==='trip') return `<label>Trip name<input id="name" required></label><div class="two"><label>Start date<input id="startDate" type="date" required></label><label>End date<input id="endDate" type="date" required></label></div><section class="trip-photo-editor"><div class="stay-photo-editors-heading"><b>On the Road Again</b><p>The photo you take near the start of this trip. It becomes the cover of the trip card.</p></div><div class="trip-photo-preview" id="onRoadPhotoPreview"><span>No photo yet</span></div><div class="stay-photo-actions"><label class="secondary photo-picker">Choose photo<input id="onRoadPhotoFile" type="file" accept="image/*" hidden></label><button class="delete-link remove-stay-photo" id="removeOnRoadPhoto" type="button" hidden>Remove</button></div></section><div class="trip-stays-heading"><div><b>Places you are staying</b><p class="field-help">Each stop opens in its own window, then appears here as a card.</p></div><button type="button" class="secondary small-add" id="addTripStay">Add stay</button></div><div id="tripStaysEditor" class="trip-stays-editor"></div>`;
-  if(type==='trip-plan') return `<label>Related trip<select id="planTripId" required><option value="">Choose a trip</option>${noteTripOptions()}</select></label><label>Plan or reservation name<input id="name" required maxlength="160" placeholder="Acadia sunrise, Dry Tortugas day trip…"></label><div class="two"><label>Type<select id="planType"><option value="activity">Activity</option><option value="tour">Tour</option><option value="reservation">Reservation</option><option value="dining">Dining</option><option value="transportation">Transportation</option><option value="other">Other</option></select></label><label>Status<select id="planStatus"><option value="planned">Planned</option><option value="reserved">Reserved</option><option value="paid">Paid</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></label></div><div class="three"><label>Date<input id="date" type="date" required></label><label>Start time<input id="planStartTime" type="time"></label><label>End time<input id="planEndTime" type="time"></label></div><label>Location name<input id="planLocationName" placeholder="Cadillac Mountain, ferry terminal…"></label><label>Address<input id="address"></label><div class="three"><label>City<input id="city" autocomplete="address-level2"></label><label>State<select id="state" autocomplete="address-level1">${stateOptions()}</select></label><label>ZIP code<input id="zip" inputmode="numeric" autocomplete="postal-code" maxlength="10"></label></div><div class="two"><label>Confirmation code<input id="planConfirmation"></label><label>Cost<input id="total" type="number" min="0" step=".01"></label></div><label>Website or ticket link<input id="planWebsite" inputmode="url" placeholder="https://…"></label>${multiReceiptFields('Add up to six compressed pictures of confirmations, tickets, reservations, or related documents.')}${tripPlanPdfFields()}`;
+  if(type==='trip-plan') return `<label>Related trip<select id="planTripId" required><option value="">Choose a trip</option>${noteTripOptions()}</select></label><label>Plan or reservation name<input id="name" required maxlength="160" placeholder="Acadia sunrise, Dry Tortugas day trip…"></label><div class="two"><label>Type<select id="planType"><option value="activity">Activity</option><option value="tour">Tour</option><option value="reservation">Reservation</option><option value="dining">Dining</option><option value="transportation">Transportation</option><option value="other">Other</option></select></label><label>Status<select id="planStatus"><option value="planned">Planned</option><option value="reserved">Reserved</option><option value="paid">Paid</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></label></div><div class="three"><label>Date<input id="date" type="date" required></label><label>Start time<input id="planStartTime" type="time"></label><label>End time<input id="planEndTime" type="time"></label></div><label>Location name<input id="planLocationName" placeholder="Cadillac Mountain, ferry terminal…"></label><label>Address<input id="address"></label><div class="three"><label>City<input id="city" autocomplete="address-level2"></label><label>State<select id="state" autocomplete="address-level1">${stateOptions()}</select></label><label>ZIP code<input id="zip" inputmode="numeric" autocomplete="postal-code" maxlength="10"></label></div><div class="two"><label>Confirmation code<input id="planConfirmation"></label><label>Cost<input id="total" type="number" min="0" step=".01"></label></div><label>Website or ticket link<input id="planWebsite" inputmode="url" placeholder="https://…"></label>${tripPlanAttachmentFields()}`;
   if(type==='fuel'){
     const options=db.tripSummaries.slice().sort((a,b)=>tripStamp(b).localeCompare(tripStamp(a))).map(t=>`<option value="${escapeHtml(t.name)}">${escapeHtml(t.name)}</option>`).join('');
     return `<div class="two"><label>Date<input id="date" type="date" required></label><label>Trip<select id="tripName" required><option value="${NO_TRIP_VALUE}">${NO_TRIP_LABEL}</option>${options}</select></label></div><p class="field-help fuel-trip-help">Not traveling? Keep “Everyday Ruby.” It stays in Ruby’s fuel history without changing any trip totals.</p><label>Station<input id="station" required></label><div class="two"><label>City<input id="city" autocomplete="address-level2"></label><label>State<select id="state" autocomplete="address-level1">${stateOptions()}</select></label></div><div class="three"><label>Gallons<input id="gallons" type="number" min=".001" step=".001" required></label><label>Total<input id="total" type="number" min="0" step=".01" required></label><label>Fuel type<select id="fuelType" required><option value="diesel">Diesel</option><option value="gasoline">Gasoline</option></select></label></div><div class="two"><label>Trip meter<input id="tripMeter" type="number" min="0" step=".1" required></label><label>Odometer<input id="odometer" type="number" min="0" step=".1"></label></div><div class="fuel-calculations" id="fuelCalculations"><span>MPG <b>—</b></span><span>Price / gallon <b>—</b></span></div>${receiptEditorFields('Optional. Save a private photo of the fuel receipt with this stop.')}`;
@@ -1128,8 +1134,8 @@ function renderMultiReceiptEditor(){
     ...existing.map((photo,index)=>`<article class="note-photo-editor-item">${photo.url?`<button class="note-photo-preview-button" type="button" data-photo-url="${escapeHtml(photo.url)}" data-photo-label="${escapeHtml(`Receipt page ${index+1}`)}"><img src="${escapeHtml(photo.url)}" alt="${escapeHtml(`Receipt page ${index+1}`)}"></button>`:'<span class="note-photo-missing">Receipt</span>'}<button class="remove-note-photo" type="button" data-remove-multi-receipt="${escapeHtml(photo.path)}">Remove</button></article>`),
     ...pending.map((photo,index)=>`<article class="note-photo-editor-item"><span class="note-photo-preview-button"><img src="${escapeHtml(photo.url)}" alt="New receipt picture"></span><button class="remove-note-photo" type="button" data-remove-pending-multi-receipt="${index}">Remove</button></article>`)
   ];
-  host.innerHTML=items.join('')||'<div class="note-photo-empty">No receipts attached yet.</div>';
-  count.textContent=`${existing.length+pending.length} of 6 pictures`;
+  host.innerHTML=items.join('')||`<div class="note-photo-empty">No ${$('#planAttachmentFiles')?'pictures':'receipts'} attached yet.</div>`;
+  count.textContent=$('#planAttachmentFiles')?`${existing.length+pending.length} of 6`:`${existing.length+pending.length} of 6 pictures`;
   $$('[data-remove-multi-receipt]',host).forEach(button=>button.onclick=()=>{
     multiReceiptEditorState.removedPaths.add(button.dataset.removeMultiReceipt);
     renderMultiReceiptEditor();
@@ -1142,6 +1148,14 @@ function renderMultiReceiptEditor(){
   });
   bindStayPhotoButtons(host);
 }
+function addMultiReceiptFiles(files){
+  const existingCount=multiReceiptEditorState.existing.filter(photo=>!multiReceiptEditorState.removedPaths.has(photo.path)).length;
+  const available=Math.max(0,6-existingCount-multiReceiptEditorState.pending.length);
+  const chosen=[...(files||[])];
+  if(chosen.length>available)alert(`You can attach up to six pictures. ${available||'No'} more can be added to this record.`);
+  chosen.slice(0,available).forEach(file=>multiReceiptEditorState.pending.push({file,url:URL.createObjectURL(file)}));
+  renderMultiReceiptEditor();
+}
 function bindMultiReceiptEditor(record={}){
   clearMultiReceiptEditor();
   const paths=Array.isArray(record.receiptPhotoPaths)?record.receiptPhotoPaths:[];
@@ -1150,21 +1164,12 @@ function bindMultiReceiptEditor(record={}){
   renderMultiReceiptEditor();
   const input=$('#multiReceiptFiles');
   const cameraInput=$('#multiReceiptCameraFile');
-  if(!input||!cameraInput)return;
-  const addChosen=files=>{
-    const existingCount=multiReceiptEditorState.existing.filter(photo=>!multiReceiptEditorState.removedPaths.has(photo.path)).length;
-    const available=Math.max(0,6-existingCount-multiReceiptEditorState.pending.length);
-    const chosen=[...(files||[])];
-    if(chosen.length>available)alert(`You can attach up to six pictures. ${available||'No'} more can be added to this record.`);
-    chosen.slice(0,available).forEach(file=>multiReceiptEditorState.pending.push({file,url:URL.createObjectURL(file)}));
-    renderMultiReceiptEditor();
-  };
-  input.addEventListener('change',()=>{
-    addChosen(input.files);
+  if(input)input.addEventListener('change',()=>{
+    addMultiReceiptFiles(input.files);
     input.value='';
   });
-  cameraInput.addEventListener('change',()=>{
-    addChosen(cameraInput.files);
+  if(cameraInput)cameraInput.addEventListener('change',()=>{
+    addMultiReceiptFiles(cameraInput.files);
     cameraInput.value='';
   });
 }
@@ -1182,7 +1187,6 @@ function clearTripPlanPdfEditor(){
 function renderTripPlanPdfEditor(){
   const host=$('#planPdfList');
   const count=$('#planPdfCount');
-  const input=$('#planPdfFiles');
   if(!host||!count)return;
   const existing=tripPlanPdfEditorState.existing.filter(file=>!tripPlanPdfEditorState.removedDocumentIds.has(file.documentId));
   const pending=tripPlanPdfEditorState.pending;
@@ -1191,8 +1195,7 @@ function renderTripPlanPdfEditor(){
     ...pending.map((item,index)=>({kind:'pending',file:item.file,url:item.url,name:item.file.name||'Reservation document.pdf',size:item.file.size||0,index}))
   ];
   host.innerHTML=rows.length?rows.map(item=>`<article class="plan-pdf-editor-item"><a class="plan-pdf-link plan-pdf-link-editor" href="${escapeHtml(item.url||'#')}" ${item.url?'target="_blank" rel="noopener"':''}><span class="plan-pdf-icon">PDF</span><span><b>${escapeHtml(item.name)}</b><small>${item.size?`${number(item.size/1024,0)} KB · `:''}${item.kind==='pending'?'Ready to upload':'Saved in Higgins Documents'}</small></span><span aria-hidden="true">↗</span></a><button class="delete-link" type="button" ${item.kind==='existing'?`data-remove-plan-pdf-document="${escapeHtml(item.id)}"`:`data-remove-pending-plan-pdf="${item.index}"`}>Remove</button></article>`).join(''):'<span>No PDFs attached</span>';
-  count.textContent=`${rows.length} of 6 PDFs`;
-  if(input)input.disabled=rows.length>=6;
+  count.textContent=$('#planAttachmentFiles')?`${rows.length} of 6`:`${rows.length} of 6 PDFs`;
   $$('[data-remove-plan-pdf-document]',host).forEach(button=>button.onclick=()=>{
     tripPlanPdfEditorState.removedDocumentIds.add(button.dataset.removePlanPdfDocument);
     renderTripPlanPdfEditor();
@@ -1204,6 +1207,28 @@ function renderTripPlanPdfEditor(){
     renderTripPlanPdfEditor();
   });
 }
+function addTripPlanPdfFiles(files){
+  const chosen=[...(files||[])];
+  const existingCount=tripPlanPdfEditorState.existing.filter(file=>!tripPlanPdfEditorState.removedDocumentIds.has(file.documentId)).length;
+  let available=Math.max(0,6-existingCount-tripPlanPdfEditorState.pending.length);
+  for(const file of chosen){
+    if(!(file.type==='application/pdf'||/\.pdf$/i.test(file.name||''))){
+      alert(`${file.name||'That file'} is not a PDF.`);
+      continue;
+    }
+    if(file.size>25*1024*1024){
+      alert(`${file.name||'That PDF'} is larger than the 25 MB document limit.`);
+      continue;
+    }
+    if(available<=0){
+      alert('An activity can have up to six PDF documents.');
+      break;
+    }
+    tripPlanPdfEditorState.pending.push({file,url:URL.createObjectURL(file)});
+    available-=1;
+  }
+  renderTripPlanPdfEditor();
+}
 function bindTripPlanPdfEditor(record={}){
   clearTripPlanPdfEditor();
   tripPlanPdfEditorState.existing=(record.documentAttachments||[]).filter(file=>file.mimeType==='application/pdf'||/\.pdf$/i.test(file.originalFilename||''));
@@ -1211,27 +1236,22 @@ function bindTripPlanPdfEditor(record={}){
   const input=$('#planPdfFiles');
   if(!input)return;
   input.addEventListener('change',()=>{
-    const chosen=[...(input.files||[])];
-    const existingCount=tripPlanPdfEditorState.existing.filter(file=>!tripPlanPdfEditorState.removedDocumentIds.has(file.documentId)).length;
-    let available=Math.max(0,6-existingCount-tripPlanPdfEditorState.pending.length);
-    for(const file of chosen){
-      if(!(file.type==='application/pdf'||/\.pdf$/i.test(file.name||''))){
-        alert(`${file.name||'That file'} is not a PDF.`);
-        continue;
-      }
-      if(file.size>25*1024*1024){
-        alert(`${file.name||'That PDF'} is larger than the 25 MB document limit.`);
-        continue;
-      }
-      if(available<=0){
-        alert('An activity can have up to six PDF documents.');
-        break;
-      }
-      tripPlanPdfEditorState.pending.push({file,url:URL.createObjectURL(file)});
-      available-=1;
-    }
+    addTripPlanPdfFiles(input.files);
     input.value='';
-    renderTripPlanPdfEditor();
+  });
+}
+function bindTripPlanAttachmentPicker(){
+  const input=$('#planAttachmentFiles');
+  if(!input)return;
+  input.addEventListener('change',()=>{
+    const chosen=[...(input.files||[])];
+    const pictures=chosen.filter(file=>String(file.type||'').startsWith('image/'));
+    const pdfs=chosen.filter(file=>file.type==='application/pdf'||/\.pdf$/i.test(file.name||''));
+    const unsupported=chosen.filter(file=>!pictures.includes(file)&&!pdfs.includes(file));
+    if(unsupported.length)alert(`${unsupported[0].name||'A selected file'} is not a supported picture or PDF.`);
+    if(pictures.length)addMultiReceiptFiles(pictures);
+    if(pdfs.length)addTripPlanPdfFiles(pdfs);
+    input.value='';
   });
 }
 function tripPlanPdfChanges(){
@@ -1537,7 +1557,10 @@ function openEntry(type,index=null,returnTripIndex=null){
     const key=type==='phillis-maint'?'phillisMaintenance':type==='phillis-upgrade'?'phillisUpgrades':type==='ruby-maint'?'rubyMaintenance':type==='ruby-upgrade'?'rubyUpgrades':type==='trip-plan'?'tripPlans':'siteFees';
     bindMultiReceiptEditor(index===null?{}:(db[key]?.[index]||{}));
   }
-  if(type==='trip-plan')bindTripPlanPdfEditor(index===null?{}:(db.tripPlans?.[index]||{}));
+  if(type==='trip-plan'){
+    bindTripPlanPdfEditor(index===null?{}:(db.tripPlans?.[index]||{}));
+    bindTripPlanAttachmentPicker();
+  }
   $('#entryDialog').showModal();
 }
 $$('dialog .close').forEach(b=>b.onclick=()=>{const dialog=b.closest('dialog');dialog.close();if(dialog.id==='entryDialog'){clearStayPhotoPreviewUrls();clearNotePhotoEditor();clearMultiReceiptEditor();clearTripPlanPdfEditor();}});

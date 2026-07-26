@@ -2,6 +2,15 @@
 
 Travel Journal is Scott and Kayla's private travel companion.
 
+## Version 0.41.2
+
+- Combines activity pictures and PDF documents into one “Pictures & PDFs”
+  attachment area.
+- Uses one file picker that accepts pictures, PDFs, or a mixture of both.
+- Keeps the phone-camera shortcut for taking a new picture.
+- Shows saved pictures and PDFs together in the activity detail view while
+  preserving their proper private storage behind the scenes.
+
 ## Version 0.41.1
 
 - Allows up to six separate PDF documents on one trip activity or reservation.
