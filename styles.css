@@ -849,6 +849,21 @@ html.standalone-app .pull-refresh{
   transform:translate(-50%,-120px);
 }
 
+/* v0.34.2 — installed iOS can report a browser-sized height even with no browser bar */
+html.standalone-app{
+  height:var(--standalone-screen-height,100lvh);
+  min-height:var(--standalone-screen-height,100lvh);
+}
+html.standalone-app body{
+  top:0;
+  right:0;
+  bottom:auto;
+  left:0;
+  height:var(--standalone-screen-height,100lvh)!important;
+  min-height:var(--standalone-screen-height,100lvh)!important;
+  max-height:var(--standalone-screen-height,100lvh);
+}
+
 .ruby-truck-icon{display:block;width:29px;height:21px}
 .ruby-truck-body{fill:#a93743;stroke:#e5a3aa;stroke-width:1}
 .ruby-truck-window{fill:#bcd1d9;stroke:#dce8eb;stroke-width:.7}

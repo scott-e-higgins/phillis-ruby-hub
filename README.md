@@ -13,6 +13,13 @@ Travel Journal is Scott and Kayla's private travel companion.
   read-only calendar subscription remains a fallback if a native companion is
   not pursued.
 
+## Version 0.34.2
+
+- Sizes the installed iPhone app to the full device screen instead of Safari's
+  shorter browser viewport.
+- Removes the unused Safari-bar space below the bottom navigation while keeping
+  the notch and Home-indicator safe areas.
+
 ## Version 0.34.1
 
 - Anchors the app shell to all four edges of the installed iPhone viewport.
