@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-title" content="Travel Journal">
   <meta name="description" content="The private travel, maintenance and seasonal-site hub for Phillis & Ruby.">
   <title>Phillis & Ruby Travel Journal</title>
-  <link rel="manifest" href="manifest.webmanifest?v=0.34.2">
+  <link rel="manifest" href="manifest.webmanifest?v=0.35.0">
   <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
   <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
   <script>
@@ -21,7 +21,7 @@
       document.documentElement.style.setProperty('--standalone-screen-height', `${window.screen.height}px`);
     }
   </script>
-  <link rel="stylesheet" href="styles.css?v=0.34.2">
+  <link rel="stylesheet" href="styles.css?v=0.35.0">
 </head>
 <body>
 <div id="pullRefresh" class="pull-refresh" aria-live="polite">
@@ -172,12 +172,50 @@
       <h3>Shared syncing</h3>
       <p>Changes made while signed in are shared between your devices. A browser copy is also retained as a safety backup.</p>
     </article>
+    <article class="card journal-stats-card" id="journalStatsCard">
+      <div class="journal-stats-heading">
+        <div><small>AT A GLANCE</small><h3>Journal stats</h3></div>
+        <button class="stats-refresh-button" id="refreshJournalStats" type="button" aria-label="Refresh Journal stats">↻</button>
+      </div>
+      <div class="journal-stats-grid">
+        <div class="journal-stat">
+          <span>Storage usage</span>
+          <b id="statStorageUsage">Calculating…</b>
+          <small>Uploaded pictures and documents</small>
+        </div>
+        <div class="journal-stat">
+          <span>Database size</span>
+          <b id="statDatabaseSize">—</b>
+          <small>Travel Journal record data</small>
+        </div>
+        <div class="journal-stat journal-stat-ai">
+          <span>AI usage</span>
+          <b id="statAiUsage">$0.00</b>
+          <small id="statAiUsageDetail">0 scans this month</small>
+        </div>
+        <div class="journal-stat">
+          <span>Total documents</span>
+          <b id="statDocumentCount">0</b>
+          <small>Receipts and bill pictures</small>
+        </div>
+        <div class="journal-stat">
+          <span>Total pictures</span>
+          <b id="statPictureCount">0</b>
+          <small>Trips, stays, and notes</small>
+        </div>
+      </div>
+      <p class="journal-stats-status" id="journalStatsStatus" aria-live="polite"></p>
+    </article>
     <article class="card updates-card">
       <div class="updates-heading">
         <div><small>WHAT'S NEW</small><h3>Recent updates</h3></div>
-        <span class="version-badge">v0.34.2</span>
+        <span class="version-badge">v0.35.0</span>
       </div>
       <div class="updates-list">
+        <div>
+          <b>v0.35.0</b>
+          <span>Added Journal stats for storage, database size, monthly AI usage, documents, and pictures.</span>
+        </div>
         <div>
           <b>v0.34.2</b>
           <span>Extended the installed iPhone app through the unused Safari-bar space beneath the bottom navigation.</span>
@@ -207,7 +245,7 @@
           <span>Fixed the fuel editor’s delete action and removed its incorrect Notes label.</span>
         </div>
       </div>
-      <a class="secondary update-history-link" href="https://github.com/scott-e-higgins/phillis-ruby-hub#version-0342" target="_blank" rel="noopener">View complete update history</a>
+      <a class="secondary update-history-link" href="https://github.com/scott-e-higgins/phillis-ruby-hub#version-0350" target="_blank" rel="noopener">View complete update history</a>
     </article>
   </section>
 </main>
@@ -285,8 +323,8 @@
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
 <script src="supabase-config.js" defer></script>
-<script src="cloud.js?v=0.34.2" defer></script>
-<script src="cloud-store.js?v=0.34.2" defer></script>
-<script src="app.js?v=0.34.2" defer></script>
+<script src="cloud.js?v=0.35.0" defer></script>
+<script src="cloud-store.js?v=0.35.0" defer></script>
+<script src="app.js?v=0.35.0" defer></script>
 </body>
 </html>

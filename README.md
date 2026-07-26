@@ -13,6 +13,14 @@ Travel Journal is Scott and Kayla's private travel companion.
   read-only calendar subscription remains a fallback if a native companion is
   not pursued.
 
+## Version 0.35.0
+
+- Adds a Journal stats card near the update history.
+- Shows uploaded storage usage, Travel Journal record-data size, current-month
+  AI usage, receipt/document count, and travel/note picture count.
+- Starts AI usage at zero and leaves the display ready for the future receipt
+  reader.
+
 ## Version 0.34.2
 
 - Sizes the installed iPhone app to the full device screen instead of Safari's

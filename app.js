@@ -1,4 +1,4 @@
-const APP_VERSION='0.34.2';
+const APP_VERSION='0.35.0';
 const SEED={"tripSummaries":[],"stays":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"vehicleDetails":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const NO_TRIP_VALUE='__everyday_ruby__';
@@ -179,6 +179,76 @@ function tripProgress(t){
   return {day:Math.max(1,elapsed),length:Math.max(1,length)};
 }
 function daysSince(d){return Math.max(0,Math.floor((TODAY-new Date(d+'T00:00:00'))/86400000))}
+const countPaths=records=>records.reduce((sum,record)=>sum+(Array.isArray(record?.receiptPhotoPaths)?record.receiptPhotoPaths.length:0),0);
+const countSingleReceipts=records=>records.reduce((sum,record)=>sum+((record?.receiptPhotoPath||record?.receiptPhotoUrl)?1:0),0);
+const formatBytes=bytes=>{
+  const value=Math.max(0,Number(bytes)||0);
+  if(value<1024)return `${number(value,0)} B`;
+  if(value<1024*1024)return `${number(value/1024,1)} KB`;
+  if(value<1024*1024*1024)return `${number(value/(1024*1024),1)} MB`;
+  return `${number(value/(1024*1024*1024),2)} GB`;
+};
+function journalRecordBytes(){
+  const json=JSON.stringify(db,(key,value)=>/(?:Photo)?Urls?$/.test(key)?undefined:value);
+  return typeof TextEncoder==='function'?new TextEncoder().encode(json).byteLength:new Blob([json]).size;
+}
+function journalMediaCounts(){
+  const tripPictures=db.tripSummaries.reduce((sum,trip)=>sum+((trip.onRoadPhotoPath||trip.onRoadPhotoUrl)?1:0),0);
+  const stayPictures=db.stays.reduce((sum,stay)=>
+    sum+((stay.sitePhotoPath||stay.sitePhotoUrl)?1:0)+((stay.signPhotoPath||stay.signPhotoUrl)?1:0),0);
+  const notePictures=db.sharedNotes.reduce((sum,note)=>
+    sum+(Array.isArray(note.photoPaths)&&note.photoPaths.length?note.photoPaths.length:(note.photoUrls||[]).length),0);
+  const documents=
+    countSingleReceipts(db.fuel)+
+    countSingleReceipts(db.electric)+
+    countPaths(db.siteFees)+
+    countPaths(db.phillisMaintenance)+
+    countPaths(db.phillisUpgrades)+
+    countPaths(db.rubyMaintenance)+
+    countPaths(db.rubyUpgrades);
+  return {pictures:tripPictures+stayPictures+notePictures,documents};
+}
+let journalStatsRendering=0;
+async function renderJournalStats({refreshStorage=false}={}){
+  if(window.ADVENTURE_HUB_CLOUD?.role==='viewer')return;
+  const card=$('#journalStatsCard');
+  if(!card)return;
+  const request=++journalStatsRendering;
+  const counts=journalMediaCounts();
+  $('#statDatabaseSize').textContent=formatBytes(journalRecordBytes());
+  $('#statDocumentCount').textContent=number(counts.documents,0);
+  $('#statPictureCount').textContent=number(counts.pictures,0);
+  const monthKey=new Date().toISOString().slice(0,7);
+  const monthUsage=db.meta?.aiUsage?.[monthKey]||{};
+  const scans=Number(monthUsage.scans)||0;
+  const cost=Number(monthUsage.cost)||0;
+  $('#statAiUsage').textContent=money(cost);
+  $('#statAiUsageDetail').textContent=`${number(scans,0)} ${scans===1?'scan':'scans'} · ${new Date().toLocaleDateString(undefined,{month:'long',year:'numeric'})}`;
+  const status=$('#journalStatsStatus');
+  const storage=$('#statStorageUsage');
+  const button=$('#refreshJournalStats');
+  if(!window.ADVENTURE_HUB_STORE?.getStorageUsage){
+    storage.textContent='Waiting for cloud…';
+    status.textContent='Storage will appear after cloud syncing finishes.';
+    return;
+  }
+  button?.classList.add('refreshing');
+  storage.textContent='Calculating…';
+  status.textContent='Checking uploaded files…';
+  try{
+    const usage=await window.ADVENTURE_HUB_STORE.getStorageUsage(refreshStorage);
+    if(request!==journalStatsRendering)return;
+    storage.textContent=formatBytes(usage.bytes);
+    status.textContent=`${number(usage.files,0)} uploaded ${usage.files===1?'file':'files'} · updated just now`;
+  }catch(error){
+    console.warn('Journal storage usage could not be calculated.',error);
+    if(request!==journalStatsRendering)return;
+    storage.textContent='Unavailable';
+    status.textContent='The other Journal totals are current.';
+  }finally{
+    if(request===journalStatsRendering)button?.classList.remove('refreshing');
+  }
+}
 function go(view){
   if(view==='notes'&&window.ADVENTURE_HUB_CLOUD?.role==='viewer')view='home';
   $$('.view').forEach(v=>v.classList.toggle('active',v.id===view));
@@ -189,8 +259,10 @@ function go(view){
   if(view==='home') renderHome();
   if(view==='trips') renderTrips();
   if(view==='notes') renderNotes();
+  if(view==='more') renderJournalStats();
 }
 $$('[data-view]').forEach(b=>b.addEventListener('click',()=>go(b.dataset.view)));
+$('#refreshJournalStats').onclick=()=>renderJournalStats({refreshStorage:true});
 
 function renderVehicleDetails(){
   const details=new Map((db.vehicleDetails||[]).map(vehicle=>[vehicle.name,vehicle]));
@@ -1324,6 +1396,7 @@ async function loadCloudData(){
     if(shouldSaveTrailerAssignments||recoveredLocalChanges)await save();
     localStorage.setItem(KEY,JSON.stringify(db));
     renderHome();renderTrips();renderNotes();renderVehicleDetails();
+    if($('#more')?.classList.contains('active'))renderJournalStats();
     if(status&&window.ADVENTURE_HUB_CLOUD)status.textContent=`Connected as ${window.ADVENTURE_HUB_CLOUD.user.email} · Higgins Hub · Cloud sync is on · v${APP_VERSION}`;
     return true;
   }catch(error){

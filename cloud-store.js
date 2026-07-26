@@ -15,6 +15,7 @@
     const tripPhotoBucket = client.storage.from('trip-photos');
     const notePhotoBucket = client.storage.from('note-photos');
     const receiptBucket = client.storage.from('record-receipts');
+    let storageUsageCache = null;
 
     async function signedPhotoUrl(bucket, path) {
       if (!path) return '';
@@ -99,6 +100,42 @@
       } catch {
         return fallback();
       }
+    }
+
+    async function getStorageUsage(force = false) {
+      const cacheAge = storageUsageCache ? Date.now() - storageUsageCache.checkedAt : Infinity;
+      if (!force && cacheAge < 5 * 60 * 1000) return storageUsageCache;
+      const bucketNames = ['stay-photos', 'trip-photos', 'note-photos', 'record-receipts'];
+      let bytes = 0;
+      let files = 0;
+
+      for (const bucketName of bucketNames) {
+        const bucket = client.storage.from(bucketName);
+        const folders = [householdId];
+        const visited = new Set();
+        while (folders.length) {
+          const folder = folders.shift();
+          if (!folder || visited.has(folder)) continue;
+          visited.add(folder);
+          const result = await bucket.list(folder, {
+            limit: 1000,
+            sortBy: { column: 'name', order: 'asc' }
+          });
+          if (result.error) throw result.error;
+          for (const entry of result.data || []) {
+            const path = `${folder}/${entry.name}`;
+            if (entry.id || entry.metadata) {
+              bytes += Number(entry.metadata?.size) || 0;
+              files += 1;
+            } else {
+              folders.push(path);
+            }
+          }
+        }
+      }
+
+      storageUsageCache = { bytes, files, checkedAt: Date.now() };
+      return storageUsageCache;
     }
 
     async function setStayPhoto(stay, kind, file) {
@@ -827,7 +864,8 @@
       deleteNotePhotos,
       setRecordReceipt,
       deleteRecordReceipt,
-      setMultiRecordReceipts
+      setMultiRecordReceipts,
+      getStorageUsage
     };
   }
 
