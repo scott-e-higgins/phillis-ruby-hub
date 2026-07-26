@@ -542,6 +542,10 @@ button.plan-listing-card:hover{border-color:#78927f;background:linear-gradient(1
   .trip-hero-photo{width:min(280px,78%)}
   .trip-hero-photo img{height:150px}
 }
+
+@media(max-width:420px){
+  .next-trip-glance{aspect-ratio:auto;min-height:124px}
+}
 @media(max-width:430px){
   .dialog-title-row{gap:7px}
   .trip-detail-photo{width:104px;flex-basis:104px}
