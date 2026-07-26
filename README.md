@@ -13,6 +13,12 @@ Travel Journal is Scott and Kayla's private travel companion.
   read-only calendar subscription remains a fallback if a native companion is
   not pursued.
 
+## Version 0.35.1
+
+- Shows storage as usage out of the Supabase Free plan's 1 GB allowance.
+- Shows Travel Journal record data out of the 500 MB database allowance.
+- Adds percentage-used bars to both totals.
+
 ## Version 0.35.0
 
 - Adds a Journal stats card near the update history.

@@ -194,9 +194,11 @@ main{max-width:920px;margin:auto;padding:22px 16px 10px}
 .journal-stat-ai{grid-column:1/-1;background:linear-gradient(135deg,#40351f,#332d22);border-color:#665a3d}
 .journal-stat span,.journal-stat small{display:block}
 .journal-stat span{color:#aab6b0;font-size:10px;font-weight:850;letter-spacing:.08em;text-transform:uppercase}
-.journal-stat b{display:block;margin:4px 0 2px;color:#edf4f0;font-size:20px;line-height:1.15}
+.journal-stat b{display:block;margin:4px 0 5px;color:#edf4f0;font-size:18px;line-height:1.2}
 .journal-stat-ai b{color:var(--gold)}
 .journal-stat small{color:var(--muted);font-size:11px;line-height:1.35}
+.journal-stat-meter{width:100%;height:5px;margin:0 0 6px;overflow:hidden;border-radius:999px;background:#18201c}
+.journal-stat-meter i{display:block;width:0;height:100%;border-radius:inherit;background:linear-gradient(90deg,#67a98c,#d8b66a);transition:width .35s var(--ease)}
 .journal-stats-status{min-height:17px;margin:11px 2px 0;color:var(--muted);font-size:11px}
 .file-label{display:inline-flex;align-items:center;cursor:pointer}
 .warning-card{background:#2b251c}

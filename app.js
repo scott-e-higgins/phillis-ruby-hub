@@ -1,4 +1,4 @@
-const APP_VERSION='0.35.0';
+const APP_VERSION='0.35.1';
 const SEED={"tripSummaries":[],"stays":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"vehicleDetails":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const NO_TRIP_VALUE='__everyday_ruby__';
@@ -188,6 +188,14 @@ const formatBytes=bytes=>{
   if(value<1024*1024*1024)return `${number(value/(1024*1024),1)} MB`;
   return `${number(value/(1024*1024*1024),2)} GB`;
 };
+const STORAGE_QUOTA_BYTES=1024*1024*1024;
+const DATABASE_QUOTA_BYTES=500*1024*1024;
+const quotaPercent=(used,limit)=>Math.max(0,Math.min(100,(Number(used)||0)/limit*100));
+const formatQuotaPercent=value=>value===0?'0%':value<.1?`${value.toFixed(2)}%`:value<10?`${value.toFixed(1)}%`:`${number(value,0)}%`;
+function setQuotaMeter(selector,percent){
+  const meter=$(selector);
+  if(meter)meter.style.width=`${percent>0?Math.max(.7,percent):0}%`;
+}
 function journalRecordBytes(){
   const json=JSON.stringify(db,(key,value)=>/(?:Photo)?Urls?$/.test(key)?undefined:value);
   return typeof TextEncoder==='function'?new TextEncoder().encode(json).byteLength:new Blob([json]).size;
@@ -215,7 +223,11 @@ async function renderJournalStats({refreshStorage=false}={}){
   if(!card)return;
   const request=++journalStatsRendering;
   const counts=journalMediaCounts();
-  $('#statDatabaseSize').textContent=formatBytes(journalRecordBytes());
+  const databaseBytes=journalRecordBytes();
+  const databasePercent=quotaPercent(databaseBytes,DATABASE_QUOTA_BYTES);
+  $('#statDatabaseSize').textContent=`${formatBytes(databaseBytes)} of 500 MB`;
+  $('#statDatabaseDetail').textContent=`${formatQuotaPercent(databasePercent)} used · Supabase Free`;
+  setQuotaMeter('#statDatabaseMeter',databasePercent);
   $('#statDocumentCount').textContent=number(counts.documents,0);
   $('#statPictureCount').textContent=number(counts.pictures,0);
   const monthKey=new Date().toISOString().slice(0,7);
@@ -238,7 +250,10 @@ async function renderJournalStats({refreshStorage=false}={}){
   try{
     const usage=await window.ADVENTURE_HUB_STORE.getStorageUsage(refreshStorage);
     if(request!==journalStatsRendering)return;
-    storage.textContent=formatBytes(usage.bytes);
+    const storagePercent=quotaPercent(usage.bytes,STORAGE_QUOTA_BYTES);
+    storage.textContent=`${formatBytes(usage.bytes)} of 1 GB`;
+    $('#statStorageDetail').textContent=`${formatQuotaPercent(storagePercent)} used · ${number(usage.files,0)} ${usage.files===1?'file':'files'}`;
+    setQuotaMeter('#statStorageMeter',storagePercent);
     status.textContent=`${number(usage.files,0)} uploaded ${usage.files===1?'file':'files'} · updated just now`;
   }catch(error){
     console.warn('Journal storage usage could not be calculated.',error);
