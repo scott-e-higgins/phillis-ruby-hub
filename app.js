@@ -1,4 +1,4 @@
-const APP_VERSION='0.43.3';
+const APP_VERSION='0.44.0';
 const SEED={"tripSummaries":[],"stays":[],"tripPlans":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"vehicleDetails":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const NO_TRIP_VALUE='__everyday_ruby__';
@@ -820,6 +820,167 @@ function showFuelRecord(index,returnTripIndex=null){
   };
   if(!$('#detailDialog').open)$('#detailDialog').showModal();
 }
+function seasonDocumentTypeLabel(type){
+  return type==='welcome_letter'?'Welcome letter':type==='registration_forms'?'Registration forms':'Seasonal document';
+}
+function seasonDocumentCards(season){
+  const documents=season.seasonDocuments||[];
+  return documents.map((document,index)=>{
+    const files=document.documentFiles||[];
+    const image=files.find(file=>/^image\//i.test(file.mimeType||'')&&file.url);
+    const hasPdf=files.some(file=>file.mimeType==='application/pdf'||/\.pdf$/i.test(file.originalFilename||''));
+    const preview=image
+      ?`<img src="${escapeHtml(image.url)}" alt="">`
+      :`<span class="season-document-file-icon">${hasPdf?'PDF':'▤'}</span>`;
+    return `<button class="record-item record-link season-document-card" type="button" data-season-document-index="${index}"><span class="season-document-thumb">${preview}</span><div class="item-copy"><h3>${escapeHtml(document.documentTitle||seasonDocumentTypeLabel(document.documentType))}</h3><p>${seasonDocumentTypeLabel(document.documentType)} · ${files.length} ${files.length===1?'file':'files'}${document.documentDate?' · '+date(document.documentDate):''}</p></div><span class="record-chevron">›</span></button>`;
+  }).join('')||'<div class="empty">No seasonal documents saved yet.</div>';
+}
+function showSeasonDocument(seasonIndex,documentIndex){
+  const season=db.stays?.[seasonIndex];
+  const document=season?.seasonDocuments?.[documentIndex];
+  if(!season||!document)return;
+  const files=document.documentFiles||[];
+  setDetailHeader(`${season.year} SEASONAL DOCUMENT`,document.documentTitle||seasonDocumentTypeLabel(document.documentType));
+  $('#detailBody').innerHTML=`<div class="detail-section"><div class="detail-row"><span>Type</span><span>${escapeHtml(seasonDocumentTypeLabel(document.documentType))}</span></div>${document.documentDate?`<div class="detail-row"><span>Document date</span><span>${date(document.documentDate)}</span></div>`:''}<div class="season-document-detail-files">${files.map((file,index)=>{
+    const isPdf=file.mimeType==='application/pdf'||/\.pdf$/i.test(file.originalFilename||'');
+    return isPdf
+      ?`<a class="plan-pdf-link" href="${escapeHtml(file.url||'#')}" target="_blank" rel="noopener"><span class="plan-pdf-icon">PDF</span><span><b>${escapeHtml(file.originalFilename||`Document ${index+1}`)}</b><small>${file.fileSizeBytes?`${number(file.fileSizeBytes/1024,0)} KB · `:''}Open PDF</small></span><span aria-hidden="true">↗</span></a>`
+      :file.url
+        ?`<button class="season-document-detail-image" type="button" data-photo-url="${escapeHtml(file.url)}" data-photo-label="${escapeHtml(document.documentTitle||`Seasonal document page ${index+1}`)}"><img src="${escapeHtml(file.url)}" alt="${escapeHtml(`Page ${index+1}`)}"><span>Page ${index+1}</span></button>`
+        :'<div class="empty">This file cannot be previewed.</div>';
+  }).join('')}</div></div>${viewer?'':`<div class="trip-delete-area"><button class="delete-link" id="deleteSeasonDocument">Delete document</button></div>`}`;
+  bindStayPhotoButtons($('#detailBody'));
+  if(!viewer)$('#deleteSeasonDocument').onclick=async()=>{
+    if(!confirm(`Delete “${document.documentTitle||'this seasonal document'}”?`))return;
+    const button=$('#deleteSeasonDocument');
+    button.disabled=true;
+    try{
+      await window.ADVENTURE_HUB_STORE.deleteSeasonDocument(season,document.documentId);
+      $('#detailDialog').close();
+      showPanel('lehigh');
+      renderJournalStats();
+    }catch(error){
+      button.disabled=false;
+      alert(`The document could not be deleted.\n\n${error.message||error}`);
+    }
+  };
+  $('#detailDialog').showModal();
+}
+let seasonDocumentDraft={seasonIndex:null,items:[]};
+function clearSeasonDocumentDraft(){
+  seasonDocumentDraft.items.forEach(item=>item.url&&URL.revokeObjectURL(item.url));
+  seasonDocumentDraft={seasonIndex:null,items:[]};
+}
+function renderSeasonDocumentDraft(){
+  const host=$('#seasonDocumentFileList');
+  const count=$('#seasonDocumentFileCount');
+  if(!host||!count)return;
+  const items=seasonDocumentDraft.items;
+  host.innerHTML=items.length?items.map((item,index)=>{
+    const isPdf=item.file.type==='application/pdf'||/\.pdf$/i.test(item.file.name||'');
+    const preview=isPdf
+      ?`<span class="plan-pdf-link electric-document-editor-preview"><span class="plan-pdf-icon">PDF</span><span><b>${escapeHtml(item.file.name||'Seasonal document.pdf')}</b><small>Ready to upload</small></span></span>`
+      :`<button class="electric-document-editor-image" type="button" data-photo-url="${escapeHtml(item.url)}" data-photo-label="${escapeHtml(`Seasonal document page ${index+1}`)}"><img src="${escapeHtml(item.url)}" alt="${escapeHtml(`Seasonal document page ${index+1}`)}"></button>`;
+    return `<article class="electric-document-editor-item"><span class="electric-document-page-number">${index+1}</span>${preview}<div class="electric-document-editor-copy"><b>${isPdf?'PDF document':`Page ${index+1}`}</b><small>${number(item.file.size/1024,0)} KB · Ready to save</small></div><div class="electric-document-order-actions">${items.length>1?`<button class="secondary" type="button" data-season-document-up="${index}" ${index===0?'disabled':''}>↑</button><button class="secondary" type="button" data-season-document-down="${index}" ${index===items.length-1?'disabled':''}>↓</button>`:''}<button class="delete-link" type="button" data-season-document-remove="${index}">Remove</button></div></article>`;
+  }).join(''):'<div class="note-photo-empty">No pictures or PDFs attached yet.</div>';
+  count.textContent=`${items.length} ${items.length===1?'file':'files'} attached · no set limit`;
+  $$('[data-season-document-up]',host).forEach(button=>button.onclick=()=>moveSeasonDocumentFile(+button.dataset.seasonDocumentUp,-1));
+  $$('[data-season-document-down]',host).forEach(button=>button.onclick=()=>moveSeasonDocumentFile(+button.dataset.seasonDocumentDown,1));
+  $$('[data-season-document-remove]',host).forEach(button=>button.onclick=()=>{
+    const [removed]=seasonDocumentDraft.items.splice(+button.dataset.seasonDocumentRemove,1);
+    if(removed?.url)URL.revokeObjectURL(removed.url);
+    renderSeasonDocumentDraft();
+  });
+  bindStayPhotoButtons(host);
+}
+function moveSeasonDocumentFile(index,direction){
+  const destination=index+direction;
+  if(index<0||destination<0||destination>=seasonDocumentDraft.items.length)return;
+  const [item]=seasonDocumentDraft.items.splice(index,1);
+  seasonDocumentDraft.items.splice(destination,0,item);
+  renderSeasonDocumentDraft();
+}
+function addSeasonDocumentFile(file,metadata={}){
+  if(!file)return;
+  try{Object.defineProperty(file,'higginsDocumentMetadata',{value:{...metadata},configurable:true});}catch{}
+  seasonDocumentDraft.items.push({file,url:URL.createObjectURL(file)});
+  renderSeasonDocumentDraft();
+}
+function openSeasonDocumentEditor(seasonIndex){
+  const season=db.stays?.[seasonIndex];
+  if(!season||season.arrival!=='Season')return;
+  clearSeasonDocumentDraft();
+  seasonDocumentDraft.seasonIndex=seasonIndex;
+  $('#seasonDocumentDialogTitle').textContent=`Add ${season.year} document`;
+  $('#seasonDocumentType').value='welcome_letter';
+  $('#seasonDocumentDate').value='';
+  $('#seasonDocumentTitle').value=`${season.year} welcome letter`;
+  $('#seasonDocumentTitle').dataset.edited='false';
+  $('#seasonDocumentStatus').textContent='Nothing is uploaded until you save.';
+  renderSeasonDocumentDraft();
+  $('#seasonDocumentDialog').showModal();
+}
+$('#seasonDocumentType').addEventListener('change',()=>{
+  const season=db.stays?.[seasonDocumentDraft.seasonIndex];
+  const title=$('#seasonDocumentTitle');
+  if(!season||title.dataset.edited==='true')return;
+  title.value=`${season.year} ${seasonDocumentTypeLabel($('#seasonDocumentType').value).toLowerCase()}`;
+});
+$('#seasonDocumentTitle').addEventListener('input',()=>{$('#seasonDocumentTitle').dataset.edited='true'});
+$('#addSeasonDocumentFile').onclick=()=>{
+  if(!window.HIGGINS_DOCUMENT_SCANNER){
+    alert('The scanner is still loading. Please try again in a moment.');
+    return;
+  }
+  const season=db.stays?.[seasonDocumentDraft.seasonIndex];
+  window.HIGGINS_DOCUMENT_SCANNER.open({
+    title:`${season?.year||''} seasonal document`,
+    useLabel:'Add to document',
+    allowPdfUse:true,
+    onUse:({file,metadata})=>{
+      addSeasonDocumentFile(file,metadata);
+      $('#seasonDocumentStatus').textContent=metadata.preservedOriginal
+        ?'PDF added intact. Add another file or save the document.'
+        :'Page cleaned and prepared locally. Add another page or save the document.';
+      return true;
+    }
+  });
+};
+$('#seasonDocumentForm').addEventListener('submit',async event=>{
+  event.preventDefault();
+  const season=db.stays?.[seasonDocumentDraft.seasonIndex];
+  if(!season)return;
+  if(!seasonDocumentDraft.items.length){
+    alert('Add at least one picture or PDF first.');
+    return;
+  }
+  if(!window.ADVENTURE_HUB_STORE?.saveSeasonDocument){
+    alert('Cloud documents are not ready. Please refresh and try again.');
+    return;
+  }
+  const button=$('#saveSeasonDocument');
+  button.disabled=true;
+  button.textContent='Saving…';
+  $('#seasonDocumentStatus').textContent='Uploading the document securely…';
+  try{
+    await window.ADVENTURE_HUB_STORE.saveSeasonDocument(season,{
+      title:$('#seasonDocumentTitle').value.trim(),
+      documentType:$('#seasonDocumentType').value,
+      documentDate:$('#seasonDocumentDate').value,
+      items:seasonDocumentDraft.items.map(item=>({file:item.file}))
+    });
+    $('#seasonDocumentDialog').close();
+    clearSeasonDocumentDraft();
+    showPanel('lehigh');
+    renderJournalStats();
+  }catch(error){
+    $('#seasonDocumentStatus').textContent='The document was not saved.';
+    alert(`The document could not be saved.\n\n${error.message||error}`);
+  }finally{
+    button.disabled=false;
+    button.textContent='Save document';
+  }
+});
 function showSeasonRecord(index){
   const record=db.stays?.[index]; if(!record||record.arrival!=='Season')return;
   const payments=(db.siteFees||[]).filter(x=>+x.year===+record.year).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
@@ -914,11 +1075,26 @@ function showPanel(page,{toggle=false}={}){
       const year=+season.year;
       const payments=(db.siteFees||[]).filter(x=>+x.year===year).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
       const electric=(db.electric||[]).filter(x=>String(x.date||'').startsWith(String(year))).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+      const seasonalDocuments=season.seasonDocuments||[];
       const paymentTotal=payments.reduce((sum,x)=>sum+(+x.payment||0),0);
       const siteFee=+season.price||paymentTotal;
       const yearElectric=electric.reduce((sum,x)=>sum+(+x.total||0),0);
       const paidDifference=siteFee-paymentTotal;
-      return `<details class="lehigh-year-group" ${position===0?'open':''}><summary class="lehigh-year-card"><div><small>LEHIGH GORGE SEASON</small><h2>${year}</h2><p>Site ${escapeHtml(season.site||'39')} · ${payments.length} ${payments.length===1?'payment':'payments'} · ${electric.length} electric ${electric.length===1?'bill':'bills'}</p></div><div class="lehigh-year-totals"><div><small>Site fee</small><b>${money(siteFee)}</b></div><div><small>Electric</small><b>${money(yearElectric)}</b></div><div><small>Season total</small><b>${money(siteFee+yearElectric)}</b></div><span class="year-chevron">⌄</span></div></summary><div class="lehigh-year-content"><div class="lehigh-section-head"><div><h3>Seasonal fee payments</h3><p>${money(paymentTotal)} paid${Math.abs(paidDifference)>.009?` · ${paidDifference>0?money(paidDifference)+' remaining':money(Math.abs(paidDifference))+' over'}`:''}</p></div><button class="text-button" data-add-site-payment="${year}">Add payment</button></div><div class="stack compact-stack">${payments.map(x=>`<button class="record-item record-link" type="button" data-site-payment-index="${db.siteFees.indexOf(x)}"><div class="item-copy"><h3>${date(x.date)}</h3><p>${x.check?'Check '+escapeHtml(x.check):'Payment'}</p></div><div class="record-value"><b>${money(x.payment)}</b><span class="record-chevron">›</span></div></button>`).join('')||'<div class="empty">No payment details recorded.</div>'}</div><div class="lehigh-section-head electric-head"><div><h3>Electric bills</h3><p>${money(yearElectric)} total</p></div><button class="text-button" data-add-electric-year="${year}">Add bill</button></div><div class="stack compact-stack">${electric.map(x=>`<button class="record-item record-link" type="button" data-electric-index="${db.electric.indexOf(x)}"><div class="item-copy"><h3>${date(x.date)}</h3><p>${number(x.usage,0)} kWh · meter ${x.previous} → ${x.current}${x.check?' · check '+escapeHtml(x.check):''}</p></div><div class="record-value"><b>${money(x.total)}</b><span class="record-chevron">›</span></div></button>`).join('')||'<div class="empty">No electric bills recorded.</div>'}</div><div class="season-actions"><button class="secondary" data-season-index="${db.stays.indexOf(season)}">Edit season details</button></div></div></details>`;
+      return `<details class="lehigh-year-group" ${position===0?'open':''}>
+        <summary class="lehigh-year-card">
+          <div><small>LEHIGH GORGE SEASON</small><h2>${year}</h2><p>Site ${escapeHtml(season.site||'39')} · ${payments.length} ${payments.length===1?'payment':'payments'} · ${electric.length} electric ${electric.length===1?'bill':'bills'} · ${seasonalDocuments.length} ${seasonalDocuments.length===1?'document':'documents'}</p></div>
+          <div class="lehigh-year-totals"><div><small>Site fee</small><b>${money(siteFee)}</b></div><div><small>Electric</small><b>${money(yearElectric)}</b></div><div><small>Season total</small><b>${money(siteFee+yearElectric)}</b></div><span class="year-chevron">⌄</span></div>
+        </summary>
+        <div class="lehigh-year-content">
+          <div class="lehigh-section-head"><div><h3>Seasonal fee payments</h3><p>${money(paymentTotal)} paid${Math.abs(paidDifference)>.009?` · ${paidDifference>0?money(paidDifference)+' remaining':money(Math.abs(paidDifference))+' over'}`:''}</p></div><button class="text-button" data-add-site-payment="${year}">Add payment</button></div>
+          <div class="stack compact-stack">${payments.map(x=>`<button class="record-item record-link" type="button" data-site-payment-index="${db.siteFees.indexOf(x)}"><div class="item-copy"><h3>${date(x.date)}</h3><p>${x.check?'Check '+escapeHtml(x.check):'Payment'}</p></div><div class="record-value"><b>${money(x.payment)}</b><span class="record-chevron">›</span></div></button>`).join('')||'<div class="empty">No payment details recorded.</div>'}</div>
+          <div class="lehigh-section-head seasonal-documents-head"><div><h3>Seasonal documents</h3><p>Welcome letter, registration forms &amp; other paperwork</p></div><button class="text-button" data-add-season-document="${db.stays.indexOf(season)}">Add document</button></div>
+          <div class="stack compact-stack">${seasonDocumentCards(season)}</div>
+          <div class="lehigh-section-head electric-head"><div><h3>Electric bills</h3><p>${money(yearElectric)} total</p></div><button class="text-button" data-add-electric-year="${year}">Add bill</button></div>
+          <div class="stack compact-stack">${electric.map(x=>`<button class="record-item record-link" type="button" data-electric-index="${db.electric.indexOf(x)}"><div class="item-copy"><h3>${date(x.date)}</h3><p>${number(x.usage,0)} kWh · meter ${x.previous} → ${x.current}${x.check?' · check '+escapeHtml(x.check):''}</p></div><div class="record-value"><b>${money(x.total)}</b><span class="record-chevron">›</span></div></button>`).join('')||'<div class="empty">No electric bills recorded.</div>'}</div>
+          <div class="season-actions"><button class="secondary" data-season-index="${db.stays.indexOf(season)}">Edit season details</button></div>
+        </div>
+      </details>`;
     }).join('');
     const seasonalSite=seasonal[0]||{};
     const seasonalTitle=seasonalSite.name||'Seasonal site';
@@ -937,6 +1113,11 @@ function showPanel(page,{toggle=false}={}){
   $$('[data-site-payment-index]',target).forEach(button=>button.onclick=()=>showSitePaymentRecord(+button.dataset.sitePaymentIndex));
   $$('[data-add-site-payment]',target).forEach(button=>button.onclick=()=>openEntry('sitepayment',null,+button.dataset.addSitePayment));
   $$('[data-add-electric-year]',target).forEach(button=>button.onclick=()=>openEntry('electric',null,+button.dataset.addElectricYear));
+  $$('[data-add-season-document]',target).forEach(button=>button.onclick=()=>openSeasonDocumentEditor(+button.dataset.addSeasonDocument));
+  $$('[data-season-document-index]',target).forEach(button=>{
+    const season=button.closest('.lehigh-year-content')?.querySelector('[data-add-season-document]');
+    button.onclick=()=>showSeasonDocument(+(season?.dataset.addSeasonDocument||-1),+button.dataset.seasonDocumentIndex);
+  });
 }
 $$('[data-page]').forEach(b=>b.onclick=()=>showPanel(b.dataset.page,{toggle:true}));
 function bindDeletes(){$$('[data-delete]').forEach(b=>b.onclick=()=>{if(confirm('Delete this record?')){const panel=b.closest('[data-page-panel]');db[b.dataset.delete].splice(+b.dataset.index,1);save();if(panel)showPanel(panel.dataset.pagePanel);renderHome()}})}
@@ -1733,8 +1914,8 @@ function openEntry(type,index=null,returnTripIndex=null){
   }
   $('#entryDialog').showModal();
 }
-$$('dialog .close').forEach(b=>b.onclick=()=>{const dialog=b.closest('dialog');dialog.close();if(dialog.id==='entryDialog'){pendingElectricAiApproval=null;clearStayPhotoPreviewUrls();clearNotePhotoEditor();clearMultiReceiptEditor();clearTripPlanPdfEditor();clearElectricDocumentEditor();}});
-$$('dialog').forEach(dialog=>dialog.addEventListener('mousedown',event=>{const box=dialog.getBoundingClientRect();const outside=event.clientX<box.left||event.clientX>box.right||event.clientY<box.top||event.clientY>box.bottom;if(outside){dialog.close();if(dialog.id==='entryDialog'){pendingElectricAiApproval=null;clearStayPhotoPreviewUrls();clearNotePhotoEditor();clearMultiReceiptEditor();clearTripPlanPdfEditor();clearElectricDocumentEditor();}}}));
+$$('dialog .close').forEach(b=>b.onclick=()=>{const dialog=b.closest('dialog');dialog.close();if(dialog.id==='entryDialog'){pendingElectricAiApproval=null;clearStayPhotoPreviewUrls();clearNotePhotoEditor();clearMultiReceiptEditor();clearTripPlanPdfEditor();clearElectricDocumentEditor();}if(dialog.id==='seasonDocumentDialog')clearSeasonDocumentDraft();});
+$$('dialog').forEach(dialog=>dialog.addEventListener('mousedown',event=>{const box=dialog.getBoundingClientRect();const outside=event.clientX<box.left||event.clientX>box.right||event.clientY<box.top||event.clientY>box.bottom;if(outside){dialog.close();if(dialog.id==='entryDialog'){pendingElectricAiApproval=null;clearStayPhotoPreviewUrls();clearNotePhotoEditor();clearMultiReceiptEditor();clearTripPlanPdfEditor();clearElectricDocumentEditor();}if(dialog.id==='seasonDocumentDialog')clearSeasonDocumentDraft();}}));
 $('#tripStayForm').onsubmit=event=>{
   event.preventDefault();
   const prior=tripStayModalIndex===null?{}:tripStayEditorItems[tripStayModalIndex];
