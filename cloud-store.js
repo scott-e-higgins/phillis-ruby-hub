@@ -716,6 +716,7 @@
         title:row.title,
         body:row.body||'',
         pinned:Boolean(row.is_pinned),
+        archived:Boolean(row.is_archived),
         tripId:row.trip_id||null,
         photoPaths:Array.isArray(row.photo_paths)?row.photo_paths:[],
         photoUrls:[],
@@ -911,6 +912,7 @@
         title:x.title,
         body:x.body||null,
         is_pinned:Boolean(x.pinned),
+        is_archived:Boolean(x.archived),
         trip_id:x.tripId||null,
         photo_paths:Array.isArray(x.photoPaths)?x.photoPaths:[],
         updated_at:x.updatedAt||x.createdAt||new Date().toISOString()

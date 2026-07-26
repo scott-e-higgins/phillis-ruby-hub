@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-title" content="Travel Journal">
   <meta name="description" content="The private travel, maintenance and seasonal-site hub for Phillis & Ruby.">
   <title>Phillis & Ruby Travel Journal</title>
-  <link rel="manifest" href="manifest.webmanifest?v=0.36.1">
+  <link rel="manifest" href="manifest.webmanifest?v=0.37.0">
   <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
   <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
   <script>
@@ -21,7 +21,7 @@
       document.documentElement.style.setProperty('--standalone-screen-height', `${window.screen.height}px`);
     }
   </script>
-  <link rel="stylesheet" href="styles.css?v=0.36.1">
+  <link rel="stylesheet" href="styles.css?v=0.37.0">
 </head>
 <body>
 <div id="pullRefresh" class="pull-refresh" aria-live="polite">
@@ -139,6 +139,11 @@
     </div>
     <p class="intro notes-intro">Shared lists, reminders, ideas, and anything else you both want close at hand.</p>
     <div id="noteList" class="note-list"></div>
+    <details id="archivedNotesSection" class="archived-notes-section" hidden>
+      <summary>Archived notes <span id="archivedNoteCount">0</span></summary>
+      <p>Stored safely outside your everyday list. Open any note to restore or edit it.</p>
+      <div id="archivedNoteList" class="note-list"></div>
+    </details>
   </section>
 
   <section id="more" class="view">
@@ -211,9 +216,13 @@
     <article class="card updates-card">
       <div class="updates-heading">
         <div><small>WHAT'S NEW</small><h3>Recent updates</h3></div>
-        <span class="version-badge">v0.36.1</span>
+        <span class="version-badge">v0.37.0</span>
       </div>
       <div class="updates-list">
+        <div>
+          <b>v0.37.0</b>
+          <span>Added recoverable archived notes and moved trip-linked notes above fuel stops.</span>
+        </div>
         <div>
           <b>v0.36.1</b>
           <span>Removed the completed one-time picture cleanup control; new pictures continue to optimize automatically.</span>
@@ -263,7 +272,7 @@
           <span>Fixed the fuel editor’s delete action and removed its incorrect Notes label.</span>
         </div>
       </div>
-      <a class="secondary update-history-link" href="https://github.com/scott-e-higgins/phillis-ruby-hub#version-0361" target="_blank" rel="noopener">View complete update history</a>
+      <a class="secondary update-history-link" href="https://github.com/scott-e-higgins/phillis-ruby-hub#version-0370" target="_blank" rel="noopener">View complete update history</a>
     </article>
   </section>
 </main>
@@ -285,7 +294,7 @@
     <div id="entryFields"></div>
     <label id="entryNotesField"><span id="entryNotesLabel">Notes</span><textarea id="entryNotes" rows="5"></textarea></label>
     <div id="entryExtras"></div>
-    <div class="form-actions"><button type="button" class="delete-link" id="deleteEntryNote" hidden>Delete</button><button class="primary">Save</button><button type="button" class="secondary close">Cancel</button></div>
+    <div class="form-actions"><button type="button" class="secondary archive-note-button" id="archiveEntryNote" hidden>Archive note</button><button type="button" class="delete-link" id="deleteEntryNote" hidden>Delete</button><button class="primary">Save</button><button type="button" class="secondary close">Cancel</button></div>
   </form>
 </dialog>
 
@@ -341,8 +350,8 @@
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
 <script src="supabase-config.js" defer></script>
-<script src="cloud.js?v=0.36.1" defer></script>
-<script src="cloud-store.js?v=0.36.1" defer></script>
-<script src="app.js?v=0.36.1" defer></script>
+<script src="cloud.js?v=0.37.0" defer></script>
+<script src="cloud-store.js?v=0.37.0" defer></script>
+<script src="app.js?v=0.37.0" defer></script>
 </body>
 </html>

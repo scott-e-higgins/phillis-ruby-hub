@@ -1,4 +1,4 @@
-const APP_VERSION='0.36.1';
+const APP_VERSION='0.37.0';
 const SEED={"tripSummaries":[],"stays":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"vehicleDetails":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const NO_TRIP_VALUE='__everyday_ruby__';
@@ -27,6 +27,7 @@ function migrate(x){
   }
   x.sharedNotes.forEach(note=>{
     note.pinned=Boolean(note.pinned);
+    note.archived=Boolean(note.archived);
     note.tripId=note.tripId||null;
     note.photoPaths=Array.isArray(note.photoPaths)?note.photoPaths:[];
     note.photoUrls=Array.isArray(note.photoUrls)?note.photoUrls:[];
@@ -364,9 +365,12 @@ function setupNoteEditor(body=''){
   };
   sync();
 }
-function sortedSharedNotes(){
-  return [...(db.sharedNotes||[])].sort((a,b)=>
-    Number(Boolean(b.pinned))-Number(Boolean(a.pinned))||
+function sortedSharedNotes({includeArchived=false,archivedOnly=false}={}){
+  const notes=[...(db.sharedNotes||[])].filter(note=>
+    archivedOnly?Boolean(note.archived):includeArchived||!note.archived
+  );
+  return notes.sort((a,b)=>
+    Number(Boolean(b.pinned&&!b.archived))-Number(Boolean(a.pinned&&!a.archived))||
     String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||''))
   );
 }
@@ -376,7 +380,7 @@ function noteTrip(note){
 }
 function notesForTrip(trip){
   if(!trip?._cloudId)return [];
-  return sortedSharedNotes().filter(note=>note.tripId===trip._cloudId);
+  return sortedSharedNotes({includeArchived:true}).filter(note=>note.tripId===trip._cloudId);
 }
 function noteCardHtml(note,compact=false){
   const index=db.sharedNotes.indexOf(note);
@@ -392,8 +396,8 @@ function noteCardHtml(note,compact=false){
     ?`<div class="note-checklist-preview">${checklist.slice(0,previewLimit).map(item=>`<span><i class="${item.checked?'checked':''}">${item.checked?'✓':''}</i><b class="${item.checked?'completed':''}">${escapeHtml(item.text)}</b></span>`).join('')}${checklist.length>previewLimit?`<em>+${checklist.length-previewLimit} more</em>`:''}</div>`
     :preview?`<p>${escapeHtml(preview)}</p>`:'<p class="note-empty-copy">No text yet.</p>';
   const linkedTrip=noteTrip(note);
-  const flags=`${note.pinned?'<span class="note-card-pin">◆ PINNED</span>':''}${linkedTrip?`<span class="note-card-trip">◇ ${escapeHtml(linkedTrip.name)}</span>`:''}`;
-  return `<button class="note-card${compact?' home-note-card':''}${note.pinned?' note-card-pinned':''}" type="button" data-note-index="${index}"><div class="note-card-top"><h3>${escapeHtml(note.title||'Untitled note')}</h3><span>Edit ›</span></div>${flags?`<span class="note-card-flags">${flags}</span>`:''}${content}${photoContent}<small>${noteWhen(note.updatedAt||note.createdAt)?`Updated ${noteWhen(note.updatedAt||note.createdAt)}`:'Shared note'}</small></button>`;
+  const flags=`${note.archived?'<span class="note-card-archive">▣ ARCHIVED</span>':''}${note.pinned&&!note.archived?'<span class="note-card-pin">◆ PINNED</span>':''}${linkedTrip?`<span class="note-card-trip">◇ ${escapeHtml(linkedTrip.name)}</span>`:''}`;
+  return `<button class="note-card${compact?' home-note-card':''}${note.pinned&&!note.archived?' note-card-pinned':''}${note.archived?' note-card-archived':''}" type="button" data-note-index="${index}"><div class="note-card-top"><h3>${escapeHtml(note.title||'Untitled note')}</h3><span>Edit ›</span></div>${flags?`<span class="note-card-flags">${flags}</span>`:''}${content}${photoContent}<small>${noteWhen(note.updatedAt||note.createdAt)?`Updated ${noteWhen(note.updatedAt||note.createdAt)}`:'Shared note'}</small></button>`;
 }
 function bindNoteCards(host,returnTripIndex=null){
   $$('[data-note-index]',host).forEach(button=>button.onclick=()=>{
@@ -404,8 +408,18 @@ function bindNoteCards(host,returnTripIndex=null){
 function renderNotes(){
   const host=$('#noteList'); if(!host)return;
   const notes=sortedSharedNotes();
-  host.innerHTML=notes.map(note=>noteCardHtml(note)).join('')||'<div class="empty">No shared notes yet. Add your first list, reminder, or idea.</div>';
+  host.innerHTML=notes.map(note=>noteCardHtml(note)).join('')||'<div class="empty">No active notes. Add a new note or restore one from the archive.</div>';
   bindNoteCards(host);
+  const archived=sortedSharedNotes({archivedOnly:true});
+  const archiveSection=$('#archivedNotesSection');
+  const archiveHost=$('#archivedNoteList');
+  const archiveCount=$('#archivedNoteCount');
+  if(archiveSection&&archiveHost&&archiveCount){
+    archiveSection.hidden=!archived.length;
+    archiveCount.textContent=archived.length;
+    archiveHost.innerHTML=archived.map(note=>noteCardHtml(note)).join('');
+    bindNoteCards(archiveHost);
+  }
   bindOpeners();
 }
 
@@ -570,7 +584,7 @@ function showTrip(index){
     $('#detailDialog').showModal();
     return;
   }
-  $('#detailBody').innerHTML=`<div class="record-detail-actions"><button class="primary" id="editTripButton">Edit trip</button></div><div class="detail-section trip-totals-section"><h3>Trip totals</h3><div class="trip-totals-compact"><div><small>Stay cost</small><b>${money(stayCost)}</b></div><div><small>Fuel cost</small><b>${money(fuelCost)}</b></div><div><small>Miles</small><b>${number(t.distance,1)}</b></div><div><small>MPG</small><b>${number(t.mpg,2)}</b></div></div></div><div class="detail-section"><h3>Campgrounds & hosts</h3><div class="stay-listing-stack">${stays.map(x=>stayListing(x)).join('')||'<p class="intro">No campground stays linked yet.</p>'}</div></div><div class="detail-section"><div class="detail-section-head"><h3>Fuel stops</h3><button class="text-button" id="addTripFuelButton">Add fuel</button></div>${fuel.map(x=>`<button class="detail-row editable-detail-row trip-fuel-record record-link" type="button" data-trip-fuel-record-index="${db.fuel.indexOf(x)}"><span><b>${escapeHtml(x.station||'Fuel stop')}</b><br><small>${date(x.date)}${fuelLocation(x)?` · ${escapeHtml(fuelLocation(x))}`:''} · ${escapeHtml(x.vehicle||t.towVehicle||'')} · ${x.fuelType==='diesel'?'Diesel':'Gasoline'} · ${number(x.gallons,2)} gal</small></span><span class="trip-fuel-record-end"><b>${money(x.total)}</b><span class="record-chevron">›</span></span></button>`).join('')||'<p class="intro">No fuel stops linked yet.</p>'}</div><div class="detail-section trip-linked-notes-section"><div class="detail-section-head"><h3>Linked notes</h3><button class="text-button" id="addTripNoteButton">Add note</button></div><div class="trip-linked-notes">${linkedNotes.map(note=>noteCardHtml(note,true)).join('')||'<p class="intro">No notes linked to this trip yet.</p>'}</div></div>${t.notes?`<div class="detail-section"><h3>Trip description</h3><p>${escapeHtml(t.notes)}</p></div>`:''}<div class="trip-delete-area"><button class="delete-link" id="deleteTripButton">Delete trip</button></div>`;
+  $('#detailBody').innerHTML=`<div class="record-detail-actions"><button class="primary" id="editTripButton">Edit trip</button></div><div class="detail-section trip-totals-section"><h3>Trip totals</h3><div class="trip-totals-compact"><div><small>Stay cost</small><b>${money(stayCost)}</b></div><div><small>Fuel cost</small><b>${money(fuelCost)}</b></div><div><small>Miles</small><b>${number(t.distance,1)}</b></div><div><small>MPG</small><b>${number(t.mpg,2)}</b></div></div></div><div class="detail-section"><h3>Campgrounds & hosts</h3><div class="stay-listing-stack">${stays.map(x=>stayListing(x)).join('')||'<p class="intro">No campground stays linked yet.</p>'}</div></div><div class="detail-section trip-linked-notes-section"><div class="detail-section-head"><h3>Linked notes</h3><button class="text-button" id="addTripNoteButton">Add note</button></div><div class="trip-linked-notes">${linkedNotes.map(note=>noteCardHtml(note,true)).join('')||'<p class="intro">No notes linked to this trip yet.</p>'}</div></div><div class="detail-section"><div class="detail-section-head"><h3>Fuel stops</h3><button class="text-button" id="addTripFuelButton">Add fuel</button></div>${fuel.map(x=>`<button class="detail-row editable-detail-row trip-fuel-record record-link" type="button" data-trip-fuel-record-index="${db.fuel.indexOf(x)}"><span><b>${escapeHtml(x.station||'Fuel stop')}</b><br><small>${date(x.date)}${fuelLocation(x)?` · ${escapeHtml(fuelLocation(x))}`:''} · ${escapeHtml(x.vehicle||t.towVehicle||'')} · ${x.fuelType==='diesel'?'Diesel':'Gasoline'} · ${number(x.gallons,2)} gal</small></span><span class="trip-fuel-record-end"><b>${money(x.total)}</b><span class="record-chevron">›</span></span></button>`).join('')||'<p class="intro">No fuel stops linked yet.</p>'}</div>${t.notes?`<div class="detail-section"><h3>Trip description</h3><p>${escapeHtml(t.notes)}</p></div>`:''}<div class="trip-delete-area"><button class="delete-link" id="deleteTripButton">Delete trip</button></div>`;
   $('#editTripButton').onclick=()=>{$('#detailDialog').close();openEntry('trip',index)};
   $('#addTripFuelButton').onclick=()=>{$('#detailDialog').close();openEntry('fuel',null,index)};
   $('#addTripNoteButton').onclick=()=>{$('#detailDialog').close();openEntry('hub-note',null,index)};
@@ -1065,6 +1079,11 @@ function openEntry(type,index=null,returnTripIndex=null){
   deleteEntry.disabled=false;
   deleteEntry.textContent='Delete';
   deleteEntry.onclick=null;
+  const archiveEntry=$('#archiveEntryNote');
+  archiveEntry.hidden=true;
+  archiveEntry.disabled=false;
+  archiveEntry.textContent='Archive note';
+  archiveEntry.onclick=null;
   const today=new Date().toISOString().slice(0,10), d=$('#date')||$('#arrival')||$('#startDate'); if(d)d.value=today; if(type==='trip')$('#endDate').value=$('#startDate').value;
   if(type==='hub-note'){
     const note=index===null?null:db.sharedNotes?.[index];
@@ -1073,6 +1092,29 @@ function openEntry(type,index=null,returnTripIndex=null){
     setupNoteEditor(note?.body||'');
     bindNotePhotoEditor(note||{});
     if(note){
+      archiveEntry.textContent=note.archived?'Restore note':'Archive note';
+      archiveEntry.hidden=false;
+      archiveEntry.onclick=async()=>{
+        archiveEntry.disabled=true;
+        const priorArchived=Boolean(note.archived);
+        const priorUpdatedAt=note.updatedAt;
+        note.archived=!priorArchived;
+        note.updatedAt=new Date().toISOString();
+        try{
+          await save();
+          clearNotePhotoEditor();
+          $('#entryDialog').close();
+          renderHome();
+          renderNotes();
+          if(returnTripIndex!==null)showTrip(returnTripIndex);
+        }catch(error){
+          note.archived=priorArchived;
+          note.updatedAt=priorUpdatedAt;
+          console.error(error);
+          alert(`The note could not be ${priorArchived?'restored':'archived'}.\n\n${error.message}`);
+          archiveEntry.disabled=false;
+        }
+      };
       deleteEntry.textContent='Delete note';
       deleteEntry.hidden=false;
       deleteEntry.onclick=async()=>{
@@ -1290,6 +1332,7 @@ $('#entryForm').onsubmit=async e=>{
       title:$('#name').value.trim(),
       body:notes,
       pinned:Boolean($('#notePinned')?.checked),
+      archived:Boolean(prior?.archived),
       tripId:$('#noteTripId')?.value||null,
       photoPaths:[...(prior?.photoPaths||[])],
       photoUrls:[...(prior?.photoUrls||[])],

@@ -13,6 +13,14 @@ Travel Journal is Scott and Kayla's private travel companion.
   read-only calendar subscription remains a fallback if a native companion is
   not pursued.
 
+## Version 0.37.0
+
+- Adds a reversible Archive/Restore option to shared notes.
+- Removes archived notes from Home and the everyday Notes list.
+- Keeps archived notes available in a separate collapsible archive.
+- Continues showing archived notes inside any trip to which they are linked.
+- Moves linked notes between Campgrounds & hosts and Fuel stops in trip details.
+
 ## Version 0.36.1
 
 - Removes the completed one-time stored-picture optimizer from the More page.
