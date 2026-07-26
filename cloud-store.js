@@ -6,6 +6,19 @@
     if (result.error) throw result.error;
     return result.data || [];
   };
+  const hubDocumentFields = row => ({
+    documentId: row?.id || '',
+    documentTitle: row?.display_title || '',
+    documentStatus: row?.processing_status || '',
+    documentAiStatus: row?.ai_processing_status || 'not_requested',
+    documentExtractedText: row?.extracted_text || '',
+    documentExtractedData: row?.extracted_data || {},
+    documentUserCorrections: row?.user_corrections || {},
+    documentReviewFields: Array.isArray(row?.review_fields) ? row.review_fields : [],
+    documentConfidence: num(row?.confidence),
+    documentProcessingCost: num(row?.processing_cost_usd) || 0,
+    documentUploadedAt: row?.uploaded_at || row?.created_at || ''
+  });
 
   function createStore(cloud) {
     const { client, householdId, role } = cloud;
@@ -703,6 +716,43 @@
       });
     }
 
+    async function functionErrorMessage(error) {
+      try {
+        if (error?.context?.json) {
+          const body = await error.context.json();
+          if (body?.error) return body.error;
+        }
+      } catch {}
+      return error?.message || 'The secure document reader could not be reached.';
+    }
+
+    async function extractHubDocument(documentId) {
+      if (role === 'viewer') throw new Error('Family Viewer accounts cannot process private documents.');
+      if (!documentId) throw new Error('Save this document before asking AI to read it.');
+      const result = await client.functions.invoke('extract-document', {
+        body: { documentId }
+      });
+      if (result.error) throw new Error(await functionErrorMessage(result.error));
+      return {
+        ...result.data,
+        document: hubDocumentFields(result.data?.document)
+      };
+    }
+
+    async function approveHubDocument(documentId, corrections = {}) {
+      if (role === 'viewer') throw new Error('Family Viewer accounts cannot approve private documents.');
+      if (!documentId) throw new Error('The saved document could not be found.');
+      const result = await client.from('hub_documents').update({
+        user_corrections: corrections,
+        processing_status: 'approved',
+        ai_processing_status: 'complete',
+        review_fields: [],
+        updated_at: new Date().toISOString()
+      }).eq('id', documentId).select('*').single();
+      if (result.error) throw result.error;
+      return hubDocumentFields(result.data);
+    }
+
     async function setTripPlanPdfDocuments(record, changes = {}) {
       if (role === 'viewer') throw new Error('Family Viewer accounts cannot change reservation documents.');
       if (!record?._cloudId) throw new Error('Save this activity before adding its PDFs.');
@@ -1170,9 +1220,7 @@
         return {
           _cloudId: row.id,
           _seasonId: row.season_id,
-          documentId: document?.id || '',
-          documentTitle: document?.display_title || '',
-          documentStatus: document?.processing_status || '',
+          ...hubDocumentFields(document),
           documentFiles: linkedFiles.map(file => ({
             id: file.id,
             documentId: file.document_id,
@@ -1302,6 +1350,15 @@
       });
       await hydrateReceiptUrls(localFuel);
 
+      const aiUsage = documents.reduce((usage, document) => {
+        const month = String(document.updated_at || document.created_at || '').slice(0, 7);
+        if (!month || !Number(document.processing_cost_usd)) return usage;
+        usage[month] ||= { scans: 0, cost: 0 };
+        usage[month].scans += 1;
+        usage[month].cost += Number(document.processing_cost_usd) || 0;
+        return usage;
+      }, {});
+
       return {
         tripSummaries,
         stays: localStays,
@@ -1317,7 +1374,7 @@
           vin: privateVehicleById.get(vehicle.id)?.vin || ''
         })),
         ...maintenanceGroups,
-        meta: { cloud: true }
+        meta: { cloud: true, aiUsage }
       };
     }
 
@@ -1528,6 +1585,8 @@
       setRecordReceipt,
       setElectricBillDocument,
       setElectricBillDocuments,
+      extractHubDocument,
+      approveHubDocument,
       setTripPlanPdfDocument,
       setTripPlanPdfDocuments,
       deleteRecordReceipt,

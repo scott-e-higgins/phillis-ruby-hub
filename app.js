@@ -1,4 +1,4 @@
-const APP_VERSION='0.42.1';
+const APP_VERSION='0.43.0';
 const SEED={"tripSummaries":[],"stays":[],"tripPlans":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"vehicleDetails":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const NO_TRIP_VALUE='__everyday_ruby__';
@@ -734,13 +734,14 @@ function receiptDetailHtml(record,label='Receipt'){
 function electricDocumentDetailHtml(record){
   const files=(record?.documentFiles||[]).filter(file=>file.url);
   if(!files.length)return receiptDetailHtml(record,`${date(record.date)} electric bill`);
-  return `<div class="electric-document-detail"><small>HIGGINS DOCUMENTS</small><div class="electric-document-detail-list">${files.map((file,index)=>{
+  const preview=files.slice(0,3).map((file,index)=>{
     const isPdf=file.mimeType==='application/pdf'||/\.pdf$/i.test(file.originalFilename||'');
-    const label=`${date(record.date)} electric bill · ${isPdf?'PDF':`page ${index+1}`}`;
     return isPdf
-      ?`<a class="plan-pdf-link electric-document-pdf" href="${escapeHtml(file.url)}" target="_blank" rel="noopener"><span class="plan-pdf-icon">PDF</span><span><b>${escapeHtml(file.originalFilename||'Electric bill.pdf')}</b><small>${file.fileSizeBytes?`${number(file.fileSizeBytes/1024,0)} KB · `:''}Open document</small></span><span aria-hidden="true">↗</span></a>`
-      :`<button class="stay-photo-thumb fuel-receipt-thumb electric-document-thumb" type="button" data-photo-url="${escapeHtml(file.url)}" data-photo-label="${escapeHtml(label)}" aria-label="Open document page ${index+1}"><img src="${escapeHtml(file.url)}" alt="${escapeHtml(label)}" loading="lazy"><span>Page ${index+1}</span></button>`;
-  }).join('')}</div></div>`;
+      ?`<span class="electric-document-summary-pdf">PDF</span>`
+      :`<img src="${escapeHtml(file.url)}" alt="" loading="lazy">`;
+  }).join('');
+  const status=record.documentAiStatus==='review'?'AI values ready to review':record.documentAiStatus==='complete'?'AI values reviewed':'Saved privately';
+  return `<div class="electric-document-detail"><small>HIGGINS DOCUMENTS</small><button class="electric-document-summary" id="openElectricDocument" type="button"><span class="electric-document-summary-previews">${preview}</span><span class="electric-document-summary-copy"><b>${escapeHtml(record.documentTitle||'Electric bill document')}</b><small>${files.length} ${files.length===1?'file':'files'} · ${escapeHtml(status)}</small></span><span class="record-chevron">›</span></button></div>`;
 }
 function multiReceiptDetailHtml(record,label='Receipt',heading='RECEIPTS'){
   const urls=Array.isArray(record?.receiptPhotoUrls)?record.receiptPhotoUrls.filter(Boolean):[];
@@ -839,11 +840,44 @@ function showSitePaymentRecord(index){
   $('#deleteSitePaymentRecord').onclick=async()=>{if(!confirm('Delete this seasonal fee payment?'))return;const removed=db.siteFees.splice(index,1)[0];const cloudSaved=await save();if(!cloudSaved){db.siteFees.splice(index,0,removed);return;}if(window.ADVENTURE_HUB_STORE&&hasReceiptPhotos(removed)){try{await window.ADVENTURE_HUB_STORE.deleteRecordReceipt(removed)}catch(error){console.warn('The deleted receipt could not be removed.',error)}}$('#detailDialog').close();renderHome();showPanel('lehigh')};
   $('#detailDialog').showModal();
 }
+let pendingElectricAiApproval=null;
+function useElectricDocumentSuggestions(record,index,result){
+  const fields=result?.fields||{};
+  pendingElectricAiApproval={
+    documentId:record.documentId,
+    corrections:{fields,reviewed_at:new Date().toISOString(),model:result?.model||''}
+  };
+  $('#detailDialog').close();
+  openEntry('electric',index);
+  if(fields.bill_date)$('#date').value=fields.bill_date;
+  if(fields.previous_meter_reading!=null)$('#previous').value=fields.previous_meter_reading;
+  if(fields.current_meter_reading!=null)$('#current').value=fields.current_meter_reading;
+  if(fields.rate!=null)$('#rate').value=fields.rate;
+  if(fields.amount_due!=null)$('#amountDue').value=fields.amount_due;
+  const status=$('#documentScannerAttachStatus');
+  if(status)status.textContent='AI suggestions are loaded. Check the bill values, then tap Save bill to approve them.';
+}
+function openElectricDocumentReview(record,index){
+  if(!window.HIGGINS_DOCUMENT_REVIEW){
+    alert('The document viewer is still loading. Please try again in a moment.');
+    return;
+  }
+  window.HIGGINS_DOCUMENT_REVIEW.open({
+    record,
+    onExtracted:updated=>{
+      Object.assign(record,updated);
+      localStorage.setItem(KEY,JSON.stringify(db));
+      renderJournalStats();
+    },
+    onUse:result=>useElectricDocumentSuggestions(record,index,result)
+  });
+}
 function showElectricRecord(index){
   const record=db.electric?.[index]; if(!record)return;
   setDetailHeader('LEHIGH GORGE ELECTRIC',date(record.date));
   $('#detailBody').innerHTML=`<div class="record-detail-actions"><button class="primary" id="editElectricRecord">Edit reading</button></div><div class="detail-section"><div class="detail-row"><span>Reading date</span><span>${date(record.date)}</span></div><div class="detail-row"><span>Previous meter</span><span>${number(record.previous,0)}</span></div><div class="detail-row"><span>Current meter</span><span>${number(record.current,0)}</span></div><div class="detail-row"><span>Usage</span><span>${number(record.usage,0)} kWh</span></div><div class="detail-row"><span>Rate</span><span>${money(record.unitPrice||0)} / kWh</span></div><div class="detail-row"><span>Total</span><span>${money(record.total||0)}</span></div>${record.paid?`<div class="detail-row"><span>Paid</span><span>${date(record.paid)}</span></div>`:''}${record.check?`<div class="detail-row"><span>Check</span><span>${escapeHtml(record.check)}</span></div>`:''}${record.notes?`<div class="record-notes"><small>NOTES</small><p>${escapeHtml(record.notes)}</p></div>`:''}${electricDocumentDetailHtml(record)}</div><div class="trip-delete-area"><button class="delete-link" id="deleteElectricRecord">Delete reading</button></div>`;
   bindStayPhotoButtons($('#detailBody'));
+  if($('#openElectricDocument'))$('#openElectricDocument').onclick=()=>openElectricDocumentReview(record,index);
   $('#editElectricRecord').onclick=()=>{$('#detailDialog').close();openEntry('electric',index)};
   $('#deleteElectricRecord').onclick=async()=>{if(!confirm('Delete this electric reading?'))return;const removed=db.electric.splice(index,1)[0];const cloudSaved=await save();if(!cloudSaved){db.electric.splice(index,0,removed);return;}if(window.ADVENTURE_HUB_STORE&&(removed.documentId||(removed.documentFiles||[]).length||removed.receiptPhotoPath)){try{await window.ADVENTURE_HUB_STORE.setElectricBillDocuments(removed,{items:[]})}catch(error){console.warn('The deleted electric-bill document could not be removed.',error)}}$('#detailDialog').close();renderHome();showPanel('lehigh')};
   $('#detailDialog').showModal();
@@ -932,7 +966,7 @@ function fields(type){
     return `<div class="two"><label>Date<input id="date" type="date" required></label><label>Trip<select id="tripName" required><option value="${NO_TRIP_VALUE}">${NO_TRIP_LABEL}</option>${options}</select></label></div><p class="field-help fuel-trip-help">Not traveling? Keep “Everyday Ruby.” It stays in Ruby’s fuel history without changing any trip totals.</p><label>Station<input id="station" required></label><div class="two"><label>City<input id="city" autocomplete="address-level2"></label><label>State<select id="state" autocomplete="address-level1">${stateOptions()}</select></label></div><div class="three"><label>Gallons<input id="gallons" type="number" min=".001" step=".001" required></label><label>Total<input id="total" type="number" min="0" step=".01" required></label><label>Fuel type<select id="fuelType" required><option value="diesel">Diesel</option><option value="gasoline">Gasoline</option></select></label></div><div class="two"><label>Trip meter<input id="tripMeter" type="number" min="0" step=".1" required></label><label>Odometer<input id="odometer" type="number" min="0" step=".1"></label></div><div class="fuel-calculations" id="fuelCalculations"><span>MPG <b>—</b></span><span>Price / gallon <b>—</b></span></div>${receiptEditorFields('Optional. Save a private photo of the fuel receipt with this stop.')}`;
   }
   if(type==='stay') return `<div class="two"><label>Arrival<input id="arrival" type="date" required></label><label>Departure<input id="departure" type="date"></label></div><div class="two"><label>Check-in time<input id="checkInTime" type="time" value="12:00"></label><label>Check-out time<input id="checkOutTime" type="time" value="12:00"></label></div><label>Campground<input id="name" required></label><label>Address<input id="address"></label><div class="three"><label>City<input id="city"></label><label>State<select id="state">${stateOptions()}</select></label><label>ZIP code<input id="zip" inputmode="numeric" autocomplete="postal-code" maxlength="10"></label></div><div class="two"><label>Site<input id="site"></label><label>Total cost<input id="total" type="number" step=".01"></label></div><div class="stay-type-options"><label><input id="harvestHost" type="checkbox"> Harvest Host</label><label><input id="moochdocking" type="checkbox"> Moochdocking</label><label><input id="boondocking" type="checkbox"> Boondocking</label></div><section class="stay-photo-editors"><div class="stay-photo-editors-heading"><b>Stay photos</b><p>Add these from Kayla’s photo library now or come back later.</p></div>${stayPhotoEditorSlot('site','Campsite','The campsite photo you take at nearly every stop.')}${stayPhotoEditorSlot('sign','Sign','The entrance, campground, winery, farm, or host sign.')}</section>`;
-  if(type==='electric') return `<div class="two"><label>Reading date<input id="date" type="date" required></label><label>Paid date<input id="paid" type="date"></label></div><div class="three"><label>Previous meter<input id="previous" type="number" required></label><label>Current meter<input id="current" type="number" required></label><label>Rate / kWh<input id="rate" type="number" step=".001" value=".16"></label></div><label>Check number<input id="check"></label>${documentScannerFields()}`;
+  if(type==='electric') return `<div class="two"><label>Reading date<input id="date" type="date" required></label><label>Paid date<input id="paid" type="date"></label></div><div class="three"><label>Previous meter<input id="previous" type="number" required></label><label>Current meter<input id="current" type="number" required></label><label>Rate / kWh<input id="rate" type="number" step=".001" value=".16"></label></div><div class="two"><label>Amount due<input id="amountDue" type="number" min="0" step=".01"></label><label>Check number<input id="check"></label></div>${documentScannerFields()}`;
   if(type==='sitepayment') return `<div class="three"><label>Season year<input id="year" type="number" value="${new Date().getFullYear()}" required></label><label>Payment date<input id="date" type="date" required></label><label>Amount<input id="payment" type="number" step=".01" required></label></div><label>Check number<input id="check"></label>${multiReceiptFields('Add up to six pictures for this seasonal-fee payment.')}`;
   if(type==='sitefee'){
     const currentSite=db.stays.find(x=>x.arrival==='Season')||{};
@@ -1648,7 +1682,7 @@ function openEntry(type,index=null,returnTripIndex=null){
   }
   if(type==='electric' && index!==null){
     const record=db.electric?.[index];
-    if(record){$('#date').value=record.date||today;$('#paid').value=record.paid||'';$('#previous').value=record.previous??'';$('#current').value=record.current??'';$('#rate').value=record.unitPrice??.16;$('#check').value=record.check||'';$('#entryNotes').value=record.notes||'';}
+    if(record){$('#date').value=record.date||today;$('#paid').value=record.paid||'';$('#previous').value=record.previous??'';$('#current').value=record.current??'';$('#rate').value=record.unitPrice??.16;$('#amountDue').value=record.total??'';$('#check').value=record.check||'';$('#entryNotes').value=record.notes||'';}
   }
   if(type==='sitefee' && index!==null){
     const record=db.stays?.[index];
@@ -1685,8 +1719,8 @@ function openEntry(type,index=null,returnTripIndex=null){
   }
   $('#entryDialog').showModal();
 }
-$$('dialog .close').forEach(b=>b.onclick=()=>{const dialog=b.closest('dialog');dialog.close();if(dialog.id==='entryDialog'){clearStayPhotoPreviewUrls();clearNotePhotoEditor();clearMultiReceiptEditor();clearTripPlanPdfEditor();clearElectricDocumentEditor();}});
-$$('dialog').forEach(dialog=>dialog.addEventListener('mousedown',event=>{const box=dialog.getBoundingClientRect();const outside=event.clientX<box.left||event.clientX>box.right||event.clientY<box.top||event.clientY>box.bottom;if(outside){dialog.close();if(dialog.id==='entryDialog'){clearStayPhotoPreviewUrls();clearNotePhotoEditor();clearMultiReceiptEditor();clearTripPlanPdfEditor();clearElectricDocumentEditor();}}}));
+$$('dialog .close').forEach(b=>b.onclick=()=>{const dialog=b.closest('dialog');dialog.close();if(dialog.id==='entryDialog'){pendingElectricAiApproval=null;clearStayPhotoPreviewUrls();clearNotePhotoEditor();clearMultiReceiptEditor();clearTripPlanPdfEditor();clearElectricDocumentEditor();}});
+$$('dialog').forEach(dialog=>dialog.addEventListener('mousedown',event=>{const box=dialog.getBoundingClientRect();const outside=event.clientX<box.left||event.clientX>box.right||event.clientY<box.top||event.clientY>box.bottom;if(outside){dialog.close();if(dialog.id==='entryDialog'){pendingElectricAiApproval=null;clearStayPhotoPreviewUrls();clearNotePhotoEditor();clearMultiReceiptEditor();clearTripPlanPdfEditor();clearElectricDocumentEditor();}}}));
 $('#tripStayForm').onsubmit=event=>{
   event.preventDefault();
   const prior=tripStayModalIndex===null?{}:tripStayEditorItems[tripStayModalIndex];
@@ -1837,7 +1871,7 @@ $('#entryForm').onsubmit=async e=>{
     savedStay=record;
   }
   else if(type==='sitepayment'){const index=$('#entryIndex').value===''?null:+$('#entryIndex').value,prior=index===null?{}:db.siteFees[index],record={...prior,year:+$('#year').value,date:$('#date').value,payment:+$('#payment').value||0,check:$('#check').value,receiptPhotoPaths:[...(prior.receiptPhotoPaths||[])],receiptPhotoUrls:[...(prior.receiptPhotoUrls||[])],notes};if(index===null)db.siteFees.push(record);else db.siteFees[index]=record;savedMultiReceiptRecord=record;savedMultiReceiptKind='seasonal-payment'}
-  else if(type==='electric'){const p=+$('#previous').value,c=+$('#current').value,r=+$('#rate').value||.16,u=c-p,index=$('#entryIndex').value===''?null:+$('#entryIndex').value,prior=index===null?{}:db.electric[index],record={...prior,date:$('#date').value,previous:p,current:c,usage:u,unitPrice:r,total:u*r,paid:$('#paid').value,check:$('#check').value,receiptPhotoPath:prior.receiptPhotoPath||'',receiptPhotoUrl:prior.receiptPhotoUrl||'',documentId:prior.documentId||'',documentTitle:prior.documentTitle||'',documentStatus:prior.documentStatus||'',documentFiles:[...(prior.documentFiles||[])],notes};if(index===null)db.electric.push(record);else db.electric[index]=record;savedReceiptRecord=record;savedReceiptKind='electric'}
+  else if(type==='electric'){const p=+$('#previous').value,c=+$('#current').value,r=+$('#rate').value||.16,u=c-p,index=$('#entryIndex').value===''?null:+$('#entryIndex').value,prior=index===null?{}:db.electric[index],enteredAmount=$('#amountDue').value===''?null:+$('#amountDue').value,record={...prior,date:$('#date').value,previous:p,current:c,usage:u,unitPrice:r,total:enteredAmount??u*r,paid:$('#paid').value,check:$('#check').value,receiptPhotoPath:prior.receiptPhotoPath||'',receiptPhotoUrl:prior.receiptPhotoUrl||'',documentId:prior.documentId||'',documentTitle:prior.documentTitle||'',documentStatus:prior.documentStatus||'',documentFiles:[...(prior.documentFiles||[])],notes};if(index===null)db.electric.push(record);else db.electric[index]=record;savedReceiptRecord=record;savedReceiptKind='electric'}
   else if(type==='sitefee'){const y=+$('#year').value,total=+$('#total').value||0,index=$('#entryIndex').value===''?null:+$('#entryIndex').value,record={...(index===null?{}:db.stays[index]),year:y,arrival:'Season',departure:'Season',nights:null,name:'Lehigh Gorge Campground',address:$('#address').value,city:$('#city').value,state:$('#state').value,zip:$('#zip').value,site:$('#site').value||'39',price:total,harvestHost:false,notes};if(index===null)db.stays.push(record);else db.stays[index]=record;const annual=(db.siteFees||[]).find(x=>+x.year===y&&x.yearTotal!=null);if(annual)annual.yearTotal=total}
   else {const key=type==='phillis-maint'?'phillisMaintenance':type==='phillis-upgrade'?'phillisUpgrades':type==='ruby-maint'?'rubyMaintenance':'rubyUpgrades',index=$('#entryIndex').value===''?null:+$('#entryIndex').value,prior=index===null?{}:db[key][index],obj={...prior,date:$('#date').value,description:$('#description').value,location:$('#location').value,price:+$('#total').value||0,receiptPhotoPaths:[...(prior.receiptPhotoPaths||[])],receiptPhotoUrls:[...(prior.receiptPhotoUrls||[])],notes,...(type.startsWith('phillis-')?{trailer:$('#trailer').value}:{})};if(index===null)db[key].push(obj);else db[key][index]=obj;savedMultiReceiptRecord=obj;savedMultiReceiptKind='maintenance'}
   const returnTripIndex=$('#entryStayIndex').value===''?null:+$('#entryStayIndex').value;
@@ -1886,6 +1920,20 @@ $('#entryForm').onsubmit=async e=>{
       alert(`The electric reading was saved, but its document could not be updated.\n\n${error.message}`);
     }
   }
+  if(savedReceiptRecord&&savedReceiptKind==='electric'&&pendingElectricAiApproval&&cloudSaved&&window.ADVENTURE_HUB_STORE){
+    try{
+      submitButton.textContent='Approving bill values…';
+      const approved=await window.ADVENTURE_HUB_STORE.approveHubDocument(
+        pendingElectricAiApproval.documentId,
+        pendingElectricAiApproval.corrections
+      );
+      Object.assign(savedReceiptRecord,approved);
+      localStorage.setItem(KEY,JSON.stringify(db));
+    }catch(error){
+      console.error(error);
+      alert(`The electric bill values were saved, but the document review could not be marked complete.\n\n${error.message}`);
+    }
+  }
   if(savedMultiReceiptRecord&&(pendingMultiReceiptChanges.addFiles.length||pendingMultiReceiptChanges.removePaths.length)&&cloudSaved&&window.ADVENTURE_HUB_STORE){
     try{
       submitButton.textContent='Uploading receipts…';
@@ -1923,6 +1971,7 @@ $('#entryForm').onsubmit=async e=>{
   clearMultiReceiptEditor();
   clearTripPlanPdfEditor();
   clearElectricDocumentEditor();
+  pendingElectricAiApproval=null;
   $('#entryDialog').close(); renderHome(); renderTrips(); renderNotes();
   if(type==='fuel' && returnTripIndex===null) showPanel('fuel-history');
   if(type==='phillis-maint') showPanel('phillis-maintenance');

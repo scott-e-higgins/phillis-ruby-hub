@@ -2,6 +2,23 @@
 
 Travel Journal is Scott and Kayla's private travel companion.
 
+## Version 0.43.0
+
+- Opens each saved electric bill in a reusable Higgins Documents viewer with a
+  large preview, page/file rail, PDF support, file details, and processing
+  status.
+- Adds an explicit, paid “Read this bill” action. Capture, cleanup, preview,
+  upload, storage, and ordinary viewing remain local/free of OpenAI calls.
+- Sends private document bytes only through a signed-in Supabase Edge Function;
+  the OpenAI key is never placed in browser code or GitHub.
+- Returns structured bill suggestions with field-level review warnings and
+  requires Scott or Kayla to review and save them before the electric record
+  changes.
+- Records the model, token usage, and estimated cost on the shared document so
+  monthly AI stats can be calculated from Supabase.
+- Adds an editable Amount Due field to preserve the printed bill total when it
+  differs from a simple usage-times-rate calculation.
+
 ## Version 0.42.1
 
 - Makes the four-step scanner indicator follow the actual choose, prepare,

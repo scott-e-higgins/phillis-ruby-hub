@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-title" content="Travel Journal">
   <meta name="description" content="The private travel, maintenance and seasonal-site hub for Phillis & Ruby.">
   <title>Phillis & Ruby Travel Journal</title>
-  <link rel="manifest" href="manifest.webmanifest?v=0.42.1">
+  <link rel="manifest" href="manifest.webmanifest?v=0.43.0">
   <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
   <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
   <script>
@@ -21,7 +21,7 @@
       document.documentElement.style.setProperty('--standalone-screen-height', `${window.screen.height}px`);
     }
   </script>
-  <link rel="stylesheet" href="styles.css?v=0.42.1">
+  <link rel="stylesheet" href="styles.css?v=0.43.0">
 </head>
 <body>
 <div id="pullRefresh" class="pull-refresh" aria-live="polite">
@@ -216,9 +216,13 @@
     <article class="card updates-card">
       <div class="updates-heading">
         <div><small>WHAT'S NEW</small><h3>Recent updates</h3></div>
-        <span class="version-badge">v0.42.1</span>
+        <span class="version-badge">v0.43.0</span>
       </div>
       <div class="updates-list">
+        <div>
+          <b>v0.43.0</b>
+          <span>Added a reusable private document viewer and the secure, review-first AI reader for seasonal electric bills.</span>
+        </div>
         <div>
           <b>v0.42.1</b>
           <span>Polished the shared scanner with clearer progress, simpler page controls, and safer save and removal guidance.</span>
@@ -325,6 +329,29 @@
   <div class="dialog-head"><div class="dialog-title-row"><div class="dialog-title-copy"><small id="detailKicker">DETAILS</small><h2 id="detailTitle"></h2><div id="detailHeaderMeta" class="detail-header-meta"></div></div><div id="detailHeaderMedia" class="detail-header-media"></div></div><button type="button" class="close">×</button></div>
   <div id="detailBody"></div>
 </dialog>
+<dialog id="hubDocumentDialog" class="hub-document-dialog">
+  <div class="dialog-head">
+    <div><small>HIGGINS DOCUMENTS</small><h2 id="hubDocumentTitle">Saved document</h2><p id="hubDocumentMeta" class="hub-document-meta"></p></div>
+    <button type="button" class="close">×</button>
+  </div>
+  <div class="hub-document-layout">
+    <section class="hub-document-viewer">
+      <div id="hubDocumentPreview" class="hub-document-preview"></div>
+      <p id="hubDocumentFileMeta" class="hub-document-file-meta"></p>
+      <div id="hubDocumentFileRail" class="hub-document-file-rail" aria-label="Document pages"></div>
+    </section>
+    <section id="hubDocumentAiPanel" class="hub-document-ai-panel">
+      <div class="hub-document-ai-heading">
+        <div><small>OPTIONAL AI READER</small><h3>Review bill information</h3></div>
+        <span id="hubDocumentAiStatus" class="hub-document-status">Not read yet</span>
+      </div>
+      <p id="hubDocumentAiIntro">AI can suggest the printed bill values. You will review every field before anything is added to the electric record.</p>
+      <button id="hubDocumentAnalyze" class="secondary" type="button">Read this bill</button>
+      <p id="hubDocumentAiMessage" class="hub-document-ai-message" aria-live="polite"></p>
+      <form id="hubDocumentReviewForm" class="hub-document-review-form" hidden></form>
+    </section>
+  </div>
+</dialog>
 <dialog id="documentScannerDialog" class="document-scanner-dialog">
   <div class="dialog-head">
     <div><small>HIGGINS HUB SCANNER</small><h2 id="scannerContext">Electric bill document</h2></div>
@@ -409,9 +436,10 @@
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
 <script src="supabase-config.js" defer></script>
-<script src="cloud.js?v=0.42.1" defer></script>
-<script src="cloud-store.js?v=0.42.1" defer></script>
-<script src="document-scanner.js?v=0.42.1" defer></script>
-<script src="app.js?v=0.42.1" defer></script>
+<script src="cloud.js?v=0.43.0" defer></script>
+<script src="cloud-store.js?v=0.43.0" defer></script>
+<script src="document-scanner.js?v=0.43.0" defer></script>
+<script src="hub-document-review.js?v=0.43.0" defer></script>
+<script src="app.js?v=0.43.0" defer></script>
 </body>
 </html>

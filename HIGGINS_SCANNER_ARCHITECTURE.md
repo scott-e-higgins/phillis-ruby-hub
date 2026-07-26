@@ -181,3 +181,34 @@ Not included:
 
 - AI/OCR calls
 - Expense/payment creation
+
+## Version 0.43.0 document review and AI boundary
+
+The Travel Journal now has a reusable Higgins Documents viewer. It opens the
+same shared document record used by electric bills today and can later be used
+by Finance, Filing Cabinet / File Box, fuel receipts, warranties, and other
+Higgins Hub apps.
+
+The viewer includes:
+
+- A large private image/PDF preview
+- A page and file rail for multi-file documents
+- File name, size, document title, date, and processing status
+- An optional “Read this bill” action
+- Editable structured suggestions and clear low-confidence review flags
+- An explicit handoff into the existing electric-bill editor
+
+The AI reader lives in the Supabase `extract-document` Edge Function. It:
+
+- Requires an authenticated Higgins Hub owner/editor
+- Reads files through existing household-scoped Supabase permissions
+- Retrieves `OPENAI_API_KEY` only from Supabase secrets
+- Uses the OpenAI Responses API with image/PDF inputs and strict structured
+  output
+- Saves extracted text, structured fields, confidence, review fields, model,
+  token use, and estimated cost on the existing `hub_documents` row
+- Never exposes the OpenAI key to the browser or GitHub
+
+AI processing remains opt-in and paid. Local capture, edge cleanup, perspective
+correction, rotation, compression, preview, upload, storage, and ordinary
+document viewing never call OpenAI.
