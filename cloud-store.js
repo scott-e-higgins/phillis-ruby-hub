@@ -476,6 +476,138 @@
       );
     }
 
+    async function saveSeasonDocument(record, details = {}) {
+      if (role === 'viewer') throw new Error('Family Viewer accounts cannot add seasonal documents.');
+      if (!record?._cloudId) throw new Error('Save this season before adding documents.');
+      const items = [...(details.items || [])].filter(item => item?.file);
+      if (!items.length) throw new Error('Add at least one picture or PDF before saving.');
+
+      const userResult = await client.auth.getUser();
+      if (userResult.error) throw userResult.error;
+      const userId = userResult.data?.user?.id;
+      if (!userId) throw new Error('Please sign in again before saving this document.');
+
+      const documentId = uuid();
+      const documentType = details.documentType || 'seasonal_document';
+      const fallbackTitles = {
+        welcome_letter: `${record.year} welcome letter`,
+        registration_forms: `${record.year} registration forms`,
+        seasonal_document: `${record.year} seasonal document`
+      };
+      const displayTitle = String(details.title || fallbackTitles[documentType] || fallbackTitles.seasonal_document).trim();
+      const uploadedFiles = [];
+      let documentCreated = false;
+
+      try {
+        const documentInsert = await client.from('hub_documents').insert({
+          id: documentId,
+          household_id: householdId,
+          display_title: displayTitle,
+          document_type: documentType,
+          document_date: details.documentDate || null,
+          source_app: 'travel-journal',
+          processing_status: 'approved',
+          ai_processing_status: 'not_requested',
+          retention_status: 'keep',
+          created_by: userId,
+          uploaded_at: new Date().toISOString()
+        });
+        if (documentInsert.error) throw documentInsert.error;
+        documentCreated = true;
+
+        const savedFiles = [];
+        for (let position = 0; position < items.length; position += 1) {
+          const file = items[position].file;
+          const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '');
+          if (file.size > 25 * 1024 * 1024) {
+            throw new Error(`${file.name || 'A document'} is larger than the 25 MB per-file limit.`);
+          }
+          const prepared = isPdf
+            ? { blob: file, extension: 'pdf', contentType: 'application/pdf' }
+            : file?.higginsDocumentScan
+              ? { blob: file, extension: 'jpg', contentType: 'image/jpeg' }
+              : await preparePhoto(file);
+          const fileId = uuid();
+          const originalFilename = file.name || `seasonal-document-${position + 1}.${prepared.extension}`;
+          const storagePath = `${householdId}/${documentId}/${fileId}.${prepared.extension}`;
+          const upload = await hubDocumentBucket.upload(storagePath, prepared.blob, {
+            cacheControl: '3600',
+            contentType: prepared.contentType,
+            upsert: false
+          });
+          if (upload.error) throw upload.error;
+          uploadedFiles.push(storagePath);
+
+          const dimensions = file.higginsDocumentMetadata || {};
+          const fileInsert = await client.from('hub_document_files').insert({
+            id: fileId,
+            document_id: documentId,
+            page_number: position + 1,
+            original_filename: originalFilename,
+            mime_type: prepared.contentType,
+            file_size_bytes: Number(prepared.blob.size) || 0,
+            storage_bucket: 'hub-documents',
+            storage_path: storagePath,
+            width: Number(dimensions.width) || null,
+            height: Number(dimensions.height) || null,
+            has_selectable_text: isPdf ? (dimensions.hasSelectableText ?? null) : null,
+            cleanup_metadata: isPdf
+              ? { preserved_as_pdf: true }
+              : file?.higginsDocumentScan
+                ? { cleaned_locally: true, scanner_version: '0.44.0', ...dimensions }
+                : { optimized_locally: true }
+          });
+          if (fileInsert.error) throw fileInsert.error;
+          savedFiles.push({
+            id: fileId,
+            documentId,
+            pageNumber: position + 1,
+            originalFilename,
+            mimeType: prepared.contentType,
+            fileSizeBytes: Number(prepared.blob.size) || 0,
+            storageBucket: 'hub-documents',
+            storagePath,
+            url: await signedPhotoUrl(hubDocumentBucket, storagePath)
+          });
+        }
+
+        const linkInsert = await client.from('hub_document_links').insert({
+          document_id: documentId,
+          source_app: 'travel-journal',
+          record_type: 'site_season',
+          record_id: String(record._cloudId),
+          link_role: 'seasonal_document',
+          is_primary: !(record.seasonDocuments || []).length,
+          created_by: userId
+        });
+        if (linkInsert.error) throw linkInsert.error;
+
+        const savedDocument = {
+          documentId,
+          documentTitle: displayTitle,
+          documentType,
+          documentDate: details.documentDate || '',
+          documentStatus: 'approved',
+          documentUploadedAt: new Date().toISOString(),
+          documentFiles: savedFiles
+        };
+        record.seasonDocuments = [savedDocument, ...(record.seasonDocuments || [])];
+        return savedDocument;
+      } catch (error) {
+        if (documentCreated) await client.from('hub_documents').delete().eq('id', documentId);
+        if (uploadedFiles.length) await hubDocumentBucket.remove(uploadedFiles);
+        throw error;
+      }
+    }
+
+    async function deleteSeasonDocument(record, documentId) {
+      if (role === 'viewer') throw new Error('Family Viewer accounts cannot delete seasonal documents.');
+      if (!record?._cloudId || !documentId) throw new Error('That seasonal document could not be found.');
+      await removeLinkedDocumentsByIds(record, 'site_season', 'seasonal_document', [documentId]);
+      record.seasonDocuments = (record.seasonDocuments || []).filter(document => document.documentId !== documentId);
+      return record;
+    }
+
     async function setElectricBillDocuments(record, changes = {}) {
       if (role === 'viewer') throw new Error('Family Viewer accounts cannot change electric bills.');
       if (!record?._cloudId) throw new Error('Save this electric bill before adding its document.');
@@ -1082,6 +1214,14 @@
           if (!planDocumentLinksByRecordId.has(key)) planDocumentLinksByRecordId.set(key, []);
           planDocumentLinksByRecordId.get(key).push(link);
         });
+      const seasonDocumentLinksByRecordId = new Map();
+      documentLinks
+        .filter(link => link.record_type === 'site_season' && link.link_role === 'seasonal_document')
+        .forEach(link => {
+          const key = String(link.record_id);
+          if (!seasonDocumentLinksByRecordId.has(key)) seasonDocumentLinksByRecordId.set(key, []);
+          seasonDocumentLinksByRecordId.get(key).push(link);
+        });
       const site = sites[0] || {};
       const siteLocation = String(site.location || '');
       const siteLocationParts = siteLocation.split(',').map(x => x.trim());
@@ -1153,6 +1293,27 @@
       await hydrateStayPhotoUrls(localStays);
 
       seasons.forEach(season => {
+        const seasonDocuments = (seasonDocumentLinksByRecordId.get(String(season.id)) || []).map(link => {
+          const document = documentById.get(link.document_id);
+          return {
+            ...hubDocumentFields(document),
+            documentType: document?.document_type || 'seasonal_document',
+            documentDate: document?.document_date || '',
+            documentFiles: (documentFilesById.get(link.document_id) || []).map(file => ({
+              id: file.id,
+              documentId: file.document_id,
+              pageNumber: Number(file.page_number) || 1,
+              originalFilename: file.original_filename || '',
+              mimeType: file.mime_type || '',
+              fileSizeBytes: Number(file.file_size_bytes) || 0,
+              storageBucket: file.storage_bucket || 'hub-documents',
+              storagePath: file.storage_path || '',
+              url: ''
+            }))
+          };
+        }).sort((a, b) =>
+          String(b.documentDate || b.documentUploadedAt || '').localeCompare(String(a.documentDate || a.documentUploadedAt || ''))
+        );
         localStays.push({
           _cloudId: season.id,
           _seasonId: season.id,
@@ -1168,9 +1329,20 @@
           site: site.site_number || '',
           price: num(season.annual_fee) || 0,
           harvestHost: false,
+          seasonDocuments,
           notes: season.notes || ''
         });
       });
+      await Promise.all(localStays
+        .filter(record => record.arrival === 'Season')
+        .flatMap(record => (record.seasonDocuments || []).flatMap(document =>
+          (document.documentFiles || []).map(async file => {
+            const bucket = file.storageBucket === 'hub-documents'
+              ? hubDocumentBucket
+              : client.storage.from(file.storageBucket);
+            file.url = await signedPhotoUrl(bucket, file.storagePath);
+          })
+        )));
 
       const maintenanceGroups = {
         phillisMaintenance: [], phillisUpgrades: [],
@@ -1583,6 +1755,8 @@
       setNotePhotos,
       deleteNotePhotos,
       setRecordReceipt,
+      saveSeasonDocument,
+      deleteSeasonDocument,
       setElectricBillDocument,
       setElectricBillDocuments,
       extractHubDocument,
