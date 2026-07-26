@@ -15,6 +15,7 @@
     const tripPhotoBucket = client.storage.from('trip-photos');
     const notePhotoBucket = client.storage.from('note-photos');
     const receiptBucket = client.storage.from('record-receipts');
+    const hubDocumentBucket = client.storage.from('hub-documents');
     let storageUsageCache = null;
     const photoMaxDimension = 1400;
     const photoQuality = .78;
@@ -104,7 +105,7 @@
     }
 
     async function listStorageFiles() {
-      const bucketNames = ['stay-photos', 'trip-photos', 'note-photos', 'record-receipts'];
+      const bucketNames = ['stay-photos', 'trip-photos', 'note-photos', 'record-receipts', 'hub-documents'];
       const files = [];
 
       for (const bucketName of bucketNames) {
@@ -405,6 +406,197 @@
       return record;
     }
 
+    async function detachElectricBillDocuments(record) {
+      const linked = assert(await client
+        .from('hub_document_links')
+        .select('id, document_id')
+        .eq('source_app', 'travel-journal')
+        .eq('record_type', 'electric_bill')
+        .eq('record_id', String(record._cloudId))
+        .eq('link_role', 'bill_scan'));
+      if (!linked.length) return;
+
+      const documentIds = [...new Set(linked.map(link => link.document_id))];
+      assert(await client.from('hub_document_links').delete().in('id', linked.map(link => link.id)));
+
+      for (const documentId of documentIds) {
+        const remainingLinks = assert(await client
+          .from('hub_document_links')
+          .select('id')
+          .eq('document_id', documentId)
+          .limit(1));
+        if (remainingLinks.length) continue;
+
+        const files = assert(await client
+          .from('hub_document_files')
+          .select('storage_bucket, storage_path')
+          .eq('document_id', documentId));
+        assert(await client.from('hub_documents').delete().eq('id', documentId));
+        for (const [bucketName, paths] of Object.entries(files.reduce((groups, storedFile) => {
+          if (!storedFile.storage_path) return groups;
+          const name = storedFile.storage_bucket || 'hub-documents';
+          (groups[name] ||= []).push(storedFile.storage_path);
+          return groups;
+        }, {}))) {
+          const removed = await client.storage.from(bucketName).remove(paths);
+          if (removed.error) console.warn('An unlinked document file could not be removed.', removed.error);
+        }
+      }
+    }
+
+    async function setElectricBillDocument(record, file) {
+      if (role === 'viewer') throw new Error('Family Viewer accounts cannot change electric bills.');
+      if (!record?._cloudId) throw new Error('Save this electric bill before adding its scan.');
+      const oldLegacyPath = record.receiptPhotoPath || '';
+
+      if (!file) {
+        await detachElectricBillDocuments(record);
+        const update = await client.from('electric_bills').update({ receipt_photo_path: null }).eq('id', record._cloudId);
+        if (update.error) throw update.error;
+        if (oldLegacyPath && !(record.documentFiles || []).some(storedFile =>
+          storedFile.storageBucket === 'record-receipts' && storedFile.storagePath === oldLegacyPath
+        )) {
+          const removed = await receiptBucket.remove([oldLegacyPath]);
+          if (removed.error) console.warn('The old electric-bill image could not be removed.', removed.error);
+        }
+        record.documentId = '';
+        record.documentTitle = '';
+        record.documentStatus = '';
+        record.documentFiles = [];
+        record.receiptPhotoPath = '';
+        record.receiptPhotoUrl = '';
+        return record;
+      }
+
+      const prepared = file?.higginsDocumentScan
+        ? { blob: file, extension: 'jpg', contentType: 'image/jpeg' }
+        : await preparePhoto(file);
+      const userResult = await client.auth.getUser();
+      if (userResult.error) throw userResult.error;
+      const userId = userResult.data?.user?.id;
+      if (!userId) throw new Error('Please sign in again before saving this document.');
+
+      const documentId = uuid();
+      const fileId = uuid();
+      const titleDate = record.date
+        ? new Date(`${record.date}T12:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+        : 'Undated';
+      const displayTitle = `Lehigh Gorge electric bill · ${titleDate}`;
+      const originalFilename = file.name || `electric-bill-${record.date || Date.now()}.${prepared.extension}`;
+      const storagePath = `${householdId}/${documentId}/${fileId}.${prepared.extension}`;
+      let uploaded = false;
+      let documentCreated = false;
+
+      try {
+        const documentInsert = await client.from('hub_documents').insert({
+          id: documentId,
+          household_id: householdId,
+          display_title: displayTitle,
+          document_type: 'electric_bill',
+          document_date: record.date || null,
+          source_app: 'travel-journal',
+          processing_status: 'approved',
+          ai_processing_status: 'not_requested',
+          retention_status: 'keep',
+          created_by: userId,
+          uploaded_at: new Date().toISOString()
+        });
+        if (documentInsert.error) throw documentInsert.error;
+        documentCreated = true;
+
+        const upload = await hubDocumentBucket.upload(storagePath, prepared.blob, {
+          cacheControl: '3600',
+          contentType: prepared.contentType,
+          upsert: false
+        });
+        if (upload.error) throw upload.error;
+        uploaded = true;
+
+        const dimensions = file?.higginsDocumentScan || {};
+        const fileInsert = await client.from('hub_document_files').insert({
+          id: fileId,
+          document_id: documentId,
+          page_number: 1,
+          original_filename: originalFilename,
+          mime_type: prepared.contentType,
+          file_size_bytes: Number(prepared.blob.size) || 0,
+          storage_bucket: 'hub-documents',
+          storage_path: storagePath,
+          width: Number(dimensions.width) || null,
+          height: Number(dimensions.height) || null,
+          cleanup_metadata: file?.higginsDocumentScan
+            ? { cleaned_locally: true, scanner_version: '0.40.0' }
+            : { optimized_locally: true }
+        });
+        if (fileInsert.error) throw fileInsert.error;
+
+        const linkInsert = await client.from('hub_document_links').insert({
+          document_id: documentId,
+          source_app: 'travel-journal',
+          record_type: 'electric_bill',
+          record_id: String(record._cloudId),
+          link_role: 'bill_scan',
+          is_primary: true,
+          created_by: userId
+        });
+        if (linkInsert.error) throw linkInsert.error;
+
+        const update = await client.from('electric_bills').update({ receipt_photo_path: null }).eq('id', record._cloudId);
+        if (update.error) throw update.error;
+
+        const priorDocumentIds = new Set((record.documentFiles || []).map(storedFile => storedFile.documentId).filter(Boolean));
+        if (record.documentId) priorDocumentIds.add(record.documentId);
+        assert(await client.from('hub_document_links')
+          .delete()
+          .eq('source_app', 'travel-journal')
+          .eq('record_type', 'electric_bill')
+          .eq('record_id', String(record._cloudId))
+          .eq('link_role', 'bill_scan')
+          .neq('document_id', documentId));
+        for (const priorDocumentId of priorDocumentIds) {
+          const remainingLinks = assert(await client.from('hub_document_links').select('id').eq('document_id', priorDocumentId).limit(1));
+          if (remainingLinks.length) continue;
+          const priorFiles = assert(await client.from('hub_document_files').select('storage_bucket, storage_path').eq('document_id', priorDocumentId));
+          assert(await client.from('hub_documents').delete().eq('id', priorDocumentId));
+          for (const [bucketName, paths] of Object.entries(priorFiles.reduce((groups, storedFile) => {
+            if (!storedFile.storage_path) return groups;
+            (groups[storedFile.storage_bucket || 'hub-documents'] ||= []).push(storedFile.storage_path);
+            return groups;
+          }, {}))) {
+            const removed = await client.storage.from(bucketName).remove(paths);
+            if (removed.error) console.warn('A replaced document file could not be removed.', removed.error);
+          }
+        }
+        if (oldLegacyPath && !priorDocumentIds.size) {
+          const removed = await receiptBucket.remove([oldLegacyPath]);
+          if (removed.error) console.warn('The replaced legacy bill image could not be removed.', removed.error);
+        }
+
+        const url = await signedPhotoUrl(hubDocumentBucket, storagePath);
+        record.documentId = documentId;
+        record.documentTitle = displayTitle;
+        record.documentStatus = 'approved';
+        record.documentFiles = [{
+          id: fileId,
+          documentId,
+          pageNumber: 1,
+          originalFilename,
+          mimeType: prepared.contentType,
+          fileSizeBytes: Number(prepared.blob.size) || 0,
+          storageBucket: 'hub-documents',
+          storagePath,
+          url
+        }];
+        record.receiptPhotoPath = '';
+        record.receiptPhotoUrl = url;
+        return record;
+      } catch (error) {
+        if (uploaded) await hubDocumentBucket.remove([storagePath]);
+        if (documentCreated) await client.from('hub_documents').delete().eq('id', documentId);
+        throw error;
+      }
+    }
+
     async function deleteRecordReceipt(record) {
       if (role === 'viewer') throw new Error('Family Viewer accounts cannot delete receipts.');
       const paths = [
@@ -573,9 +765,12 @@
         client.from('electric_bills').select('*'),
         client.from('hub_notes').select('*').eq('household_id', householdId),
         client.from('trip_plans').select('*').eq('household_id', householdId),
-        client.from('vehicle_private_details').select('vehicle_id, vin, license_plate').eq('household_id', householdId)
+        client.from('vehicle_private_details').select('vehicle_id, vin, license_plate').eq('household_id', householdId),
+        client.from('hub_documents').select('*').eq('household_id', householdId),
+        client.from('hub_document_files').select('*'),
+        client.from('hub_document_links').select('*').eq('source_app', 'travel-journal')
       ]);
-      const [trips, stays, fuel, vehicles, maintenance, sites, seasons, payments, electric, notes, plans, privateVehicleDetails] = results.map(assert);
+      const [trips, stays, fuel, vehicles, maintenance, sites, seasons, payments, electric, notes, plans, privateVehicleDetails, documents, documentFiles, documentLinks] = results.map(assert);
       known = {
         trips: new Set(trips.map(x => x.id)),
         campground_stays: new Set(stays.map(x => x.id)),
@@ -592,6 +787,19 @@
       const vehicleById = new Map(vehicles.map(x => [x.id, x]));
       const privateVehicleById = new Map(privateVehicleDetails.map(x => [x.vehicle_id, x]));
       const seasonById = new Map(seasons.map(x => [x.id, x]));
+      const documentById = new Map(documents.map(x => [x.id, x]));
+      const documentFilesById = new Map();
+      documentFiles.forEach(file => {
+        if (!documentFilesById.has(file.document_id)) documentFilesById.set(file.document_id, []);
+        documentFilesById.get(file.document_id).push(file);
+      });
+      documentFilesById.forEach(files => files.sort((a, b) => Number(a.page_number) - Number(b.page_number)));
+      const electricDocumentLinkByRecordId = new Map(
+        documentLinks
+          .filter(link => link.record_type === 'electric_bill' && link.link_role === 'bill_scan')
+          .sort((a, b) => Number(Boolean(b.is_primary)) - Number(Boolean(a.is_primary)))
+          .map(link => [String(link.record_id), link])
+      );
       const site = sites[0] || {};
       const siteLocation = String(site.location || '');
       const siteLocationParts = siteLocation.split(',').map(x => x.trim());
@@ -723,10 +931,27 @@
       const localElectric = electricRows.map(row => {
         const previous = priorBySeason.get(row.season_id) ?? num(row.meter_reading);
         const current = num(row.meter_reading) || 0;
+        const documentLink = electricDocumentLinkByRecordId.get(String(row.id));
+        const document = documentLink ? documentById.get(documentLink.document_id) : null;
+        const linkedFiles = document ? (documentFilesById.get(document.id) || []) : [];
         priorBySeason.set(row.season_id, current);
         return {
           _cloudId: row.id,
           _seasonId: row.season_id,
+          documentId: document?.id || '',
+          documentTitle: document?.display_title || '',
+          documentStatus: document?.processing_status || '',
+          documentFiles: linkedFiles.map(file => ({
+            id: file.id,
+            documentId: file.document_id,
+            pageNumber: Number(file.page_number) || 1,
+            originalFilename: file.original_filename || '',
+            mimeType: file.mime_type || '',
+            fileSizeBytes: Number(file.file_size_bytes) || 0,
+            storageBucket: file.storage_bucket || 'hub-documents',
+            storagePath: file.storage_path || '',
+            url: ''
+          })),
           date: row.bill_date,
           previous,
           current,
@@ -740,7 +965,18 @@
           notes: row.notes || ''
         };
       });
-      await hydrateReceiptUrls(localElectric);
+      await Promise.all(localElectric.map(async record => {
+        if (!record.documentFiles.length) return;
+        await Promise.all(record.documentFiles.map(async file => {
+          const bucket = file.storageBucket === 'record-receipts' ? receiptBucket :
+            file.storageBucket === 'hub-documents' ? hubDocumentBucket :
+            client.storage.from(file.storageBucket);
+          file.url = await signedPhotoUrl(bucket, file.storagePath);
+        }));
+        const firstImage = record.documentFiles.find(file => /^image\//i.test(file.mimeType) && file.url);
+        record.receiptPhotoUrl = firstImage?.url || '';
+      }));
+      await hydrateReceiptUrls(localElectric.filter(record => !record.receiptPhotoUrl));
 
       const localNotes = notes.map(row=>({
         _cloudId:row.id,
@@ -1032,6 +1268,7 @@
       setNotePhotos,
       deleteNotePhotos,
       setRecordReceipt,
+      setElectricBillDocument,
       deleteRecordReceipt,
       setMultiRecordReceipts,
       getStorageUsage,

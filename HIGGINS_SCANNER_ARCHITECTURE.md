@@ -22,10 +22,11 @@ database and it does not call a paid AI service.
 
 That structure must remain working while the shared scanner is introduced.
 
-## Smallest clean production schema change
+## Shared document foundation
 
-The next database stage should add four shared tables and three nullable links
-to `electric_bills`. Existing columns remain for backward compatibility.
+The next database stage adds three shared document tables. It does not change
+or remove the existing receipt columns, so the current Travel Journal remains
+fully compatible while records are moved over gradually.
 
 ### `hub_documents`
 
@@ -37,8 +38,6 @@ One row per logical document.
 - `document_type text not null`
 - `document_date date`
 - `source_app text not null`
-- `related_record_type text`
-- `related_record_id uuid`
 - `processing_status text not null default 'draft'`
 - `ai_processing_status text not null default 'not_requested'`
 - `extracted_text text`
@@ -48,7 +47,7 @@ One row per logical document.
 - `confidence numeric`
 - `processing_cost_usd numeric not null default 0`
 - `retention_status text not null default 'keep'`
-- `created_by uuid not null`
+- `created_by uuid` (preserved as null if that login is later removed)
 - `uploaded_at timestamptz`
 - `created_at timestamptz not null default now()`
 - `updated_at timestamptz not null default now()`
@@ -75,62 +74,62 @@ future multi-page camera scans can have one row per page.
 
 Add a unique constraint on `(document_id, page_number)`.
 
-### `hub_expenses`
+### `hub_document_links`
 
-The one financial obligation that Travel and Finance both display.
+A document can be connected to any number of Higgins Hub records without
+duplicating the stored file. Record IDs are stored as text because existing
+Travel Journal tables use a mixture of UUID and integer IDs.
 
 - `id uuid primary key`
-- `household_id uuid not null`
-- `document_id uuid`
-- `expense_date date`
-- `payee text`
-- `category text`
-- `description text`
-- `amount numeric not null`
-- `status text not null default 'unpaid'`
+- `document_id uuid not null`
 - `source_app text not null`
-- `related_record_type text`
-- `related_record_id uuid`
-- `notes text`
-- `created_by uuid not null`
+- `record_type text not null`
+- `record_id text not null`
+- `link_role text not null default 'supporting_document'`
+- `is_primary boolean not null default false`
+- `created_by uuid` (preserved as null if that login is later removed)
 - `created_at timestamptz not null default now()`
-- `updated_at timestamptz not null default now()`
 
-### `hub_payments`
+Add a unique constraint on
+`(document_id, source_app, record_type, record_id, link_role)`.
 
-One expense may have zero, one, or multiple payments.
+Examples:
 
-- `id uuid primary key`
-- `household_id uuid not null`
-- `expense_id uuid not null`
-- `document_id uuid`
-- `payment_status text not null default 'planned'`
-- `amount numeric`
-- `payment_method text`
-- `payment_account text`
-- `check_number text`
-- `mailed_date date`
-- `cleared_date date`
-- `notes text`
-- `created_by uuid not null`
-- `created_at timestamptz not null default now()`
-- `updated_at timestamptz not null default now()`
+- An electric bill can be linked as `travel-journal / electric_bill / <id>`.
+- The same bill can later be linked as `finance / expense / <id>`.
+- Filing Cabinet can display the document from the shared catalog without
+  creating another copy or another link.
 
-### Links from `electric_bills`
+## Future Filing Cabinet / File Box
 
-- `document_id uuid null references hub_documents(id)`
-- `expense_id uuid null references hub_expenses(id)`
-- `payment_id uuid null references hub_payments(id)`
-- `billing_period_start date`
-- `billing_period_end date`
-- `previous_meter_reading numeric`
-- `usage_kwh numeric`
-- `due_date date`
+The Filing Cabinet will be a document-management view over `hub_documents`,
+`hub_document_files`, and `hub_document_links`. Later additions can include:
 
-For newly scanned bills, `hub_expenses.amount` and `hub_payments` are the
-financial source of truth. Existing `electric_bills.amount`, `payment_date`,
-and `check_number` remain readable during migration but should not create
-separate Finance records.
+- Folders and nested folders
+- Tags
+- Favorites
+- Archive and retention rules
+- Full-text and AI-assisted search
+- Expiration reminders for registrations, policies, and warranties
+- Sharing controls
+
+Those features do not require a new upload system or moving existing files.
+
+## Finance stage
+
+`hub_expenses` and `hub_payments` will be added after shared document storage
+is proven with electric bills. They will be linked through
+`hub_document_links`, so Travel Journal and Finance display the same expense,
+payment, and document rather than creating duplicates.
+
+Electric-bill fields planned for the Finance stage remain:
+
+- Billing-period start and end
+- Previous meter reading
+- Usage
+- Due date
+- Expense status and amount
+- Payment status, account, check number, mailed date, and cleared date
 
 ## Storage
 
@@ -159,13 +158,13 @@ Create one private `hub-documents` bucket during the next database stage.
 The Edge Function will hold the OpenAI key as a Supabase secret. The browser
 will never receive that key.
 
-## Version 0.39.0 boundary
+## Version 0.39.3 boundary
 
 Included:
 
 - Phone camera selection
 - Image or PDF selection
-- Raw preview before processing
+- Automatic local cleanup followed by review
 - Local image edge estimation, perspective squaring when confidence is high,
   readability enhancement, resizing, and document-specific compression
 - PDF preview and a best-effort selectable-text check
@@ -179,4 +178,3 @@ Not included:
 - Multi-page camera assembly
 - AI/OCR calls
 - Expense/payment creation
-

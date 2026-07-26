@@ -1,4 +1,4 @@
-const APP_VERSION='0.39.3';
+const APP_VERSION='0.40.0';
 const SEED={"tripSummaries":[],"stays":[],"tripPlans":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"vehicleDetails":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const NO_TRIP_VALUE='__everyday_ruby__';
@@ -720,7 +720,7 @@ function rubyRecordList(items,key,type,page){
 }
 function receiptDetailHtml(record,label='Receipt'){
   if(!record?.receiptPhotoUrl)return '';
-  return `<div class="fuel-receipt-detail"><small>RECEIPT</small><button class="stay-photo-thumb fuel-receipt-thumb" type="button" data-photo-url="${escapeHtml(record.receiptPhotoUrl)}" data-photo-label="${escapeHtml(label)}" aria-label="Open receipt photo"><img src="${escapeHtml(record.receiptPhotoUrl)}" alt="${escapeHtml(label)}" loading="lazy"><span>Receipt</span></button></div>`;
+  return `<div class="fuel-receipt-detail"><small>${record.documentId?'HIGGINS DOCUMENTS':'RECEIPT'}</small><button class="stay-photo-thumb fuel-receipt-thumb" type="button" data-photo-url="${escapeHtml(record.receiptPhotoUrl)}" data-photo-label="${escapeHtml(label)}" aria-label="Open receipt photo"><img src="${escapeHtml(record.receiptPhotoUrl)}" alt="${escapeHtml(label)}" loading="lazy"><span>${record.documentId?'Filed bill':'Receipt'}</span></button></div>`;
 }
 function multiReceiptDetailHtml(record,label='Receipt',heading='RECEIPTS'){
   const urls=Array.isArray(record?.receiptPhotoUrls)?record.receiptPhotoUrls.filter(Boolean):[];
@@ -1631,7 +1631,11 @@ $('#entryForm').onsubmit=async e=>{
   if(savedReceiptRecord&&receiptChange&&cloudSaved&&window.ADVENTURE_HUB_STORE){
     try{
       submitButton.textContent='Uploading receipt…';
-      await window.ADVENTURE_HUB_STORE.setRecordReceipt(savedReceiptRecord,savedReceiptKind,receiptChange.remove?null:receiptChange.file);
+      if(savedReceiptKind==='electric'){
+        await window.ADVENTURE_HUB_STORE.setElectricBillDocument(savedReceiptRecord,receiptChange.remove?null:receiptChange.file);
+      }else{
+        await window.ADVENTURE_HUB_STORE.setRecordReceipt(savedReceiptRecord,savedReceiptKind,receiptChange.remove?null:receiptChange.file);
+      }
       localStorage.setItem(KEY,JSON.stringify(db));
     }catch(error){
       console.error(error);

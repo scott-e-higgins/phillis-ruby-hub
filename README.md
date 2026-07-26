@@ -2,6 +2,17 @@
 
 Travel Journal is Scott and Kayla's private travel companion.
 
+## Version 0.40.0
+
+- Adds the reusable Higgins Documents database foundation for Travel Journal,
+  a future Finance app, and a future Filing Cabinet / File Box.
+- Connects electric-bill attachments to the shared document catalog while
+  preserving the existing receipt image as a safe fallback.
+- Catalogs the existing July 2026 electric-bill scan without copying or moving
+  the stored file.
+- Adds the shared document bucket to storage-usage reporting.
+- Keeps all document cleanup local and makes no paid AI calls.
+
 ## Version 0.39.3
 
 - Simplified scanning to take or choose, automatic cleanup, review, and attach.
