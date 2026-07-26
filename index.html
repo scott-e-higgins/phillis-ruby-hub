@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-title" content="Travel Journal">
   <meta name="description" content="The private travel, maintenance and seasonal-site hub for Phillis & Ruby.">
   <title>Phillis & Ruby Travel Journal</title>
-  <link rel="manifest" href="manifest.webmanifest?v=0.43.3">
+  <link rel="manifest" href="manifest.webmanifest?v=0.44.0">
   <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
   <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
   <script>
@@ -21,7 +21,7 @@
       document.documentElement.style.setProperty('--standalone-screen-height', `${window.screen.height}px`);
     }
   </script>
-  <link rel="stylesheet" href="styles.css?v=0.43.3">
+  <link rel="stylesheet" href="styles.css?v=0.44.0">
 </head>
 <body>
 <div id="pullRefresh" class="pull-refresh" aria-live="polite">
@@ -216,9 +216,13 @@
     <article class="card updates-card">
       <div class="updates-heading">
         <div><small>WHAT'S NEW</small><h3>Recent updates</h3></div>
-        <span class="version-badge">v0.43.3</span>
+        <span class="version-badge">v0.44.0</span>
       </div>
       <div class="updates-list">
+        <div>
+          <b>v0.44.0</b>
+          <span>Adds pictures and PDFs for each Lehigh Gorge season, including welcome letters and registration forms.</span>
+        </div>
         <div>
           <b>v0.43.3</b>
           <span>Calculates electric usage automatically from the previous and current meter readings.</span>
@@ -364,6 +368,40 @@
     </section>
   </div>
 </dialog>
+<dialog id="seasonDocumentDialog" class="season-document-dialog">
+  <form id="seasonDocumentForm">
+    <div class="dialog-head">
+      <div><small>SEASONAL DOCUMENTS</small><h2 id="seasonDocumentDialogTitle">Add document</h2></div>
+      <button type="button" class="close">×</button>
+    </div>
+    <div class="two">
+      <label>Document type
+        <select id="seasonDocumentType">
+          <option value="welcome_letter">Welcome letter</option>
+          <option value="registration_forms">Registration forms</option>
+          <option value="seasonal_document">Other seasonal document</option>
+        </select>
+      </label>
+      <label>Document date<input id="seasonDocumentDate" type="date"></label>
+    </div>
+    <label>Title<input id="seasonDocumentTitle" required></label>
+    <section class="document-scanner-entry season-document-entry">
+      <div class="document-scanner-entry-heading">
+        <div><small>PICTURES &amp; PDFS</small><b>Files in this document</b><p>Take pictures, choose existing images, or add a PDF. Add as many pages as the document needs.</p></div>
+        <button class="secondary" id="addSeasonDocumentFile" type="button">Scan or add file</button>
+      </div>
+      <div id="seasonDocumentFileList" class="electric-document-editor-list"></div>
+      <div class="electric-document-editor-footer">
+        <p id="seasonDocumentStatus">Nothing is uploaded until you save.</p>
+        <small id="seasonDocumentFileCount">0 files attached</small>
+      </div>
+    </section>
+    <div class="form-actions">
+      <button class="primary" id="saveSeasonDocument">Save document</button>
+      <button type="button" class="secondary close">Cancel</button>
+    </div>
+  </form>
+</dialog>
 <dialog id="documentScannerDialog" class="document-scanner-dialog">
   <div class="dialog-head">
     <div><small>HIGGINS HUB SCANNER</small><h2 id="scannerContext">Electric bill document</h2></div>
@@ -448,10 +486,10 @@
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
 <script src="supabase-config.js" defer></script>
-<script src="cloud.js?v=0.43.3" defer></script>
-<script src="cloud-store.js?v=0.43.3" defer></script>
-<script src="document-scanner.js?v=0.43.3" defer></script>
-<script src="hub-document-review.js?v=0.43.3" defer></script>
-<script src="app.js?v=0.43.3" defer></script>
+<script src="cloud.js?v=0.44.0" defer></script>
+<script src="cloud-store.js?v=0.44.0" defer></script>
+<script src="document-scanner.js?v=0.44.0" defer></script>
+<script src="hub-document-review.js?v=0.44.0" defer></script>
+<script src="app.js?v=0.44.0" defer></script>
 </body>
 </html>
