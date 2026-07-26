@@ -1,4 +1,4 @@
-const APP_VERSION='0.36.0';
+const APP_VERSION='0.36.1';
 const SEED={"tripSummaries":[],"stays":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"vehicleDetails":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const NO_TRIP_VALUE='__everyday_ruby__';
@@ -280,35 +280,6 @@ function go(view){
 }
 $$('[data-view]').forEach(b=>b.addEventListener('click',()=>go(b.dataset.view)));
 $('#refreshJournalStats').onclick=()=>renderJournalStats({refreshStorage:true});
-$('#optimizeJournalPhotos').onclick=async()=>{
-  const store=window.ADVENTURE_HUB_STORE;
-  const button=$('#optimizeJournalPhotos');
-  const status=$('#journalStatsStatus');
-  if(!store?.optimizeStoredPhotos){
-    alert('Picture optimization will be ready after cloud syncing finishes.');
-    return;
-  }
-  if(!confirm('Optimize all existing Journal pictures and receipts now? They will stay attached to the same records.'))return;
-  button.disabled=true;
-  button.textContent='Optimizing pictures…';
-  status.textContent='Preparing stored pictures…';
-  try{
-    const result=await store.optimizeStoredPhotos(progress=>{
-      status.textContent=`Optimizing ${number(progress.current,0)} of ${number(progress.total,0)}…`;
-    });
-    await renderJournalStats({refreshStorage:true});
-    const summary=`Optimized ${number(result.optimized,0)} ${result.optimized===1?'picture':'pictures'} · saved ${formatBytes(result.savedBytes)}`;
-    status.textContent=result.failed?`${summary} · ${number(result.failed,0)} could not be changed`:summary;
-    alert(`${summary}.${result.failed?` ${result.failed} could not be changed.`:''}`);
-  }catch(error){
-    console.error('Stored pictures could not be optimized.',error);
-    status.textContent='The stored pictures could not be optimized.';
-    alert(error?.message||'The stored pictures could not be optimized.');
-  }finally{
-    button.disabled=false;
-    button.textContent='Optimize stored pictures';
-  }
-};
 
 function renderVehicleDetails(){
   const details=new Map((db.vehicleDetails||[]).map(vehicle=>[vehicle.name,vehicle]));

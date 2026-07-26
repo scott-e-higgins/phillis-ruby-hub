@@ -13,6 +13,12 @@ Travel Journal is Scott and Kayla's private travel companion.
   read-only calendar subscription remains a fallback if a native companion is
   not pursued.
 
+## Version 0.36.1
+
+- Removes the completed one-time stored-picture optimizer from the More page.
+- Keeps automatic optimization active for every newly added picture and
+  receipt.
+
 ## Version 0.36.0
 
 - Adds cloud-synced pinned notes.
