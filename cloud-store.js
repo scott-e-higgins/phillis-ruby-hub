@@ -406,14 +406,17 @@
       return record;
     }
 
-    async function detachLinkedDocuments(record, recordType, linkRole) {
+    async function removeLinkedDocumentsByIds(record, recordType, linkRole, requestedDocumentIds) {
+      const requested = [...new Set((requestedDocumentIds || []).filter(Boolean))];
+      if (!requested.length) return;
       const linked = assert(await client
         .from('hub_document_links')
         .select('id, document_id')
         .eq('source_app', 'travel-journal')
         .eq('record_type', recordType)
         .eq('record_id', String(record._cloudId))
-        .eq('link_role', linkRole));
+        .eq('link_role', linkRole)
+        .in('document_id', requested));
       if (!linked.length) return;
 
       const documentIds = [...new Set(linked.map(link => link.document_id))];
@@ -442,6 +445,22 @@
           if (removed.error) console.warn('An unlinked document file could not be removed.', removed.error);
         }
       }
+    }
+
+    async function detachLinkedDocuments(record, recordType, linkRole) {
+      const linked = assert(await client
+        .from('hub_document_links')
+        .select('document_id')
+        .eq('source_app', 'travel-journal')
+        .eq('record_type', recordType)
+        .eq('record_id', String(record._cloudId))
+        .eq('link_role', linkRole));
+      await removeLinkedDocumentsByIds(
+        record,
+        recordType,
+        linkRole,
+        linked.map(link => link.document_id)
+      );
     }
 
     async function setElectricBillDocument(record, file) {
@@ -597,127 +616,122 @@
       }
     }
 
-    async function setTripPlanPdfDocument(record, file) {
+    async function setTripPlanPdfDocuments(record, changes = {}) {
       if (role === 'viewer') throw new Error('Family Viewer accounts cannot change reservation documents.');
-      if (!record?._cloudId) throw new Error('Save this activity before adding its PDF.');
+      if (!record?._cloudId) throw new Error('Save this activity before adding its PDFs.');
 
-      if (!file) {
-        await detachLinkedDocuments(record, 'trip_plan', 'supporting_document');
-        record.documentAttachments = [];
-        return record;
+      const addFiles = [...(changes.addFiles || [])];
+      const removeDocumentIds = [...new Set((changes.removeDocumentIds || []).filter(Boolean))];
+      const retained = (record.documentAttachments || []).filter(attachment => !removeDocumentIds.includes(attachment.documentId));
+      if (retained.length + addFiles.length > 6) throw new Error('An activity can have up to six PDF documents.');
+      for (const file of addFiles) {
+        const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '');
+        if (!isPdf) throw new Error('Please choose PDF files only.');
+        if (file.size > 25 * 1024 * 1024) throw new Error(`${file.name || 'A PDF'} is larger than the 25 MB document limit.`);
       }
-
-      const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '');
-      if (!isPdf) throw new Error('Please choose a PDF file.');
-      if (file.size > 25 * 1024 * 1024) throw new Error('That PDF is larger than the 25 MB document limit.');
 
       const userResult = await client.auth.getUser();
       if (userResult.error) throw userResult.error;
       const userId = userResult.data?.user?.id;
       if (!userId) throw new Error('Please sign in again before saving this document.');
 
-      const documentId = uuid();
-      const fileId = uuid();
-      const displayTitle = `${record.title || 'Trip activity'} · confirmation PDF`;
-      const originalFilename = file.name || `trip-activity-${record._cloudId}.pdf`;
-      const storagePath = `${householdId}/${documentId}/${fileId}.pdf`;
-      let uploaded = false;
-      let documentCreated = false;
-
+      const added = [];
       try {
-        const documentInsert = await client.from('hub_documents').insert({
-          id: documentId,
-          household_id: householdId,
-          display_title: displayTitle,
-          document_type: 'trip_activity_document',
-          document_date: record.date || null,
-          source_app: 'travel-journal',
-          processing_status: 'approved',
-          ai_processing_status: 'not_requested',
-          retention_status: 'keep',
-          created_by: userId,
-          uploaded_at: new Date().toISOString()
-        });
-        if (documentInsert.error) throw documentInsert.error;
-        documentCreated = true;
+        for (const file of addFiles) {
+          const documentId = uuid();
+          const fileId = uuid();
+          const displayTitle = `${record.title || 'Trip activity'} · ${file.name || 'confirmation PDF'}`;
+          const originalFilename = file.name || `trip-activity-${record._cloudId}.pdf`;
+          const storagePath = `${householdId}/${documentId}/${fileId}.pdf`;
+          let uploaded = false;
+          let documentCreated = false;
+          try {
+            const documentInsert = await client.from('hub_documents').insert({
+              id: documentId,
+              household_id: householdId,
+              display_title: displayTitle,
+              document_type: 'trip_activity_document',
+              document_date: record.date || null,
+              source_app: 'travel-journal',
+              processing_status: 'approved',
+              ai_processing_status: 'not_requested',
+              retention_status: 'keep',
+              created_by: userId,
+              uploaded_at: new Date().toISOString()
+            });
+            if (documentInsert.error) throw documentInsert.error;
+            documentCreated = true;
 
-        const upload = await hubDocumentBucket.upload(storagePath, file, {
-          cacheControl: '3600',
-          contentType: 'application/pdf',
-          upsert: false
-        });
-        if (upload.error) throw upload.error;
-        uploaded = true;
+            const upload = await hubDocumentBucket.upload(storagePath, file, {
+              cacheControl: '3600',
+              contentType: 'application/pdf',
+              upsert: false
+            });
+            if (upload.error) throw upload.error;
+            uploaded = true;
 
-        const fileInsert = await client.from('hub_document_files').insert({
-          id: fileId,
-          document_id: documentId,
-          page_number: 1,
-          original_filename: originalFilename,
-          mime_type: 'application/pdf',
-          file_size_bytes: Number(file.size) || 0,
-          storage_bucket: 'hub-documents',
-          storage_path: storagePath,
-          cleanup_metadata: { preserved_as_pdf: true }
-        });
-        if (fileInsert.error) throw fileInsert.error;
+            const fileInsert = await client.from('hub_document_files').insert({
+              id: fileId,
+              document_id: documentId,
+              page_number: 1,
+              original_filename: originalFilename,
+              mime_type: 'application/pdf',
+              file_size_bytes: Number(file.size) || 0,
+              storage_bucket: 'hub-documents',
+              storage_path: storagePath,
+              cleanup_metadata: { preserved_as_pdf: true }
+            });
+            if (fileInsert.error) throw fileInsert.error;
 
-        const linkInsert = await client.from('hub_document_links').insert({
-          document_id: documentId,
-          source_app: 'travel-journal',
-          record_type: 'trip_plan',
-          record_id: String(record._cloudId),
-          link_role: 'supporting_document',
-          is_primary: true,
-          created_by: userId
-        });
-        if (linkInsert.error) throw linkInsert.error;
+            const linkInsert = await client.from('hub_document_links').insert({
+              document_id: documentId,
+              source_app: 'travel-journal',
+              record_type: 'trip_plan',
+              record_id: String(record._cloudId),
+              link_role: 'supporting_document',
+              is_primary: retained.length + added.length === 0,
+              created_by: userId
+            });
+            if (linkInsert.error) throw linkInsert.error;
 
-        const previousAttachments = [...(record.documentAttachments || [])];
-        assert(await client.from('hub_document_links')
-          .delete()
-          .eq('source_app', 'travel-journal')
-          .eq('record_type', 'trip_plan')
-          .eq('record_id', String(record._cloudId))
-          .eq('link_role', 'supporting_document')
-          .neq('document_id', documentId));
-
-        for (const attachment of previousAttachments) {
-          if (!attachment.documentId || attachment.documentId === documentId) continue;
-          const remainingLinks = assert(await client.from('hub_document_links').select('id').eq('document_id', attachment.documentId).limit(1));
-          if (remainingLinks.length) continue;
-          const priorFiles = assert(await client.from('hub_document_files').select('storage_bucket, storage_path').eq('document_id', attachment.documentId));
-          assert(await client.from('hub_documents').delete().eq('id', attachment.documentId));
-          for (const [bucketName, paths] of Object.entries(priorFiles.reduce((groups, storedFile) => {
-            if (!storedFile.storage_path) return groups;
-            (groups[storedFile.storage_bucket || 'hub-documents'] ||= []).push(storedFile.storage_path);
-            return groups;
-          }, {}))) {
-            const removed = await client.storage.from(bucketName).remove(paths);
-            if (removed.error) console.warn('A replaced reservation document could not be removed.', removed.error);
+            added.push({
+              documentId,
+              documentTitle: displayTitle,
+              documentStatus: 'approved',
+              fileId,
+              pageNumber: 1,
+              originalFilename,
+              mimeType: 'application/pdf',
+              fileSizeBytes: Number(file.size) || 0,
+              storageBucket: 'hub-documents',
+              storagePath,
+              url: await signedPhotoUrl(hubDocumentBucket, storagePath)
+            });
+          } catch (error) {
+            if (uploaded) await hubDocumentBucket.remove([storagePath]);
+            if (documentCreated) await client.from('hub_documents').delete().eq('id', documentId);
+            throw error;
           }
         }
-
-        const url = await signedPhotoUrl(hubDocumentBucket, storagePath);
-        record.documentAttachments = [{
-          documentId,
-          documentTitle: displayTitle,
-          documentStatus: 'approved',
-          fileId,
-          pageNumber: 1,
-          originalFilename,
-          mimeType: 'application/pdf',
-          fileSizeBytes: Number(file.size) || 0,
-          storageBucket: 'hub-documents',
-          storagePath,
-          url
-        }];
-        return record;
       } catch (error) {
-        if (uploaded) await hubDocumentBucket.remove([storagePath]);
-        if (documentCreated) await client.from('hub_documents').delete().eq('id', documentId);
+        await removeLinkedDocumentsByIds(record, 'trip_plan', 'supporting_document', added.map(attachment => attachment.documentId));
         throw error;
       }
+
+      await removeLinkedDocumentsByIds(record, 'trip_plan', 'supporting_document', removeDocumentIds);
+      record.documentAttachments = [...retained, ...added];
+      return record;
+    }
+
+    async function setTripPlanPdfDocument(record, file) {
+      if (role === 'viewer') throw new Error('Family Viewer accounts cannot change reservation documents.');
+      if (!record?._cloudId) throw new Error('Save this activity before changing its PDFs.');
+      if (!file) {
+        await detachLinkedDocuments(record, 'trip_plan', 'supporting_document');
+        record.documentAttachments = [];
+        return record;
+      }
+      return setTripPlanPdfDocuments(record, { addFiles: [file] });
     }
 
     async function deleteRecordReceipt(record) {
@@ -1427,6 +1441,7 @@
       setRecordReceipt,
       setElectricBillDocument,
       setTripPlanPdfDocument,
+      setTripPlanPdfDocuments,
       deleteRecordReceipt,
       setMultiRecordReceipts,
       getStorageUsage,

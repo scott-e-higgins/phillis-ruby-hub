@@ -2,6 +2,14 @@
 
 Travel Journal is Scott and Kayla's private travel companion.
 
+## Version 0.41.1
+
+- Allows up to six separate PDF documents on one trip activity or reservation.
+- Lets each PDF be opened or removed individually without disturbing the others.
+- Preserves every multi-page PDF intact and keeps existing single-PDF records working.
+- Uses the existing private Higgins Documents storage with no database migration
+  and no paid AI calls.
+
 ## Version 0.41.0
 
 - Adds one private PDF attachment to every trip activity or reservation.

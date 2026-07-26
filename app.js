@@ -1,4 +1,4 @@
-const APP_VERSION='0.41.0';
+const APP_VERSION='0.41.1';
 const SEED={"tripSummaries":[],"stays":[],"tripPlans":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"vehicleDetails":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const NO_TRIP_VALUE='__everyday_ruby__';
@@ -739,7 +739,7 @@ function multiReceiptDetailHtml(record,label='Receipt',heading='RECEIPTS'){
 function pdfDocumentDetailHtml(record){
   const pdfs=(record?.documentAttachments||[]).filter(file=>file.url&&(file.mimeType==='application/pdf'||/\.pdf$/i.test(file.originalFilename||'')));
   if(!pdfs.length)return '';
-  return `<div class="plan-pdf-detail"><small>PDF DOCUMENT</small>${pdfs.map(file=>`<a class="plan-pdf-link" href="${escapeHtml(file.url)}" target="_blank" rel="noopener"><span class="plan-pdf-icon">PDF</span><span><b>${escapeHtml(file.originalFilename||'Reservation document.pdf')}</b><small>${file.fileSizeBytes?`${number(file.fileSizeBytes/1024,0)} KB · `:''}Open document</small></span><span aria-hidden="true">↗</span></a>`).join('')}</div>`;
+  return `<div class="plan-pdf-detail"><small>PDF DOCUMENT${pdfs.length===1?'':'S'}</small>${pdfs.map(file=>`<a class="plan-pdf-link" href="${escapeHtml(file.url)}" target="_blank" rel="noopener"><span class="plan-pdf-icon">PDF</span><span><b>${escapeHtml(file.originalFilename||'Reservation document.pdf')}</b><small>${file.fileSizeBytes?`${number(file.fileSizeBytes/1024,0)} KB · `:''}Open document</small></span><span aria-hidden="true">↗</span></a>`).join('')}</div>`;
 }
 const hasReceiptPhotos=record=>Boolean(record?.receiptPhotoPath||(record?.receiptPhotoPaths||[]).length);
 const hasLinkedDocuments=record=>Boolean((record?.documentAttachments||[]).length);
@@ -895,7 +895,7 @@ function multiReceiptFields(help){
   return `<section class="note-photo-editor seasonal-receipt-editor"><div class="note-photo-editor-heading"><div><b>Receipts and documents</b><p>${help}</p></div><div class="stay-photo-actions"><label class="secondary photo-picker">Take photo<input id="multiReceiptCameraFile" type="file" accept="image/*" capture="environment" hidden></label><label class="secondary photo-picker">Choose pictures<input id="multiReceiptFiles" type="file" accept="image/*" multiple hidden></label></div></div><div id="multiReceiptGrid" class="note-photo-editor-grid"></div><small id="multiReceiptCount">0 of 6 pictures</small></section>`;
 }
 function tripPlanPdfFields(){
-  return `<section class="plan-pdf-editor"><div><b>PDF document</b><p>Attach the original confirmation, ticket, itinerary, or reservation PDF. Multi-page PDFs stay intact.</p></div><div class="plan-pdf-current" id="planPdfCurrent"><span>No PDF attached</span></div><div class="stay-photo-actions"><label class="secondary photo-picker">Choose PDF<input id="planPdfFile" type="file" accept="application/pdf,.pdf" hidden></label><button class="delete-link" id="removePlanPdf" type="button" hidden>Remove PDF</button></div></section>`;
+  return `<section class="plan-pdf-editor"><div><b>PDF documents</b><p>Add up to six confirmations, tickets, itineraries, or reservation PDFs. Multi-page PDFs stay intact.</p></div><div class="plan-pdf-list" id="planPdfList"><span>No PDFs attached</span></div><div class="stay-photo-actions"><label class="secondary photo-picker">Choose PDFs<input id="planPdfFiles" type="file" accept="application/pdf,.pdf" multiple hidden></label></div><small id="planPdfCount">0 of 6 PDFs</small></section>`;
 }
 function notePhotoFields(){
   return `<section class="note-photo-editor"><div class="note-photo-editor-heading"><div><b>Pictures</b><p>Add up to six pictures from your phone.</p></div><label class="secondary photo-picker">Choose pictures<input id="notePhotoFiles" type="file" accept="image/*" multiple hidden></label></div><div id="notePhotoEditorGrid" class="note-photo-editor-grid"></div><small id="notePhotoCount">0 of 6 pictures</small></section>`;
@@ -1174,68 +1174,72 @@ function multiReceiptChanges(){
     removePaths:[...multiReceiptEditorState.removedPaths]
   };
 }
-let tripPlanPdfEditorState={existing:null,pending:null,remove:false,previewUrl:''};
+let tripPlanPdfEditorState={existing:[],pending:[],removedDocumentIds:new Set()};
 function clearTripPlanPdfEditor(){
-  if(tripPlanPdfEditorState.previewUrl)URL.revokeObjectURL(tripPlanPdfEditorState.previewUrl);
-  tripPlanPdfEditorState={existing:null,pending:null,remove:false,previewUrl:''};
+  tripPlanPdfEditorState.pending.forEach(item=>URL.revokeObjectURL(item.url));
+  tripPlanPdfEditorState={existing:[],pending:[],removedDocumentIds:new Set()};
 }
 function renderTripPlanPdfEditor(){
-  const host=$('#planPdfCurrent');
-  const remove=$('#removePlanPdf');
-  if(!host||!remove)return;
+  const host=$('#planPdfList');
+  const count=$('#planPdfCount');
+  const input=$('#planPdfFiles');
+  if(!host||!count)return;
+  const existing=tripPlanPdfEditorState.existing.filter(file=>!tripPlanPdfEditorState.removedDocumentIds.has(file.documentId));
   const pending=tripPlanPdfEditorState.pending;
-  const existing=tripPlanPdfEditorState.remove?null:tripPlanPdfEditorState.existing;
-  const attachment=pending?{
-    originalFilename:pending.name,
-    fileSizeBytes:pending.size,
-    url:tripPlanPdfEditorState.previewUrl
-  }:existing;
-  host.innerHTML=attachment
-    ?`<a class="plan-pdf-link plan-pdf-link-editor" href="${escapeHtml(attachment.url||'#')}" ${attachment.url?'target="_blank" rel="noopener"':''}><span class="plan-pdf-icon">PDF</span><span><b>${escapeHtml(attachment.originalFilename||'Reservation document.pdf')}</b><small>${attachment.fileSizeBytes?`${number(attachment.fileSizeBytes/1024,0)} KB · `:''}${pending?'Ready to upload':'Saved in Higgins Documents'}</small></span></a>`
-    :'<span>No PDF attached</span>';
-  remove.hidden=!attachment;
+  const rows=[
+    ...existing.map(file=>({kind:'existing',file,url:file.url||'',name:file.originalFilename||'Reservation document.pdf',size:file.fileSizeBytes||0,id:file.documentId})),
+    ...pending.map((item,index)=>({kind:'pending',file:item.file,url:item.url,name:item.file.name||'Reservation document.pdf',size:item.file.size||0,index}))
+  ];
+  host.innerHTML=rows.length?rows.map(item=>`<article class="plan-pdf-editor-item"><a class="plan-pdf-link plan-pdf-link-editor" href="${escapeHtml(item.url||'#')}" ${item.url?'target="_blank" rel="noopener"':''}><span class="plan-pdf-icon">PDF</span><span><b>${escapeHtml(item.name)}</b><small>${item.size?`${number(item.size/1024,0)} KB · `:''}${item.kind==='pending'?'Ready to upload':'Saved in Higgins Documents'}</small></span><span aria-hidden="true">↗</span></a><button class="delete-link" type="button" ${item.kind==='existing'?`data-remove-plan-pdf-document="${escapeHtml(item.id)}"`:`data-remove-pending-plan-pdf="${item.index}"`}>Remove</button></article>`).join(''):'<span>No PDFs attached</span>';
+  count.textContent=`${rows.length} of 6 PDFs`;
+  if(input)input.disabled=rows.length>=6;
+  $$('[data-remove-plan-pdf-document]',host).forEach(button=>button.onclick=()=>{
+    tripPlanPdfEditorState.removedDocumentIds.add(button.dataset.removePlanPdfDocument);
+    renderTripPlanPdfEditor();
+  });
+  $$('[data-remove-pending-plan-pdf]',host).forEach(button=>button.onclick=()=>{
+    const index=+button.dataset.removePendingPlanPdf;
+    const [removed]=tripPlanPdfEditorState.pending.splice(index,1);
+    if(removed?.url)URL.revokeObjectURL(removed.url);
+    renderTripPlanPdfEditor();
+  });
 }
 function bindTripPlanPdfEditor(record={}){
   clearTripPlanPdfEditor();
-  tripPlanPdfEditorState.existing=(record.documentAttachments||[]).find(file=>file.mimeType==='application/pdf'||/\.pdf$/i.test(file.originalFilename||''))||null;
+  tripPlanPdfEditorState.existing=(record.documentAttachments||[]).filter(file=>file.mimeType==='application/pdf'||/\.pdf$/i.test(file.originalFilename||''));
   renderTripPlanPdfEditor();
-  const input=$('#planPdfFile');
-  const remove=$('#removePlanPdf');
-  if(!input||!remove)return;
+  const input=$('#planPdfFiles');
+  if(!input)return;
   input.addEventListener('change',()=>{
-    const file=input.files?.[0]||null;
-    if(!file)return;
-    if(!(file.type==='application/pdf'||/\.pdf$/i.test(file.name||''))){
-      alert('Please choose a PDF file.');
-      input.value='';
-      return;
+    const chosen=[...(input.files||[])];
+    const existingCount=tripPlanPdfEditorState.existing.filter(file=>!tripPlanPdfEditorState.removedDocumentIds.has(file.documentId)).length;
+    let available=Math.max(0,6-existingCount-tripPlanPdfEditorState.pending.length);
+    for(const file of chosen){
+      if(!(file.type==='application/pdf'||/\.pdf$/i.test(file.name||''))){
+        alert(`${file.name||'That file'} is not a PDF.`);
+        continue;
+      }
+      if(file.size>25*1024*1024){
+        alert(`${file.name||'That PDF'} is larger than the 25 MB document limit.`);
+        continue;
+      }
+      if(available<=0){
+        alert('An activity can have up to six PDF documents.');
+        break;
+      }
+      tripPlanPdfEditorState.pending.push({file,url:URL.createObjectURL(file)});
+      available-=1;
     }
-    if(file.size>25*1024*1024){
-      alert('That PDF is larger than the 25 MB document limit.');
-      input.value='';
-      return;
-    }
-    if(tripPlanPdfEditorState.previewUrl)URL.revokeObjectURL(tripPlanPdfEditorState.previewUrl);
-    tripPlanPdfEditorState.pending=file;
-    tripPlanPdfEditorState.remove=false;
-    tripPlanPdfEditorState.previewUrl=URL.createObjectURL(file);
-    renderTripPlanPdfEditor();
-  });
-  remove.addEventListener('click',()=>{
-    if(tripPlanPdfEditorState.previewUrl)URL.revokeObjectURL(tripPlanPdfEditorState.previewUrl);
-    tripPlanPdfEditorState.pending=null;
-    tripPlanPdfEditorState.previewUrl='';
-    tripPlanPdfEditorState.remove=Boolean(tripPlanPdfEditorState.existing);
     input.value='';
     renderTripPlanPdfEditor();
   });
 }
-function tripPlanPdfChange(){
-  return tripPlanPdfEditorState.pending
-    ?{file:tripPlanPdfEditorState.pending,remove:false}
-    :tripPlanPdfEditorState.remove
-      ?{file:null,remove:true}
-      :null;
+function tripPlanPdfChanges(){
+  const changes={
+    addFiles:tripPlanPdfEditorState.pending.map(item=>item.file),
+    removeDocumentIds:[...tripPlanPdfEditorState.removedDocumentIds]
+  };
+  return changes.addFiles.length||changes.removeDocumentIds.length?changes:null;
 }
 let notePhotoEditorState={existing:[],pending:[],removedPaths:new Set()};
 function clearNotePhotoEditor(){
@@ -1584,7 +1588,7 @@ $('#entryForm').onsubmit=async e=>{
   const pendingNotePhotoChanges=type==='hub-note'?notePhotoChanges():{addFiles:[],removePaths:[]};
   const multiReceiptKinds={'phillis-maint':'maintenance','phillis-upgrade':'maintenance','ruby-maint':'maintenance','ruby-upgrade':'maintenance',sitepayment:'seasonal-payment','trip-plan':'trip-plan'};
   const pendingMultiReceiptChanges=multiReceiptKinds[type]?multiReceiptChanges():{addFiles:[],removePaths:[]};
-  const pendingTripPlanPdfChange=type==='trip-plan'?tripPlanPdfChange():null;
+  const pendingTripPlanPdfChanges=type==='trip-plan'?tripPlanPdfChanges():null;
   const stayPhotoChanges=type==='stay'?[
     {kind:'site',file:$('#sitePhotoFile')?.files?.[0]||null,remove:$('#sitePhotoFile')?.dataset.remove==='true'},
     {kind:'sign',file:$('#signPhotoFile')?.files?.[0]||null,remove:$('#signPhotoFile')?.dataset.remove==='true'}
@@ -1692,7 +1696,7 @@ $('#entryForm').onsubmit=async e=>{
   else {const key=type==='phillis-maint'?'phillisMaintenance':type==='phillis-upgrade'?'phillisUpgrades':type==='ruby-maint'?'rubyMaintenance':'rubyUpgrades',index=$('#entryIndex').value===''?null:+$('#entryIndex').value,prior=index===null?{}:db[key][index],obj={...prior,date:$('#date').value,description:$('#description').value,location:$('#location').value,price:+$('#total').value||0,receiptPhotoPaths:[...(prior.receiptPhotoPaths||[])],receiptPhotoUrls:[...(prior.receiptPhotoUrls||[])],notes,...(type.startsWith('phillis-')?{trailer:$('#trailer').value}:{})};if(index===null)db[key].push(obj);else db[key][index]=obj;savedMultiReceiptRecord=obj;savedMultiReceiptKind='maintenance'}
   const returnTripIndex=$('#entryStayIndex').value===''?null:+$('#entryStayIndex').value;
   submitButton.disabled=true;
-  submitButton.textContent=stayPhotoChanges.length?'Saving stay…':tripPhotoChange?'Saving trip…':pendingTripPlanPdfChange?'Saving PDF…':receiptChange||pendingMultiReceiptChanges.addFiles.length||pendingMultiReceiptChanges.removePaths.length?'Saving receipt…':pendingNotePhotoChanges.addFiles.length||pendingNotePhotoChanges.removePaths.length?'Saving note…':'Saving…';
+  submitButton.textContent=stayPhotoChanges.length?'Saving stay…':tripPhotoChange?'Saving trip…':pendingTripPlanPdfChanges?'Saving PDFs…':receiptChange||pendingMultiReceiptChanges.addFiles.length||pendingMultiReceiptChanges.removePaths.length?'Saving receipt…':pendingNotePhotoChanges.addFiles.length||pendingNotePhotoChanges.removePaths.length?'Saving note…':'Saving…';
   const cloudSaved=await save();
   if(savedStay&&stayPhotoChanges.length&&cloudSaved&&window.ADVENTURE_HUB_STORE){
     try{
@@ -1740,14 +1744,14 @@ $('#entryForm').onsubmit=async e=>{
       alert(`The record was saved, but its receipt pictures could not be updated.\n\n${error.message}`);
     }
   }
-  if(type==='trip-plan'&&savedMultiReceiptRecord&&pendingTripPlanPdfChange&&cloudSaved&&window.ADVENTURE_HUB_STORE){
+  if(type==='trip-plan'&&savedMultiReceiptRecord&&pendingTripPlanPdfChanges&&cloudSaved&&window.ADVENTURE_HUB_STORE){
     try{
-      submitButton.textContent='Uploading PDF…';
-      await window.ADVENTURE_HUB_STORE.setTripPlanPdfDocument(savedMultiReceiptRecord,pendingTripPlanPdfChange.remove?null:pendingTripPlanPdfChange.file);
+      submitButton.textContent='Uploading PDFs…';
+      await window.ADVENTURE_HUB_STORE.setTripPlanPdfDocuments(savedMultiReceiptRecord,pendingTripPlanPdfChanges);
       localStorage.setItem(KEY,JSON.stringify(db));
     }catch(error){
       console.error(error);
-      alert(`The activity was saved, but its PDF could not be updated.\n\n${error.message}`);
+      alert(`The activity was saved, but its PDFs could not be updated.\n\n${error.message}`);
     }
   }
   if(savedNote&&(pendingNotePhotoChanges.addFiles.length||pendingNotePhotoChanges.removePaths.length)&&cloudSaved&&window.ADVENTURE_HUB_STORE){
