@@ -6,27 +6,31 @@ The scanner should be a shared Higgins Hub service, not an electric-bill-only
 feature. Travel Journal, a future Finance app, and a future filing-cabinet app
 should all point to the same underlying document, expense, and payment records.
 
-The first UI integration is Lehigh Gorge electric bills. Version 0.39.0 only
-adds local capture, cleanup, and preview. It does not change the production
-database and it does not call a paid AI service.
+The first UI integration is Lehigh Gorge electric bills. Version 0.42.0
+supports local capture and cleanup plus shared multi-file document saving. It
+does not call a paid AI service.
 
 ## Current Travel Journal structure
 
 - `electric_bills` stores the bill date, current meter reading, amount, rate,
-  payment date, check number, notes, and one `receipt_photo_path`.
+  payment date, check number, and notes.
+- Existing `receipt_photo_path` values remain as a compatibility fallback.
+- New bill images and PDFs are stored through the shared Higgins Documents
+  tables and linked back to the electric-bill record.
 - The app derives the previous reading and usage from adjacent readings.
-- The private `record-receipts` bucket accepts images only.
+- The private `hub-documents` bucket accepts document images and PDFs.
 - Ordinary app pictures are reduced to a 1,400-pixel maximum dimension at 78%
   JPEG quality.
 - Owners and editors can access private receipt files. Family Viewers cannot.
 
-That structure must remain working while the shared scanner is introduced.
+Existing single-page bill images remain readable while records are moved into
+the shared catalog.
 
 ## Shared document foundation
 
-The next database stage adds three shared document tables. It does not change
-or remove the existing receipt columns, so the current Travel Journal remains
-fully compatible while records are moved over gradually.
+Three shared document tables are now installed. They do not change or remove
+the existing receipt columns, so the Travel Journal remains fully compatible
+while records are moved over gradually.
 
 ### `hub_documents`
 
@@ -54,8 +58,8 @@ One row per logical document.
 
 ### `hub_document_files`
 
-One row per stored file or camera page. A PDF is normally one unchanged file;
-future multi-page camera scans can have one row per page.
+One row per stored file or camera page. A PDF remains one unchanged file;
+multi-page camera scans use one row per page.
 
 - `id uuid primary key`
 - `document_id uuid not null`
@@ -133,7 +137,7 @@ Electric-bill fields planned for the Finance stage remain:
 
 ## Storage
 
-Create one private `hub-documents` bucket during the next database stage.
+The private `hub-documents` bucket is the shared document store.
 
 - Path: `<household-id>/<document-id>/<page-or-file-id>.<extension>`
 - Allow JPEG, PNG, WebP, HEIC/HEIF, and PDF.
@@ -158,7 +162,7 @@ Create one private `hub-documents` bucket during the next database stage.
 The Edge Function will hold the OpenAI key as a Supabase secret. The browser
 will never receive that key.
 
-## Version 0.39.3 boundary
+## Version 0.42.0 boundary
 
 Included:
 
@@ -167,14 +171,13 @@ Included:
 - Automatic local cleanup followed by review
 - Local image edge estimation, perspective squaring when confidence is high,
   readability enhancement, resizing, and document-specific compression
-- PDF preview and a best-effort selectable-text check
+- PDF preview, intact PDF saving, and a best-effort selectable-text check
 - Rotate, replace, retake, and remove
-- Existing electric-bill image attachment remains compatible
+- Flexible multi-page image/PDF documents for electric bills
+- Page and file reordering with no arbitrary page-count limit
+- Existing electric-bill image attachments remain compatible
 
 Not included:
 
-- New production tables or bucket
-- PDF cloud saving
-- Multi-page camera assembly
 - AI/OCR calls
 - Expense/payment creation

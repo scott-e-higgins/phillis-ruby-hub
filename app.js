@@ -1,4 +1,4 @@
-const APP_VERSION='0.41.3';
+const APP_VERSION='0.42.0';
 const SEED={"tripSummaries":[],"stays":[],"tripPlans":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"vehicleDetails":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const NO_TRIP_VALUE='__everyday_ruby__';
@@ -731,6 +731,17 @@ function receiptDetailHtml(record,label='Receipt'){
   if(!record?.receiptPhotoUrl)return '';
   return `<div class="fuel-receipt-detail"><small>${record.documentId?'HIGGINS DOCUMENTS':'RECEIPT'}</small><button class="stay-photo-thumb fuel-receipt-thumb" type="button" data-photo-url="${escapeHtml(record.receiptPhotoUrl)}" data-photo-label="${escapeHtml(label)}" aria-label="Open receipt photo"><img src="${escapeHtml(record.receiptPhotoUrl)}" alt="${escapeHtml(label)}" loading="lazy"><span>${record.documentId?'Filed bill':'Receipt'}</span></button></div>`;
 }
+function electricDocumentDetailHtml(record){
+  const files=(record?.documentFiles||[]).filter(file=>file.url);
+  if(!files.length)return receiptDetailHtml(record,`${date(record.date)} electric bill`);
+  return `<div class="electric-document-detail"><small>HIGGINS DOCUMENTS</small><div class="electric-document-detail-list">${files.map((file,index)=>{
+    const isPdf=file.mimeType==='application/pdf'||/\.pdf$/i.test(file.originalFilename||'');
+    const label=`${date(record.date)} electric bill · ${isPdf?'PDF':`page ${index+1}`}`;
+    return isPdf
+      ?`<a class="plan-pdf-link electric-document-pdf" href="${escapeHtml(file.url)}" target="_blank" rel="noopener"><span class="plan-pdf-icon">PDF</span><span><b>${escapeHtml(file.originalFilename||'Electric bill.pdf')}</b><small>${file.fileSizeBytes?`${number(file.fileSizeBytes/1024,0)} KB · `:''}Open document</small></span><span aria-hidden="true">↗</span></a>`
+      :`<button class="stay-photo-thumb fuel-receipt-thumb electric-document-thumb" type="button" data-photo-url="${escapeHtml(file.url)}" data-photo-label="${escapeHtml(label)}" aria-label="Open document page ${index+1}"><img src="${escapeHtml(file.url)}" alt="${escapeHtml(label)}" loading="lazy"><span>Page ${index+1}</span></button>`;
+  }).join('')}</div></div>`;
+}
 function multiReceiptDetailHtml(record,label='Receipt',heading='RECEIPTS'){
   const urls=Array.isArray(record?.receiptPhotoUrls)?record.receiptPhotoUrls.filter(Boolean):[];
   if(!urls.length)return '';
@@ -831,10 +842,10 @@ function showSitePaymentRecord(index){
 function showElectricRecord(index){
   const record=db.electric?.[index]; if(!record)return;
   setDetailHeader('LEHIGH GORGE ELECTRIC',date(record.date));
-  $('#detailBody').innerHTML=`<div class="record-detail-actions"><button class="primary" id="editElectricRecord">Edit reading</button></div><div class="detail-section"><div class="detail-row"><span>Reading date</span><span>${date(record.date)}</span></div><div class="detail-row"><span>Previous meter</span><span>${number(record.previous,0)}</span></div><div class="detail-row"><span>Current meter</span><span>${number(record.current,0)}</span></div><div class="detail-row"><span>Usage</span><span>${number(record.usage,0)} kWh</span></div><div class="detail-row"><span>Rate</span><span>${money(record.unitPrice||0)} / kWh</span></div><div class="detail-row"><span>Total</span><span>${money(record.total||0)}</span></div>${record.paid?`<div class="detail-row"><span>Paid</span><span>${date(record.paid)}</span></div>`:''}${record.check?`<div class="detail-row"><span>Check</span><span>${escapeHtml(record.check)}</span></div>`:''}${record.notes?`<div class="record-notes"><small>NOTES</small><p>${escapeHtml(record.notes)}</p></div>`:''}${receiptDetailHtml(record,`${date(record.date)} electric bill`)}</div><div class="trip-delete-area"><button class="delete-link" id="deleteElectricRecord">Delete reading</button></div>`;
+  $('#detailBody').innerHTML=`<div class="record-detail-actions"><button class="primary" id="editElectricRecord">Edit reading</button></div><div class="detail-section"><div class="detail-row"><span>Reading date</span><span>${date(record.date)}</span></div><div class="detail-row"><span>Previous meter</span><span>${number(record.previous,0)}</span></div><div class="detail-row"><span>Current meter</span><span>${number(record.current,0)}</span></div><div class="detail-row"><span>Usage</span><span>${number(record.usage,0)} kWh</span></div><div class="detail-row"><span>Rate</span><span>${money(record.unitPrice||0)} / kWh</span></div><div class="detail-row"><span>Total</span><span>${money(record.total||0)}</span></div>${record.paid?`<div class="detail-row"><span>Paid</span><span>${date(record.paid)}</span></div>`:''}${record.check?`<div class="detail-row"><span>Check</span><span>${escapeHtml(record.check)}</span></div>`:''}${record.notes?`<div class="record-notes"><small>NOTES</small><p>${escapeHtml(record.notes)}</p></div>`:''}${electricDocumentDetailHtml(record)}</div><div class="trip-delete-area"><button class="delete-link" id="deleteElectricRecord">Delete reading</button></div>`;
   bindStayPhotoButtons($('#detailBody'));
   $('#editElectricRecord').onclick=()=>{$('#detailDialog').close();openEntry('electric',index)};
-  $('#deleteElectricRecord').onclick=async()=>{if(!confirm('Delete this electric reading?'))return;const removed=db.electric.splice(index,1)[0];const cloudSaved=await save();if(!cloudSaved){db.electric.splice(index,0,removed);return;}if(window.ADVENTURE_HUB_STORE&&hasReceiptPhotos(removed)){try{await window.ADVENTURE_HUB_STORE.deleteRecordReceipt(removed)}catch(error){console.warn('The deleted receipt could not be removed.',error)}}$('#detailDialog').close();renderHome();showPanel('lehigh')};
+  $('#deleteElectricRecord').onclick=async()=>{if(!confirm('Delete this electric reading?'))return;const removed=db.electric.splice(index,1)[0];const cloudSaved=await save();if(!cloudSaved){db.electric.splice(index,0,removed);return;}if(window.ADVENTURE_HUB_STORE&&(removed.documentId||(removed.documentFiles||[]).length||removed.receiptPhotoPath)){try{await window.ADVENTURE_HUB_STORE.setElectricBillDocuments(removed,{items:[]})}catch(error){console.warn('The deleted electric-bill document could not be removed.',error)}}$('#detailDialog').close();renderHome();showPanel('lehigh')};
   $('#detailDialog').showModal();
 }
 
@@ -895,7 +906,7 @@ function receiptEditorFields(help='Optional. Take a picture or choose one from y
   return `<section class="fuel-receipt-editor"><article class="stay-photo-editor"><div class="stay-photo-editor-copy"><b>Receipt</b><p>${help}</p></div><div class="stay-photo-preview" id="receiptPhotoPreview"><span>No receipt yet</span></div><div class="stay-photo-actions"><label class="secondary photo-picker">Take photo<input id="receiptCameraFile" type="file" accept="image/*" capture="environment" hidden></label><label class="secondary photo-picker">Choose photo<input id="receiptPhotoFile" type="file" accept="image/*" hidden></label><button class="delete-link remove-stay-photo" id="removeReceiptPhoto" type="button" hidden>Remove</button></div></article></section>`;
 }
 function documentScannerFields(){
-  return `<section class="document-scanner-entry"><div class="document-scanner-entry-heading"><div><small>HIGGINS HUB SCANNER · STAGE 1</small><b>Electric bill document</b><p>Capture or choose an image or PDF, clean images locally, and review the result before saving.</p></div><button class="secondary" id="openDocumentScanner" type="button">Scan or choose document</button></div><div class="document-scanner-current"><div class="stay-photo-preview" id="receiptPhotoPreview"><span>No saved bill image yet</span></div><div><b>Attached to this bill</b><p id="documentScannerAttachStatus">Cleaned images can be saved now. PDF cloud storage begins in the next shared-document stage.</p><button class="delete-link remove-stay-photo" id="removeReceiptPhoto" type="button" hidden>Remove saved image</button></div></div><input id="receiptCameraFile" type="file" accept="image/*" capture="environment" hidden><input id="receiptPhotoFile" type="file" accept="image/*" hidden></section>`;
+  return `<section class="document-scanner-entry"><div class="document-scanner-entry-heading"><div><small>HIGGINS HUB SCANNER</small><b>Bill pages &amp; PDFs</b><p>Scan another page or add an existing image or PDF. There is no fixed page-count limit.</p></div><button class="secondary" id="openDocumentScanner" type="button">Add page or PDF</button></div><div id="electricDocumentEditorList" class="electric-document-editor-list"></div><div class="electric-document-editor-footer"><p id="documentScannerAttachStatus">Pages are saved together as one Higgins document.</p><small id="electricDocumentEditorCount">0 files</small></div></section>`;
 }
 function multiReceiptFields(help){
   return `<section class="note-photo-editor seasonal-receipt-editor"><div class="note-photo-editor-heading"><div><b>Receipts and documents</b><p>${help}</p></div><div class="stay-photo-actions"><label class="secondary photo-picker">Take photo<input id="multiReceiptCameraFile" type="file" accept="image/*" capture="environment" hidden></label><label class="secondary photo-picker">Choose pictures<input id="multiReceiptFiles" type="file" accept="image/*" multiple hidden></label></div></div><div id="multiReceiptGrid" class="note-photo-editor-grid"></div><small id="multiReceiptCount">0 of 6 pictures</small></section>`;
@@ -1093,11 +1104,109 @@ function bindReceiptEditor(record={}){
     show('');
   });
 }
-function bindDocumentScannerLauncher(record={}){
+let electricDocumentEditorState={items:[],initialOrder:'',changed:false};
+function clearElectricDocumentEditor(){
+  electricDocumentEditorState.items.filter(item=>item.kind==='pending').forEach(item=>item.url&&URL.revokeObjectURL(item.url));
+  electricDocumentEditorState={items:[],initialOrder:'',changed:false};
+}
+function electricDocumentItemKey(item){
+  return item.kind==='existing'?`existing:${item.fileId}`:item.kind==='legacy'?`legacy:${item.legacyPath}`:`pending:${item.token}`;
+}
+function renderElectricDocumentEditor(){
+  const host=$('#electricDocumentEditorList');
+  const count=$('#electricDocumentEditorCount');
+  if(!host||!count)return;
+  const items=electricDocumentEditorState.items;
+  host.innerHTML=items.length?items.map((item,index)=>{
+    const isPdf=item.mimeType==='application/pdf'||/\.pdf$/i.test(item.originalFilename||item.file?.name||'');
+    const name=item.originalFilename||item.file?.name||(isPdf?'Electric bill.pdf':`Scanned page ${index+1}`);
+    const preview=isPdf
+      ?`<a class="plan-pdf-link electric-document-editor-preview" href="${escapeHtml(item.url||'#')}" ${item.url?'target="_blank" rel="noopener"':''}><span class="plan-pdf-icon">PDF</span><span><b>${escapeHtml(name)}</b><small>${item.kind==='pending'?'Ready to upload':'Saved in Higgins Documents'}</small></span><span aria-hidden="true">↗</span></a>`
+      :item.url
+        ?`<button class="electric-document-editor-image" type="button" data-photo-url="${escapeHtml(item.url)}" data-photo-label="${escapeHtml(`Electric bill page ${index+1}`)}"><img src="${escapeHtml(item.url)}" alt="${escapeHtml(`Electric bill page ${index+1}`)}"></button>`
+        :`<span class="note-photo-missing">Page ${index+1}</span>`;
+    return `<article class="electric-document-editor-item"><span class="electric-document-page-number">${index+1}</span>${preview}<div class="electric-document-editor-copy"><b>${isPdf?'PDF document':`Page ${index+1}`}</b><small>${item.fileSizeBytes?`${number(item.fileSizeBytes/1024,0)} KB · `:''}${item.kind==='pending'?'Ready to save':'Saved'}</small></div><div class="electric-document-order-actions"><button class="secondary" type="button" data-electric-document-up="${index}" ${index===0?'disabled':''} aria-label="Move file up">↑</button><button class="secondary" type="button" data-electric-document-down="${index}" ${index===items.length-1?'disabled':''} aria-label="Move file down">↓</button><button class="delete-link" type="button" data-electric-document-remove="${index}">Remove</button></div></article>`;
+  }).join(''):'<div class="note-photo-empty">No bill pages or PDFs attached yet.</div>';
+  count.textContent=`${items.length} ${items.length===1?'file':'files'} · no page limit`;
+  $$('[data-electric-document-up]',host).forEach(button=>button.onclick=()=>moveElectricDocumentItem(+button.dataset.electricDocumentUp,-1));
+  $$('[data-electric-document-down]',host).forEach(button=>button.onclick=()=>moveElectricDocumentItem(+button.dataset.electricDocumentDown,1));
+  $$('[data-electric-document-remove]',host).forEach(button=>button.onclick=()=>removeElectricDocumentItem(+button.dataset.electricDocumentRemove));
+  bindStayPhotoButtons(host);
+}
+function moveElectricDocumentItem(index,direction){
+  const target=index+direction;
+  if(index<0||target<0||target>=electricDocumentEditorState.items.length)return;
+  const [item]=electricDocumentEditorState.items.splice(index,1);
+  electricDocumentEditorState.items.splice(target,0,item);
+  electricDocumentEditorState.changed=true;
+  renderElectricDocumentEditor();
+}
+function removeElectricDocumentItem(index){
+  const [removed]=electricDocumentEditorState.items.splice(index,1);
+  if(removed?.kind==='pending'&&removed.url)URL.revokeObjectURL(removed.url);
+  electricDocumentEditorState.changed=true;
+  renderElectricDocumentEditor();
+}
+function addElectricDocumentFile(file,metadata={}){
+  if(!file)return;
+  const token=crypto.randomUUID?.()||`${Date.now()}-${Math.random()}`;
+  try{Object.defineProperty(file,'higginsDocumentMetadata',{value:{...metadata},configurable:true});}catch{}
+  electricDocumentEditorState.items.push({
+    kind:'pending',
+    token,
+    file,
+    url:URL.createObjectURL(file),
+    originalFilename:file.name||'Electric bill document',
+    mimeType:file.type||'application/octet-stream',
+    fileSizeBytes:Number(file.size)||0
+  });
+  electricDocumentEditorState.changed=true;
+  renderElectricDocumentEditor();
+}
+function bindElectricDocumentEditor(record={}){
+  clearElectricDocumentEditor();
+  const files=(record.documentFiles||[]).map(file=>({
+    kind:'existing',
+    fileId:file.id,
+    documentId:file.documentId,
+    originalFilename:file.originalFilename||'Electric bill page',
+    mimeType:file.mimeType||'image/jpeg',
+    fileSizeBytes:Number(file.fileSizeBytes)||0,
+    storageBucket:file.storageBucket||'hub-documents',
+    storagePath:file.storagePath||'',
+    url:file.url||''
+  }));
+  if(!files.length&&record.receiptPhotoPath){
+    files.push({
+      kind:'legacy',
+      legacyPath:record.receiptPhotoPath,
+      originalFilename:`electric-bill-${record.date||'legacy'}.jpg`,
+      mimeType:'image/jpeg',
+      fileSizeBytes:0,
+      url:record.receiptPhotoUrl||''
+    });
+  }
+  electricDocumentEditorState.items=files;
+  electricDocumentEditorState.initialOrder=files.map(electricDocumentItemKey).join('|');
+  electricDocumentEditorState.changed=false;
+  renderElectricDocumentEditor();
+  bindDocumentScannerLauncher();
+}
+function electricDocumentChanges(){
+  const order=electricDocumentEditorState.items.map(electricDocumentItemKey).join('|');
+  if(!electricDocumentEditorState.changed&&order===electricDocumentEditorState.initialOrder)return null;
+  return {
+    items:electricDocumentEditorState.items.map(item=>item.kind==='pending'
+      ?{file:item.file}
+      :item.kind==='legacy'
+        ?{legacyPath:item.legacyPath,originalFilename:item.originalFilename,mimeType:item.mimeType,fileSizeBytes:item.fileSizeBytes,url:item.url}
+        :{fileId:item.fileId})
+  };
+}
+function bindDocumentScannerLauncher(){
   const launch=$('#openDocumentScanner');
   const status=$('#documentScannerAttachStatus');
-  const input=$('#receiptPhotoFile');
-  if(!launch||!input)return;
+  if(!launch)return;
   launch.onclick=()=>{
     if(!window.HIGGINS_DOCUMENT_SCANNER){
       alert('The scanner is still loading. Please try again in a moment.');
@@ -1105,19 +1214,20 @@ function bindDocumentScannerLauncher(record={}){
     }
     window.HIGGINS_DOCUMENT_SCANNER.open({
       title:'Lehigh Gorge electric bill',
-      useLabel:'Attach to bill',
-      allowPdfUse:false,
+      useLabel:'Add to bill',
+      allowPdfUse:true,
       onUse:({file,metadata})=>{
-        input._selectReceiptFile?.(file);
+        addElectricDocumentFile(file,metadata);
         if(status){
           const saved=Math.max(0,(metadata.originalBytes||0)-(metadata.optimizedBytes||0));
-          status.textContent=`Prepared locally at ${metadata.width||'—'} × ${metadata.height||'—'}${saved?` · ${Math.round(saved/1024)} KB smaller`:''}. It will upload when you save this electric record.`;
+          status.textContent=metadata.preservedOriginal
+            ?'PDF added intact. Add another file or save the electric record.'
+            :`Page prepared locally at ${metadata.width||'—'} × ${metadata.height||'—'}${saved?` · ${Math.round(saved/1024)} KB smaller`:''}. Add another page or save the electric record.`;
         }
         return true;
       }
     });
   };
-  if(record.receiptPhotoUrl&&status)status.textContent='A private bill image is already attached. Scan a replacement or remove the saved image.';
 }
 let multiReceiptEditorState={existing:[],pending:[],removedPaths:new Set()};
 function clearMultiReceiptEditor(){
@@ -1548,11 +1658,8 @@ function openEntry(type,index=null,returnTripIndex=null){
     bindTripPhotoEditor(index===null?{}:db.tripSummaries[index]);
     $('#addTripStay').onclick=()=>openTripStayEditor();
   }
-  if(['fuel','electric'].includes(type)){
-    const key=type==='electric'?'electric':'fuel';
-    bindReceiptEditor(index===null?{}:(db[key]?.[index]||{}));
-    if(type==='electric')bindDocumentScannerLauncher(index===null?{}:(db.electric?.[index]||{}));
-  }
+  if(type==='fuel')bindReceiptEditor(index===null?{}:(db.fuel?.[index]||{}));
+  if(type==='electric')bindElectricDocumentEditor(index===null?{}:(db.electric?.[index]||{}));
   if(['phillis-maint','phillis-upgrade','ruby-maint','ruby-upgrade','sitepayment','trip-plan'].includes(type)){
     const key=type==='phillis-maint'?'phillisMaintenance':type==='phillis-upgrade'?'phillisUpgrades':type==='ruby-maint'?'rubyMaintenance':type==='ruby-upgrade'?'rubyUpgrades':type==='trip-plan'?'tripPlans':'siteFees';
     bindMultiReceiptEditor(index===null?{}:(db[key]?.[index]||{}));
@@ -1563,8 +1670,8 @@ function openEntry(type,index=null,returnTripIndex=null){
   }
   $('#entryDialog').showModal();
 }
-$$('dialog .close').forEach(b=>b.onclick=()=>{const dialog=b.closest('dialog');dialog.close();if(dialog.id==='entryDialog'){clearStayPhotoPreviewUrls();clearNotePhotoEditor();clearMultiReceiptEditor();clearTripPlanPdfEditor();}});
-$$('dialog').forEach(dialog=>dialog.addEventListener('mousedown',event=>{const box=dialog.getBoundingClientRect();const outside=event.clientX<box.left||event.clientX>box.right||event.clientY<box.top||event.clientY>box.bottom;if(outside){dialog.close();if(dialog.id==='entryDialog'){clearStayPhotoPreviewUrls();clearNotePhotoEditor();clearMultiReceiptEditor();clearTripPlanPdfEditor();}}}));
+$$('dialog .close').forEach(b=>b.onclick=()=>{const dialog=b.closest('dialog');dialog.close();if(dialog.id==='entryDialog'){clearStayPhotoPreviewUrls();clearNotePhotoEditor();clearMultiReceiptEditor();clearTripPlanPdfEditor();clearElectricDocumentEditor();}});
+$$('dialog').forEach(dialog=>dialog.addEventListener('mousedown',event=>{const box=dialog.getBoundingClientRect();const outside=event.clientX<box.left||event.clientX>box.right||event.clientY<box.top||event.clientY>box.bottom;if(outside){dialog.close();if(dialog.id==='entryDialog'){clearStayPhotoPreviewUrls();clearNotePhotoEditor();clearMultiReceiptEditor();clearTripPlanPdfEditor();clearElectricDocumentEditor();}}}));
 $('#tripStayForm').onsubmit=event=>{
   event.preventDefault();
   const prior=tripStayModalIndex===null?{}:tripStayEditorItems[tripStayModalIndex];
@@ -1612,6 +1719,7 @@ $('#entryForm').onsubmit=async e=>{
   const multiReceiptKinds={'phillis-maint':'maintenance','phillis-upgrade':'maintenance','ruby-maint':'maintenance','ruby-upgrade':'maintenance',sitepayment:'seasonal-payment','trip-plan':'trip-plan'};
   const pendingMultiReceiptChanges=multiReceiptKinds[type]?multiReceiptChanges():{addFiles:[],removePaths:[]};
   const pendingTripPlanPdfChanges=type==='trip-plan'?tripPlanPdfChanges():null;
+  const pendingElectricDocumentChanges=type==='electric'?electricDocumentChanges():null;
   const stayPhotoChanges=type==='stay'?[
     {kind:'site',file:$('#sitePhotoFile')?.files?.[0]||null,remove:$('#sitePhotoFile')?.dataset.remove==='true'},
     {kind:'sign',file:$('#signPhotoFile')?.files?.[0]||null,remove:$('#signPhotoFile')?.dataset.remove==='true'}
@@ -1619,7 +1727,7 @@ $('#entryForm').onsubmit=async e=>{
   const tripPhotoChange=type==='trip'&&($('#onRoadPhotoFile')?.files?.[0]||$('#onRoadPhotoFile')?.dataset.remove==='true')
     ?{file:$('#onRoadPhotoFile')?.files?.[0]||null,remove:$('#onRoadPhotoFile')?.dataset.remove==='true'}
     :null;
-  const receiptKinds={fuel:'fuel',electric:'electric'};
+  const receiptKinds={fuel:'fuel'};
   const receiptChange=receiptKinds[type]&&(receiptEditorSelectedFile||$('#receiptPhotoFile')?.dataset.remove==='true')
     ?{file:receiptEditorSelectedFile||null,remove:$('#receiptPhotoFile')?.dataset.remove==='true'}
     :null;
@@ -1714,12 +1822,12 @@ $('#entryForm').onsubmit=async e=>{
     savedStay=record;
   }
   else if(type==='sitepayment'){const index=$('#entryIndex').value===''?null:+$('#entryIndex').value,prior=index===null?{}:db.siteFees[index],record={...prior,year:+$('#year').value,date:$('#date').value,payment:+$('#payment').value||0,check:$('#check').value,receiptPhotoPaths:[...(prior.receiptPhotoPaths||[])],receiptPhotoUrls:[...(prior.receiptPhotoUrls||[])],notes};if(index===null)db.siteFees.push(record);else db.siteFees[index]=record;savedMultiReceiptRecord=record;savedMultiReceiptKind='seasonal-payment'}
-  else if(type==='electric'){const p=+$('#previous').value,c=+$('#current').value,r=+$('#rate').value||.16,u=c-p,index=$('#entryIndex').value===''?null:+$('#entryIndex').value,prior=index===null?{}:db.electric[index],record={...prior,date:$('#date').value,previous:p,current:c,usage:u,unitPrice:r,total:u*r,paid:$('#paid').value,check:$('#check').value,receiptPhotoPath:prior.receiptPhotoPath||'',receiptPhotoUrl:prior.receiptPhotoUrl||'',notes};if(index===null)db.electric.push(record);else db.electric[index]=record;savedReceiptRecord=record;savedReceiptKind='electric'}
+  else if(type==='electric'){const p=+$('#previous').value,c=+$('#current').value,r=+$('#rate').value||.16,u=c-p,index=$('#entryIndex').value===''?null:+$('#entryIndex').value,prior=index===null?{}:db.electric[index],record={...prior,date:$('#date').value,previous:p,current:c,usage:u,unitPrice:r,total:u*r,paid:$('#paid').value,check:$('#check').value,receiptPhotoPath:prior.receiptPhotoPath||'',receiptPhotoUrl:prior.receiptPhotoUrl||'',documentId:prior.documentId||'',documentTitle:prior.documentTitle||'',documentStatus:prior.documentStatus||'',documentFiles:[...(prior.documentFiles||[])],notes};if(index===null)db.electric.push(record);else db.electric[index]=record;savedReceiptRecord=record;savedReceiptKind='electric'}
   else if(type==='sitefee'){const y=+$('#year').value,total=+$('#total').value||0,index=$('#entryIndex').value===''?null:+$('#entryIndex').value,record={...(index===null?{}:db.stays[index]),year:y,arrival:'Season',departure:'Season',nights:null,name:'Lehigh Gorge Campground',address:$('#address').value,city:$('#city').value,state:$('#state').value,zip:$('#zip').value,site:$('#site').value||'39',price:total,harvestHost:false,notes};if(index===null)db.stays.push(record);else db.stays[index]=record;const annual=(db.siteFees||[]).find(x=>+x.year===y&&x.yearTotal!=null);if(annual)annual.yearTotal=total}
   else {const key=type==='phillis-maint'?'phillisMaintenance':type==='phillis-upgrade'?'phillisUpgrades':type==='ruby-maint'?'rubyMaintenance':'rubyUpgrades',index=$('#entryIndex').value===''?null:+$('#entryIndex').value,prior=index===null?{}:db[key][index],obj={...prior,date:$('#date').value,description:$('#description').value,location:$('#location').value,price:+$('#total').value||0,receiptPhotoPaths:[...(prior.receiptPhotoPaths||[])],receiptPhotoUrls:[...(prior.receiptPhotoUrls||[])],notes,...(type.startsWith('phillis-')?{trailer:$('#trailer').value}:{})};if(index===null)db[key].push(obj);else db[key][index]=obj;savedMultiReceiptRecord=obj;savedMultiReceiptKind='maintenance'}
   const returnTripIndex=$('#entryStayIndex').value===''?null:+$('#entryStayIndex').value;
   submitButton.disabled=true;
-  submitButton.textContent=stayPhotoChanges.length?'Saving stay…':tripPhotoChange?'Saving trip…':pendingTripPlanPdfChanges?'Saving PDFs…':receiptChange||pendingMultiReceiptChanges.addFiles.length||pendingMultiReceiptChanges.removePaths.length?'Saving receipt…':pendingNotePhotoChanges.addFiles.length||pendingNotePhotoChanges.removePaths.length?'Saving note…':'Saving…';
+  submitButton.textContent=stayPhotoChanges.length?'Saving stay…':tripPhotoChange?'Saving trip…':pendingElectricDocumentChanges?'Saving bill document…':pendingTripPlanPdfChanges?'Saving PDFs…':receiptChange||pendingMultiReceiptChanges.addFiles.length||pendingMultiReceiptChanges.removePaths.length?'Saving receipt…':pendingNotePhotoChanges.addFiles.length||pendingNotePhotoChanges.removePaths.length?'Saving note…':'Saving…';
   const cloudSaved=await save();
   if(savedStay&&stayPhotoChanges.length&&cloudSaved&&window.ADVENTURE_HUB_STORE){
     try{
@@ -1746,15 +1854,21 @@ $('#entryForm').onsubmit=async e=>{
   if(savedReceiptRecord&&receiptChange&&cloudSaved&&window.ADVENTURE_HUB_STORE){
     try{
       submitButton.textContent='Uploading receipt…';
-      if(savedReceiptKind==='electric'){
-        await window.ADVENTURE_HUB_STORE.setElectricBillDocument(savedReceiptRecord,receiptChange.remove?null:receiptChange.file);
-      }else{
-        await window.ADVENTURE_HUB_STORE.setRecordReceipt(savedReceiptRecord,savedReceiptKind,receiptChange.remove?null:receiptChange.file);
-      }
+      await window.ADVENTURE_HUB_STORE.setRecordReceipt(savedReceiptRecord,savedReceiptKind,receiptChange.remove?null:receiptChange.file);
       localStorage.setItem(KEY,JSON.stringify(db));
     }catch(error){
       console.error(error);
       alert(`The record was saved, but its receipt could not be updated.\n\n${error.message}`);
+    }
+  }
+  if(savedReceiptRecord&&savedReceiptKind==='electric'&&pendingElectricDocumentChanges&&cloudSaved&&window.ADVENTURE_HUB_STORE){
+    try{
+      submitButton.textContent='Uploading bill document…';
+      await window.ADVENTURE_HUB_STORE.setElectricBillDocuments(savedReceiptRecord,pendingElectricDocumentChanges);
+      localStorage.setItem(KEY,JSON.stringify(db));
+    }catch(error){
+      console.error(error);
+      alert(`The electric reading was saved, but its document could not be updated.\n\n${error.message}`);
     }
   }
   if(savedMultiReceiptRecord&&(pendingMultiReceiptChanges.addFiles.length||pendingMultiReceiptChanges.removePaths.length)&&cloudSaved&&window.ADVENTURE_HUB_STORE){
@@ -1793,6 +1907,7 @@ $('#entryForm').onsubmit=async e=>{
   clearNotePhotoEditor();
   clearMultiReceiptEditor();
   clearTripPlanPdfEditor();
+  clearElectricDocumentEditor();
   $('#entryDialog').close(); renderHome(); renderTrips(); renderNotes();
   if(type==='fuel' && returnTripIndex===null) showPanel('fuel-history');
   if(type==='phillis-maint') showPanel('phillis-maintenance');

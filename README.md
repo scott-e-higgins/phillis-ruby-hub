@@ -2,6 +2,17 @@
 
 Travel Journal is Scott and Kayla's private travel companion.
 
+## Version 0.42.0
+
+- Lets one electric bill contain any practical number of scanned pages, images,
+  and intact PDF files without an arbitrary page-count limit.
+- Keeps every page or PDF under one reusable Higgins Documents record.
+- Allows pages and files to be reordered or removed before saving.
+- Continues cleaning and compressing scanned images locally while preserving
+  PDFs without paid AI processing.
+- Preserves existing single-page electric-bill scans and requires no database
+  migration.
+
 ## Version 0.41.3
 
 - Sorts Lehigh Gorge seasonal-site payments from newest to oldest.

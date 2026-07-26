@@ -463,12 +463,13 @@
       );
     }
 
-    async function setElectricBillDocument(record, file) {
+    async function setElectricBillDocuments(record, changes = {}) {
       if (role === 'viewer') throw new Error('Family Viewer accounts cannot change electric bills.');
-      if (!record?._cloudId) throw new Error('Save this electric bill before adding its scan.');
+      if (!record?._cloudId) throw new Error('Save this electric bill before adding its document.');
+      const items = [...(changes.items || [])];
       const oldLegacyPath = record.receiptPhotoPath || '';
 
-      if (!file) {
+      if (!items.length) {
         await detachLinkedDocuments(record, 'electric_bill', 'bill_scan');
         const update = await client.from('electric_bills').update({ receipt_photo_path: null }).eq('id', record._cloudId);
         if (update.error) throw update.error;
@@ -487,133 +488,219 @@
         return record;
       }
 
-      const prepared = file?.higginsDocumentScan
-        ? { blob: file, extension: 'jpg', contentType: 'image/jpeg' }
-        : await preparePhoto(file);
       const userResult = await client.auth.getUser();
       if (userResult.error) throw userResult.error;
       const userId = userResult.data?.user?.id;
       if (!userId) throw new Error('Please sign in again before saving this document.');
 
-      const documentId = uuid();
-      const fileId = uuid();
+      const documentId = record.documentId || uuid();
       const titleDate = record.date
         ? new Date(`${record.date}T12:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
         : 'Undated';
       const displayTitle = `Lehigh Gorge electric bill · ${titleDate}`;
-      const originalFilename = file.name || `electric-bill-${record.date || Date.now()}.${prepared.extension}`;
-      const storagePath = `${householdId}/${documentId}/${fileId}.${prepared.extension}`;
-      let uploaded = false;
       let documentCreated = false;
+      const uploadedFiles = [];
+      const insertedFileIds = [];
 
       try {
-        const documentInsert = await client.from('hub_documents').insert({
-          id: documentId,
-          household_id: householdId,
-          display_title: displayTitle,
-          document_type: 'electric_bill',
-          document_date: record.date || null,
-          source_app: 'travel-journal',
-          processing_status: 'approved',
-          ai_processing_status: 'not_requested',
-          retention_status: 'keep',
-          created_by: userId,
-          uploaded_at: new Date().toISOString()
-        });
-        if (documentInsert.error) throw documentInsert.error;
-        documentCreated = true;
+        if (!record.documentId) {
+          const documentInsert = await client.from('hub_documents').insert({
+            id: documentId,
+            household_id: householdId,
+            display_title: displayTitle,
+            document_type: 'electric_bill',
+            document_date: record.date || null,
+            source_app: 'travel-journal',
+            processing_status: 'approved',
+            ai_processing_status: 'not_requested',
+            retention_status: 'keep',
+            created_by: userId,
+            uploaded_at: new Date().toISOString()
+          });
+          if (documentInsert.error) throw documentInsert.error;
+          documentCreated = true;
+        } else {
+          const documentUpdate = await client.from('hub_documents').update({
+            display_title: displayTitle,
+            document_date: record.date || null,
+            processing_status: 'approved',
+            updated_at: new Date().toISOString()
+          }).eq('id', documentId);
+          if (documentUpdate.error) throw documentUpdate.error;
+        }
 
-        const upload = await hubDocumentBucket.upload(storagePath, prepared.blob, {
-          cacheControl: '3600',
-          contentType: prepared.contentType,
-          upsert: false
-        });
-        if (upload.error) throw upload.error;
-        uploaded = true;
-
-        const dimensions = file?.higginsDocumentScan || {};
-        const fileInsert = await client.from('hub_document_files').insert({
-          id: fileId,
-          document_id: documentId,
-          page_number: 1,
-          original_filename: originalFilename,
-          mime_type: prepared.contentType,
-          file_size_bytes: Number(prepared.blob.size) || 0,
-          storage_bucket: 'hub-documents',
-          storage_path: storagePath,
-          width: Number(dimensions.width) || null,
-          height: Number(dimensions.height) || null,
-          cleanup_metadata: file?.higginsDocumentScan
-            ? { cleaned_locally: true, scanner_version: '0.40.0' }
-            : { optimized_locally: true }
-        });
-        if (fileInsert.error) throw fileInsert.error;
-
-        const linkInsert = await client.from('hub_document_links').insert({
-          document_id: documentId,
-          source_app: 'travel-journal',
-          record_type: 'electric_bill',
-          record_id: String(record._cloudId),
-          link_role: 'bill_scan',
-          is_primary: true,
-          created_by: userId
-        });
-        if (linkInsert.error) throw linkInsert.error;
-
-        const update = await client.from('electric_bills').update({ receipt_photo_path: null }).eq('id', record._cloudId);
-        if (update.error) throw update.error;
-
-        const priorDocumentIds = new Set((record.documentFiles || []).map(storedFile => storedFile.documentId).filter(Boolean));
-        if (record.documentId) priorDocumentIds.add(record.documentId);
-        assert(await client.from('hub_document_links')
-          .delete()
+        const existingLink = assert(await client.from('hub_document_links')
+          .select('id')
+          .eq('document_id', documentId)
           .eq('source_app', 'travel-journal')
           .eq('record_type', 'electric_bill')
           .eq('record_id', String(record._cloudId))
           .eq('link_role', 'bill_scan')
-          .neq('document_id', documentId));
-        for (const priorDocumentId of priorDocumentIds) {
-          const remainingLinks = assert(await client.from('hub_document_links').select('id').eq('document_id', priorDocumentId).limit(1));
-          if (remainingLinks.length) continue;
-          const priorFiles = assert(await client.from('hub_document_files').select('storage_bucket, storage_path').eq('document_id', priorDocumentId));
-          assert(await client.from('hub_documents').delete().eq('id', priorDocumentId));
-          for (const [bucketName, paths] of Object.entries(priorFiles.reduce((groups, storedFile) => {
-            if (!storedFile.storage_path) return groups;
-            (groups[storedFile.storage_bucket || 'hub-documents'] ||= []).push(storedFile.storage_path);
+          .limit(1));
+        if (!existingLink.length) {
+          const linkInsert = await client.from('hub_document_links').insert({
+            document_id: documentId,
+            source_app: 'travel-journal',
+            record_type: 'electric_bill',
+            record_id: String(record._cloudId),
+            link_role: 'bill_scan',
+            is_primary: true,
+            created_by: userId
+          });
+          if (linkInsert.error) throw linkInsert.error;
+        }
+
+        const knownFiles = new Map((record.documentFiles || []).map(file => [file.id, { ...file }]));
+        const finalFiles = [];
+        for (let position = 0; position < items.length; position += 1) {
+          const item = items[position];
+          if (item.fileId && knownFiles.has(item.fileId)) {
+            finalFiles.push(knownFiles.get(item.fileId));
+            continue;
+          }
+
+          if (item.legacyPath) {
+            const fileId = uuid();
+            const legacyInsert = await client.from('hub_document_files').insert({
+              id: fileId,
+              document_id: documentId,
+              page_number: 900000000 + position,
+              original_filename: item.originalFilename || `electric-bill-${record.date || 'legacy'}.jpg`,
+              mime_type: item.mimeType || 'image/jpeg',
+              file_size_bytes: Number(item.fileSizeBytes) || 0,
+              storage_bucket: 'record-receipts',
+              storage_path: item.legacyPath,
+              cleanup_metadata: { adopted_from_legacy_receipt: true }
+            });
+            if (legacyInsert.error) throw legacyInsert.error;
+            insertedFileIds.push(fileId);
+            finalFiles.push({
+              id: fileId,
+              documentId,
+              originalFilename: item.originalFilename || `electric-bill-${record.date || 'legacy'}.jpg`,
+              mimeType: item.mimeType || 'image/jpeg',
+              fileSizeBytes: Number(item.fileSizeBytes) || 0,
+              storageBucket: 'record-receipts',
+              storagePath: item.legacyPath,
+              url: item.url || ''
+            });
+            continue;
+          }
+
+          const file = item.file;
+          if (!file) continue;
+          const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '');
+          if (file.size > 25 * 1024 * 1024) {
+            throw new Error(`${file.name || 'A document'} is larger than the 25 MB per-file limit.`);
+          }
+          const prepared = isPdf
+            ? { blob: file, extension: 'pdf', contentType: 'application/pdf' }
+            : file?.higginsDocumentScan
+              ? { blob: file, extension: 'jpg', contentType: 'image/jpeg' }
+              : await preparePhoto(file);
+          const fileId = uuid();
+          const originalFilename = file.name || `electric-bill-${record.date || Date.now()}.${prepared.extension}`;
+          const storagePath = `${householdId}/${documentId}/${fileId}.${prepared.extension}`;
+          const upload = await hubDocumentBucket.upload(storagePath, prepared.blob, {
+            cacheControl: '3600',
+            contentType: prepared.contentType,
+            upsert: false
+          });
+          if (upload.error) throw upload.error;
+          uploadedFiles.push({ bucketName: 'hub-documents', storagePath });
+          const dimensions = file.higginsDocumentMetadata || {};
+          const fileInsert = await client.from('hub_document_files').insert({
+            id: fileId,
+            document_id: documentId,
+            page_number: 900000000 + position,
+            original_filename: originalFilename,
+            mime_type: prepared.contentType,
+            file_size_bytes: Number(prepared.blob.size) || 0,
+            storage_bucket: 'hub-documents',
+            storage_path: storagePath,
+            width: Number(dimensions.width) || null,
+            height: Number(dimensions.height) || null,
+            has_selectable_text: isPdf ? (dimensions.hasSelectableText ?? null) : null,
+            cleanup_metadata: isPdf
+              ? { preserved_as_pdf: true }
+              : file?.higginsDocumentScan
+                ? { cleaned_locally: true, scanner_version: '0.42.0', ...dimensions }
+                : { optimized_locally: true }
+          });
+          if (fileInsert.error) throw fileInsert.error;
+          insertedFileIds.push(fileId);
+          finalFiles.push({
+            id: fileId,
+            documentId,
+            originalFilename,
+            mimeType: prepared.contentType,
+            fileSizeBytes: Number(prepared.blob.size) || 0,
+            storageBucket: 'hub-documents',
+            storagePath,
+            url: await signedPhotoUrl(hubDocumentBucket, storagePath)
+          });
+        }
+
+        const finalIds = new Set(finalFiles.map(file => file.id));
+        for (let position = 0; position < finalFiles.length; position += 1) {
+          const staged = await client.from('hub_document_files')
+            .update({ page_number: 900000000 + position })
+            .eq('id', finalFiles[position].id);
+          if (staged.error) throw staged.error;
+        }
+
+        const removedFiles = (record.documentFiles || []).filter(file => !finalIds.has(file.id));
+        if (removedFiles.length) {
+          const removedRows = await client.from('hub_document_files').delete().in('id', removedFiles.map(file => file.id));
+          if (removedRows.error) throw removedRows.error;
+          for (const [bucketName, paths] of Object.entries(removedFiles.reduce((groups, storedFile) => {
+            if (!storedFile.storagePath) return groups;
+            (groups[storedFile.storageBucket || 'hub-documents'] ||= []).push(storedFile.storagePath);
             return groups;
           }, {}))) {
             const removed = await client.storage.from(bucketName).remove(paths);
-            if (removed.error) console.warn('A replaced document file could not be removed.', removed.error);
+            if (removed.error) console.warn('A removed document page could not be deleted from storage.', removed.error);
           }
         }
-        if (oldLegacyPath && !priorDocumentIds.size) {
+
+        for (let position = 0; position < finalFiles.length; position += 1) {
+          const numbered = await client.from('hub_document_files')
+            .update({ page_number: position + 1 })
+            .eq('id', finalFiles[position].id);
+          if (numbered.error) throw numbered.error;
+          finalFiles[position].pageNumber = position + 1;
+        }
+
+        const update = await client.from('electric_bills').update({ receipt_photo_path: null }).eq('id', record._cloudId);
+        if (update.error) throw update.error;
+        if (oldLegacyPath && !finalFiles.some(file =>
+          file.storageBucket === 'record-receipts' && file.storagePath === oldLegacyPath
+        )) {
           const removed = await receiptBucket.remove([oldLegacyPath]);
           if (removed.error) console.warn('The replaced legacy bill image could not be removed.', removed.error);
         }
 
-        const url = await signedPhotoUrl(hubDocumentBucket, storagePath);
         record.documentId = documentId;
         record.documentTitle = displayTitle;
         record.documentStatus = 'approved';
-        record.documentFiles = [{
-          id: fileId,
-          documentId,
-          pageNumber: 1,
-          originalFilename,
-          mimeType: prepared.contentType,
-          fileSizeBytes: Number(prepared.blob.size) || 0,
-          storageBucket: 'hub-documents',
-          storagePath,
-          url
-        }];
+        record.documentFiles = finalFiles;
         record.receiptPhotoPath = '';
-        record.receiptPhotoUrl = url;
+        record.receiptPhotoUrl = finalFiles.find(file => /^image\//i.test(file.mimeType) && file.url)?.url || '';
         return record;
       } catch (error) {
-        if (uploaded) await hubDocumentBucket.remove([storagePath]);
+        if (insertedFileIds.length) await client.from('hub_document_files').delete().in('id', insertedFileIds);
+        for (const uploaded of uploadedFiles) {
+          await client.storage.from(uploaded.bucketName).remove([uploaded.storagePath]);
+        }
         if (documentCreated) await client.from('hub_documents').delete().eq('id', documentId);
         throw error;
       }
+    }
+
+    async function setElectricBillDocument(record, file) {
+      return setElectricBillDocuments(record, {
+        items: file ? [{ file }] : []
+      });
     }
 
     async function setTripPlanPdfDocuments(record, changes = {}) {
@@ -1440,6 +1527,7 @@
       deleteNotePhotos,
       setRecordReceipt,
       setElectricBillDocument,
+      setElectricBillDocuments,
       setTripPlanPdfDocument,
       setTripPlanPdfDocuments,
       deleteRecordReceipt,

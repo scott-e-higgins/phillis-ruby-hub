@@ -22,6 +22,7 @@
     cropEditing: false,
     manualCorners: null,
     activeCropCorner: null,
+    pdfHasSelectableText: null,
     onUse: null,
     allowPdfUse: false,
     busy: false
@@ -57,6 +58,7 @@
       cropEditing: false,
       manualCorners: null,
       activeCropCorner: null,
+      pdfHasSelectableText: null,
       busy: false
     });
     const camera = $('#scannerCameraInput');
@@ -177,7 +179,7 @@
   async function selectFile(file) {
     if (!file) return;
     if (file.size > MAX_INPUT_BYTES) {
-      alert('That file is larger than 25 MB. Please choose a smaller document for this first scanner version.');
+      alert('That file is larger than the 25 MB per-file limit. You can still add additional pages or files separately.');
       return;
     }
     const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '');
@@ -202,6 +204,7 @@
       setStatus('Checking whether this PDF already contains selectable text…');
       try {
         const hasText = await inspectPdf(file);
+        state.pdfHasSelectableText = hasText;
         setStatus(
           hasText
             ? 'This PDF appears to contain selectable text, so it will be preserved as-is.'
@@ -594,7 +597,8 @@
       kind: state.kind,
       metadata: state.cleanup || {
         preservedOriginal: state.kind === 'pdf',
-        bytes: state.processedFile.size
+        bytes: state.processedFile.size,
+        hasSelectableText: state.kind === 'pdf' ? state.pdfHasSelectableText : null
       }
     });
     if (accepted === false) return;

@@ -979,6 +979,27 @@ html.standalone-app body{
 .document-scanner-current{display:grid;grid-template-columns:104px 1fr;align-items:center;gap:13px;padding-top:12px;border-top:1px solid #46564d}
 .document-scanner-current .stay-photo-preview{width:104px;min-height:92px}
 .document-scanner-current>div:last-child{display:grid;align-content:center;gap:6px}
+.electric-document-editor-list{display:grid;gap:9px;padding-top:12px;border-top:1px solid #46564d}
+.electric-document-editor-item{display:grid;grid-template-columns:28px 76px minmax(0,1fr) auto;align-items:center;gap:10px;padding:9px;border:1px solid #53655b;border-radius:7px;background:#222d27}
+.electric-document-page-number{display:grid;place-items:center;width:26px;height:26px;border-radius:50%;background:#46584f;color:var(--gold);font-size:11px;font-weight:900}
+.electric-document-editor-image{width:76px;height:72px;padding:0;overflow:hidden;border:1px solid #65786d;border-radius:5px;background:#111915}
+.electric-document-editor-image img{display:block;width:100%;height:100%;object-fit:cover}
+.electric-document-editor-preview{grid-template-columns:34px minmax(0,1fr) auto;padding:7px}
+.electric-document-editor-preview .plan-pdf-icon{width:32px;height:38px}
+.electric-document-editor-copy{display:grid;gap:3px;min-width:0}
+.electric-document-editor-copy b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+.electric-document-editor-copy small{color:var(--muted);font-size:10px}
+.electric-document-order-actions{display:flex;align-items:center;gap:6px}
+.electric-document-order-actions .secondary{min-width:34px;min-height:34px;padding:5px 8px}
+.electric-document-order-actions .delete-link{margin:0}
+.electric-document-editor-footer{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.electric-document-editor-footer p{margin:0;color:var(--muted);font-size:11px;line-height:1.4}
+.electric-document-editor-footer small{white-space:nowrap;color:#9fb0a7}
+.electric-document-detail{display:grid;gap:9px;margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
+.electric-document-detail>small{color:#9eaaa4;font-size:11px;font-weight:850;letter-spacing:.08em}
+.electric-document-detail-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.electric-document-detail-list .electric-document-pdf{grid-column:1/-1}
+.electric-document-thumb{width:100%;height:142px}
 
 .document-scanner-dialog{width:min(760px,calc(100vw - 24px));max-height:min(900px,calc(100dvh - 24px));padding:0;overflow:auto;background:#26322c;color:var(--ink);border:1px solid #607368;border-radius:10px;box-shadow:0 24px 80px #0009}
 .document-scanner-dialog::backdrop{background:#07110ddd;backdrop-filter:blur(4px)}
@@ -1021,6 +1042,10 @@ html.standalone-app body{
   .document-scanner-entry-heading button{width:100%}
   .document-scanner-current{grid-template-columns:82px 1fr}
   .document-scanner-current .stay-photo-preview{width:82px;min-height:78px}
+  .electric-document-editor-item{grid-template-columns:24px 64px minmax(0,1fr)}
+  .electric-document-editor-image{width:64px;height:64px}
+  .electric-document-order-actions{grid-column:2/-1;justify-content:flex-end}
+  .electric-document-editor-footer{display:grid}
   .scanner-capture-actions>*{flex:1 1 145px}
   .scanner-stage-strip span{font-size:8px}
   .scanner-preview-frame{min-height:230px;padding:8px}
