@@ -1,4 +1,4 @@
-const APP_VERSION='0.44.0';
+const APP_VERSION='0.44.1';
 const SEED={"tripSummaries":[],"stays":[],"tripPlans":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"vehicleDetails":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const NO_TRIP_VALUE='__everyday_ruby__';
@@ -548,6 +548,9 @@ function matchingStays(t){
 function matchingFuel(t){
   return db.fuel.filter(f=>(f._tripId&&t._cloudId&&f._tripId===t._cloudId)||f.trip===t.name||(f.date&&+f.date.slice(0,4)===+t.year&&f.trip?.toLowerCase().includes(t.name.toLowerCase())));
 }
+function cumulativeTripDistance(rows){
+  return rows.reduce((greatest,row)=>Math.max(greatest,Number(row.tripMiles)||0),0);
+}
 const fuelLocation=record=>[record.city,record.state].filter(Boolean).join(', ')||record.location||'';
 function showStay(index,tripIndex=null){
   const stay=db.stays[index]; if(!stay)return;
@@ -567,7 +570,7 @@ function showStay(index,tripIndex=null){
 function refreshTripFuelSummaries(){
   db.tripSummaries.forEach(trip=>{
     const rows=matchingFuel(trip);
-    const distance=rows.reduce((sum,row)=>sum+(Number(row.tripMiles)||0),0);
+    const distance=cumulativeTripDistance(rows);
     const gallons=rows.reduce((sum,row)=>sum+(Number(row.gallons)||0),0);
     const cost=rows.reduce((sum,row)=>sum+(Number(row.total)||0),0);
     trip.distance=distance||null;
@@ -989,7 +992,45 @@ function showSeasonRecord(index){
   setDetailHeader('LEHIGH GORGE SEASON',String(record.year));
   $('#detailBody').innerHTML=`<div class="record-detail-actions"><button class="primary" id="editSeasonRecord">Edit season</button></div><div class="detail-section"><div class="detail-row"><span>Site</span><span>${escapeHtml(record.site||'39')}</span></div><div class="detail-row"><span>Seasonal fee</span><span>${money(record.price||0)}</span></div><div class="detail-row"><span>Electric</span><span>${money(electricTotal)}</span></div><div class="detail-row"><span>Year total</span><span>${money((+record.price||0)+electricTotal)}</span></div>${record.address?`<div class="detail-row"><span>Address</span><span>${escapeHtml([record.address,record.city,record.state,record.zip].filter(Boolean).join(', '))}</span></div>`:''}${payments.length?`<div class="record-notes"><small>PAYMENTS</small>${payments.map(p=>`<p>${date(p.date)} · ${money(p.payment||0)}${p.check?' · check '+escapeHtml(p.check):''}</p>`).join('')}</div>`:''}${record.notes?`<div class="record-notes"><small>NOTES</small><p>${escapeHtml(record.notes)}</p></div>`:''}</div><div class="trip-delete-area"><button class="delete-link" id="deleteSeasonRecord">Delete season</button></div>`;
   $('#editSeasonRecord').onclick=()=>{$('#detailDialog').close();openEntry('sitefee',index)};
-  $('#deleteSeasonRecord').onclick=()=>{if(!confirm(`Delete the ${record.year} Lehigh Gorge season and its payment records?`))return;db.stays.splice(index,1);db.siteFees=(db.siteFees||[]).filter(x=>+x.year!==+record.year);save();$('#detailDialog').close();renderHome();showPanel('lehigh')};
+  $('#deleteSeasonRecord').onclick=async()=>{
+    if(!confirm(`Delete the ${record.year} Lehigh Gorge season, its payments, electric bills, and seasonal documents?`))return;
+    const button=$('#deleteSeasonRecord');
+    button.disabled=true;
+    const relatedPayments=(db.siteFees||[]).filter(x=>+x.year===+record.year);
+    const relatedElectric=(db.electric||[]).filter(x=>String(x.date||'').startsWith(String(record.year)));
+    db.stays.splice(index,1);
+    db.siteFees=(db.siteFees||[]).filter(x=>+x.year!==+record.year);
+    db.electric=(db.electric||[]).filter(x=>!String(x.date||'').startsWith(String(record.year)));
+    const cloudSaved=await save();
+    if(!cloudSaved){
+      db.stays.splice(index,0,record);
+      db.siteFees.push(...relatedPayments);
+      db.electric.push(...relatedElectric);
+      button.disabled=false;
+      return;
+    }
+    if(window.ADVENTURE_HUB_STORE){
+      try{
+        for(const document of record.seasonDocuments||[]){
+          if(document.documentId)await window.ADVENTURE_HUB_STORE.deleteSeasonDocument(record,document.documentId);
+        }
+        for(const bill of relatedElectric){
+          if(bill.documentId||(bill.documentFiles||[]).length||bill.receiptPhotoPath){
+            await window.ADVENTURE_HUB_STORE.setElectricBillDocuments(bill,{items:[]});
+          }
+        }
+        for(const payment of relatedPayments){
+          if(hasReceiptPhotos(payment))await window.ADVENTURE_HUB_STORE.deleteRecordReceipt(payment);
+        }
+      }catch(error){
+        console.warn('The season was deleted, but an attached file could not be removed.',error);
+      }
+    }
+    $('#detailDialog').close();
+    renderHome();
+    showPanel('lehigh');
+    renderJournalStats();
+  };
   $('#detailDialog').showModal();
 }
 function showSitePaymentRecord(index){
@@ -1151,7 +1192,7 @@ function fields(type){
   if(type==='trip-plan') return `<label>Related trip<select id="planTripId" required><option value="">Choose a trip</option>${noteTripOptions()}</select></label><label>Plan or reservation name<input id="name" required maxlength="160" placeholder="Acadia sunrise, Dry Tortugas day trip…"></label><div class="two"><label>Type<select id="planType"><option value="activity">Activity</option><option value="tour">Tour</option><option value="reservation">Reservation</option><option value="dining">Dining</option><option value="transportation">Transportation</option><option value="other">Other</option></select></label><label>Status<select id="planStatus"><option value="planned">Planned</option><option value="reserved">Reserved</option><option value="paid">Paid</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></label></div><div class="three"><label>Date<input id="date" type="date" required></label><label>Start time<input id="planStartTime" type="time"></label><label>End time<input id="planEndTime" type="time"></label></div><label>Location name<input id="planLocationName" placeholder="Cadillac Mountain, ferry terminal…"></label><label>Address<input id="address"></label><div class="three"><label>City<input id="city" autocomplete="address-level2"></label><label>State<select id="state" autocomplete="address-level1">${stateOptions()}</select></label><label>ZIP code<input id="zip" inputmode="numeric" autocomplete="postal-code" maxlength="10"></label></div><div class="two"><label>Confirmation code<input id="planConfirmation"></label><label>Cost<input id="total" type="number" min="0" step=".01"></label></div><label>Website or ticket link<input id="planWebsite" inputmode="url" placeholder="https://…"></label>${tripPlanAttachmentFields()}`;
   if(type==='fuel'){
     const options=db.tripSummaries.slice().sort((a,b)=>tripStamp(b).localeCompare(tripStamp(a))).map(t=>`<option value="${escapeHtml(t.name)}">${escapeHtml(t.name)}</option>`).join('');
-    return `<div class="two"><label>Date<input id="date" type="date" required></label><label>Trip<select id="tripName" required><option value="${NO_TRIP_VALUE}">${NO_TRIP_LABEL}</option>${options}</select></label></div><p class="field-help fuel-trip-help">Not traveling? Keep “Everyday Ruby.” It stays in Ruby’s fuel history without changing any trip totals.</p><label>Station<input id="station" required></label><div class="two"><label>City<input id="city" autocomplete="address-level2"></label><label>State<select id="state" autocomplete="address-level1">${stateOptions()}</select></label></div><div class="three"><label>Gallons<input id="gallons" type="number" min=".001" step=".001" required></label><label>Total<input id="total" type="number" min="0" step=".01" required></label><label>Fuel type<select id="fuelType" required><option value="diesel">Diesel</option><option value="gasoline">Gasoline</option></select></label></div><div class="two"><label>Trip meter<input id="tripMeter" type="number" min="0" step=".1" required></label><label>Odometer<input id="odometer" type="number" min="0" step=".1"></label></div><div class="fuel-calculations" id="fuelCalculations"><span>MPG <b>—</b></span><span>Price / gallon <b>—</b></span></div>${receiptEditorFields('Optional. Save a private photo of the fuel receipt with this stop.')}`;
+    return `<div class="two"><label>Date<input id="date" type="date" required></label><label>Trip<select id="tripName" required><option value="${NO_TRIP_VALUE}">${NO_TRIP_LABEL}</option>${options}</select></label></div><p class="field-help fuel-trip-help">Not traveling? Keep “Everyday Ruby.” It stays in Ruby’s fuel history without changing any trip totals.</p><label>Station<input id="station" required></label><div class="two"><label>City<input id="city" autocomplete="address-level2"></label><label>State<select id="state" autocomplete="address-level1">${stateOptions()}</select></label></div><div class="three"><label>Gallons<input id="gallons" type="number" min=".001" step=".001" required></label><label>Total<input id="total" type="number" min="0" step=".01" required></label><label>Fuel type<select id="fuelType" required><option value="diesel">Diesel</option><option value="gasoline">Gasoline</option></select></label></div><div class="two"><label>Trip meter<input id="tripMeter" type="number" min="0" step=".1" required></label><label>Odometer<input id="odometer" type="number" min="0" step=".1"></label></div><div class="fuel-calculations" id="fuelCalculations"><span><span id="fuelMpgLabel">Trip MPG</span> <b>—</b></span><span>Price / gallon <b>—</b></span></div>${receiptEditorFields('Optional. Save a private photo of the fuel receipt with this stop.')}`;
   }
   if(type==='stay') return `<div class="two"><label>Arrival<input id="arrival" type="date" required></label><label>Departure<input id="departure" type="date"></label></div><div class="two"><label>Check-in time<input id="checkInTime" type="time" value="12:00"></label><label>Check-out time<input id="checkOutTime" type="time" value="12:00"></label></div><label>Campground<input id="name" required></label><label>Address<input id="address"></label><div class="three"><label>City<input id="city"></label><label>State<select id="state">${stateOptions()}</select></label><label>ZIP code<input id="zip" inputmode="numeric" autocomplete="postal-code" maxlength="10"></label></div><div class="two"><label>Site<input id="site"></label><label>Total cost<input id="total" type="number" step=".01"></label></div><div class="stay-type-options"><label><input id="harvestHost" type="checkbox"> Harvest Host</label><label><input id="moochdocking" type="checkbox"> Moochdocking</label><label><input id="boondocking" type="checkbox"> Boondocking</label></div><section class="stay-photo-editors"><div class="stay-photo-editors-heading"><b>Stay photos</b><p>Add these from Kayla’s photo library now or come back later.</p></div>${stayPhotoEditorSlot('site','Campsite','The campsite photo you take at nearly every stop.')}${stayPhotoEditorSlot('sign','Sign','The entrance, campground, winery, farm, or host sign.')}</section>`;
   if(type==='electric') return `<div class="two"><label>Reading date<input id="date" type="date" required></label><label>Paid date<input id="paid" type="date"></label></div><div class="three"><label>Previous meter<input id="previous" type="number" required></label><label>Current meter<input id="current" type="number" required></label><label>Rate / kWh<input id="rate" type="number" step=".001" value=".16"></label></div><div class="two"><label>Amount due<input id="amountDue" type="number" min="0" step=".01"></label><label>Check number<input id="check"></label></div>${documentScannerFields()}`;
@@ -1811,7 +1852,15 @@ function openEntry(type,index=null,returnTripIndex=null){
     const updatePreview=()=>{
       const gallons=Number($('#gallons').value),total=Number($('#total').value),tripMeter=Number($('#tripMeter').value);
       const values=$$('#fuelCalculations b');
-      values[0].textContent=gallons>0&&tripMeter>=0?number(tripMeter/gallons,2):'—';
+      const tripName=$('#tripName').value;
+      const isEveryday=tripName===NO_TRIP_VALUE;
+      const priorGallons=isEveryday?0:db.fuel.reduce((sum,row,rowIndex)=>{
+        if(rowIndex===index||row.trip!==tripName||(row.date||'')>($('#date').value||today))return sum;
+        return sum+(Number(row.gallons)||0);
+      },0);
+      const mpgGallons=gallons+priorGallons;
+      $('#fuelMpgLabel').textContent=isEveryday?'Fill MPG':'Trip MPG';
+      values[0].textContent=mpgGallons>0&&tripMeter>=0?number(tripMeter/mpgGallons,2):'—';
       values[1].textContent=gallons>0&&total>=0?money(total/gallons):'—';
     };
     if(index!==null){
@@ -1850,7 +1899,7 @@ function openEntry(type,index=null,returnTripIndex=null){
       $('#tripName').value=currentTrip?.name||NO_TRIP_VALUE;
     }
     if(index===null)syncTripFuelType();
-    $('#tripName').addEventListener('change',syncTripFuelType);
+    $('#tripName').addEventListener('change',()=>{syncTripFuelType();updatePreview()});
     $('#date').addEventListener('change',()=>{
       if($('#tripName').value!==NO_TRIP_VALUE)return;
       const value=$('#date').value;
@@ -2175,13 +2224,14 @@ $('#entryForm').onsubmit=async e=>{
   if(returnTripIndex!==null && !['sitepayment','electric'].includes(type)) showTrip(returnTripIndex);
 };
 $('#export').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(db,null,2)],{type:'application/json'}));a.download='adventure-hub-backup.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500)};
-$('#importFile').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{db=migrate(JSON.parse(r.result));applyDataMigrations();save();renderHome();renderTrips();renderNotes();alert('Backup imported.')}catch{alert('That file could not be imported.')}};r.readAsText(f)};
+$('#importFile').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{db=migrate(JSON.parse(r.result));applyDataMigrations();refreshTripFuelSummaries();save();renderHome();renderTrips();renderNotes();alert('Backup imported.')}catch{alert('That file could not be imported.')}};r.readAsText(f)};
 async function loadCloudData(){
   const status=$('#cloudAccountStatus');
   if(status)status.textContent='Loading shared Travel Journal records…';
   try{
     const browserBackup=migrate(JSON.parse(localStorage.getItem(KEY)||'null'));
     db=migrate(await window.ADVENTURE_HUB_STORE.load());
+    refreshTripFuelSummaries();
     let recoveredLocalChanges=false;
     if(browserBackup){
       const tripKey=trip=>`${String(trip.name||'').trim().toLowerCase()}|${trip.startDate||''}|${trip.endDate||''}`;
