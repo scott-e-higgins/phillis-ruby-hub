@@ -15,16 +15,16 @@
   };
   const fieldDefinitions = [
     { key: 'campground', label: 'Campground', type: 'text', group: 'Bill details' },
-    { key: 'site_number', label: 'Site number', type: 'text', group: 'Bill details' },
+    { key: 'site_number', label: 'Site number', type: 'text', group: 'Bill details', automatic: true },
     { key: 'bill_date', label: 'Bill date', type: 'date', group: 'Bill details' },
-    { key: 'billing_period_start', label: 'Billing period starts', type: 'date', group: 'Bill details' },
-    { key: 'billing_period_end', label: 'Billing period ends', type: 'date', group: 'Bill details' },
-    { key: 'previous_meter_reading', label: 'Previous meter', type: 'number', step: 'any', group: 'Readings' },
+    { key: 'previous_meter_reading', label: 'Previous meter', type: 'number', step: 'any', group: 'Readings', automatic: true },
     { key: 'current_meter_reading', label: 'Current meter', type: 'number', step: 'any', group: 'Readings' },
     { key: 'electricity_usage', label: 'Usage (kWh)', type: 'number', step: 'any', group: 'Readings' },
     { key: 'rate', label: 'Rate / kWh', type: 'number', step: '0.001', group: 'Amounts' },
     { key: 'amount_due', label: 'Amount due', type: 'number', step: '0.01', group: 'Amounts' },
-    { key: 'due_date', label: 'Due date', type: 'date', group: 'Amounts' }
+    { key: 'payment_date', label: 'Handwritten paid date', type: 'date', group: 'Payment notes' },
+    { key: 'check_number', label: 'Handwritten check number', type: 'text', group: 'Payment notes' },
+    { key: 'amount_paid', label: 'Handwritten amount paid', type: 'number', step: '0.01', group: 'Payment notes' }
   ];
   let active = null;
   let activeFileIndex = 0;
@@ -41,9 +41,10 @@
   }
 
   function currentData() {
+    const defaults = active?.defaultFields || {};
     const corrections = active?.record?.documentUserCorrections || {};
     const extracted = active?.record?.documentExtractedData || {};
-    return { ...(extracted.fields || extracted || {}), ...(corrections.fields || corrections || {}) };
+    return { ...defaults, ...(extracted.fields || extracted || {}), ...(corrections.fields || corrections || {}) };
   }
 
   function currentConfidence() {
@@ -128,11 +129,11 @@
       <legend>${escapeHtml(group)}</legend>
       <div class="hub-document-review-grid">
         ${fields.map(field => {
-          const needsReview = reviewFields.has(field.key) || (confidence[field.key] != null && Number(confidence[field.key]) < .78);
+          const needsReview = !field.automatic && (reviewFields.has(field.key) || (confidence[field.key] != null && Number(confidence[field.key]) < .78));
           const value = data[field.key] ?? '';
           return `<label class="${needsReview ? 'needs-review' : ''}">
-            <span>${escapeHtml(field.label)}${needsReview ? '<small>Check this</small>' : ''}</span>
-            <input data-document-review-field="${escapeHtml(field.key)}" type="${field.type}" ${field.step ? `step="${field.step}"` : ''} value="${escapeHtml(value)}">
+            <span>${escapeHtml(field.label)}${field.automatic ? '<small>Automatic</small>' : needsReview ? '<small>Check this</small>' : ''}</span>
+            <input data-document-review-field="${escapeHtml(field.key)}" type="${field.type}" ${field.step ? `step="${field.step}"` : ''} value="${escapeHtml(value)}" ${field.automatic ? 'readonly' : ''}>
           </label>`;
         }).join('')}
       </div>

@@ -1,4 +1,4 @@
-const APP_VERSION='0.43.0';
+const APP_VERSION='0.43.1';
 const SEED={"tripSummaries":[],"stays":[],"tripPlans":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"vehicleDetails":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const NO_TRIP_VALUE='__everyday_ruby__';
@@ -853,7 +853,9 @@ function useElectricDocumentSuggestions(record,index,result){
   if(fields.previous_meter_reading!=null)$('#previous').value=fields.previous_meter_reading;
   if(fields.current_meter_reading!=null)$('#current').value=fields.current_meter_reading;
   if(fields.rate!=null)$('#rate').value=fields.rate;
-  if(fields.amount_due!=null)$('#amountDue').value=fields.amount_due;
+  if(fields.amount_paid!=null||fields.amount_due!=null)$('#amountDue').value=fields.amount_paid??fields.amount_due;
+  if(fields.payment_date)$('#paid').value=fields.payment_date;
+  if(fields.check_number)$('#check').value=fields.check_number;
   const status=$('#documentScannerAttachStatus');
   if(status)status.textContent='AI suggestions are loaded. Check the bill values, then tap Save bill to approve them.';
 }
@@ -864,6 +866,11 @@ function openElectricDocumentReview(record,index){
   }
   window.HIGGINS_DOCUMENT_REVIEW.open({
     record,
+    defaultFields:{
+      campground:'Lehigh Gorge Campground',
+      site_number:'39',
+      previous_meter_reading:record.previous
+    },
     onExtracted:updated=>{
       Object.assign(record,updated);
       localStorage.setItem(KEY,JSON.stringify(db));
@@ -1590,6 +1597,13 @@ function openEntry(type,index=null,returnTripIndex=null){
     }
   }
   if(index===null && returnTripIndex!==null && (type==='sitepayment'||type==='electric')){const year=+returnTripIndex;if($('#year'))$('#year').value=year;if($('#date'))$('#date').value=`${year}-${type==='electric'?'06':'01'}-01`;if(type==='electric'&&$('#paid'))$('#paid').value='';}
+  if(index===null&&type==='electric'&&$('#previous')){
+    const selectedYear=returnTripIndex!==null?String(returnTripIndex):String(new Date().getFullYear());
+    const priorBill=(db.electric||[])
+      .filter(record=>String(record.date||'').startsWith(selectedYear))
+      .sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')))[0];
+    if(priorBill?.current!=null)$('#previous').value=priorBill.current;
+  }
   if(type==='stay'){
     const cost=$('#total'),checks=[$('#harvestHost'),$('#moochdocking'),$('#boondocking')];
     const site=$('#site');

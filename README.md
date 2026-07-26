@@ -2,6 +2,16 @@
 
 Travel Journal is Scott and Kayla's private travel companion.
 
+## Version 0.43.1
+
+- Treats Lehigh Gorge as Site 39 automatically instead of asking AI to find a
+  site number that the bill never prints.
+- Loads the previous meter from the prior electric-bill record instead of
+  expecting it on the new paper bill.
+- Removes unused billing-period and due-date review fields.
+- Reads handwritten paid date, check number, and amount paid and presents them
+  as reviewable suggestions before saving.
+
 ## Version 0.43.0
 
 - Opens each saved electric bill in a reusable Higgins Documents viewer with a

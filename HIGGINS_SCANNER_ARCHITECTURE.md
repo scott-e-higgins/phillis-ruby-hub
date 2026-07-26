@@ -212,3 +212,16 @@ The AI reader lives in the Supabase `extract-document` Edge Function. It:
 AI processing remains opt-in and paid. Local capture, edge cleanup, perspective
 correction, rotation, compression, preview, upload, storage, and ordinary
 document viewing never call OpenAI.
+
+## Version 0.43.1 Lehigh Gorge bill rules
+
+The first document reader now follows the campground's actual bill format:
+
+- Site number is supplied by Travel Journal as Site 39.
+- Previous meter comes from the preceding saved electric bill.
+- Billing period and due date are not requested because the campground does
+  not provide useful values for them.
+- The AI reader checks both printed text and handwritten annotations for paid
+  date, check number, and amount paid.
+- Printed and handwritten values remain suggestions until Scott or Kayla
+  reviews and saves the electric record.
