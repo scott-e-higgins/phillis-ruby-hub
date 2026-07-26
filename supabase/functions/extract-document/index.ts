@@ -47,29 +47,25 @@ const extractionSchema = {
       additionalProperties: false,
       properties: {
         campground: valueSchema('string'),
-        site_number: valueSchema('string'),
         bill_date: valueSchema('string'),
-        billing_period_start: valueSchema('string'),
-        billing_period_end: valueSchema('string'),
-        previous_meter_reading: valueSchema('number'),
         current_meter_reading: valueSchema('number'),
         electricity_usage: valueSchema('number'),
         rate: valueSchema('number'),
         amount_due: valueSchema('number'),
-        due_date: valueSchema('string')
+        payment_date: valueSchema('string'),
+        check_number: valueSchema('string'),
+        amount_paid: valueSchema('number')
       },
       required: [
         'campground',
-        'site_number',
         'bill_date',
-        'billing_period_start',
-        'billing_period_end',
-        'previous_meter_reading',
         'current_meter_reading',
         'electricity_usage',
         'rate',
         'amount_due',
-        'due_date'
+        'payment_date',
+        'check_number',
+        'amount_paid'
       ]
     },
     field_confidence: {
@@ -77,29 +73,25 @@ const extractionSchema = {
       additionalProperties: false,
       properties: {
         campground: valueSchema('number'),
-        site_number: valueSchema('number'),
         bill_date: valueSchema('number'),
-        billing_period_start: valueSchema('number'),
-        billing_period_end: valueSchema('number'),
-        previous_meter_reading: valueSchema('number'),
         current_meter_reading: valueSchema('number'),
         electricity_usage: valueSchema('number'),
         rate: valueSchema('number'),
         amount_due: valueSchema('number'),
-        due_date: valueSchema('number')
+        payment_date: valueSchema('number'),
+        check_number: valueSchema('number'),
+        amount_paid: valueSchema('number')
       },
       required: [
         'campground',
-        'site_number',
         'bill_date',
-        'billing_period_start',
-        'billing_period_end',
-        'previous_meter_reading',
         'current_meter_reading',
         'electricity_usage',
         'rate',
         'amount_due',
-        'due_date'
+        'payment_date',
+        'check_number',
+        'amount_paid'
       ]
     },
     review_fields: { type: 'array', items: { type: 'string' } },
@@ -160,9 +152,12 @@ Deno.serve(async request => {
       type: 'input_text',
       text: [
         'Read this seasonal-site electricity bill.',
-        'Return only values visibly supported by the document.',
+        'Read both printed text and handwritten payment notes.',
+        'The site number and previous meter reading are supplied by the Travel Journal, so do not extract or infer them.',
         'Use YYYY-MM-DD for dates. Use null when a field is absent or uncertain.',
-        'Do not infer a due date, billing period, rate, or amount that is not printed.',
+        'bill_date is the printed bill date.',
+        'payment_date, check_number, and amount_paid refer to handwritten payment notes when present.',
+        'Do not infer a billing period, due date, rate, payment detail, or amount that is not visible.',
         'Put any uncertain field names in review_fields.',
         'extracted_text should be a concise transcription of the bill text useful for later search, not an explanation.'
       ].join(' ')
