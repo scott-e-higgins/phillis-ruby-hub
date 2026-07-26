@@ -15,9 +15,12 @@
     processedFile: null,
     previewUrl: '',
     processedUrl: '',
+    cropPreviewUrl: '',
     kind: '',
     rotation: 0,
     cleanup: null,
+    cropEditing: false,
+    manualCorners: null,
     onUse: null,
     allowPdfUse: false,
     busy: false
@@ -36,8 +39,10 @@
   function revokeUrls() {
     if (state.previewUrl) URL.revokeObjectURL(state.previewUrl);
     if (state.processedUrl) URL.revokeObjectURL(state.processedUrl);
+    if (state.cropPreviewUrl) URL.revokeObjectURL(state.cropPreviewUrl);
     state.previewUrl = '';
     state.processedUrl = '';
+    state.cropPreviewUrl = '';
   }
 
   function reset() {
@@ -48,6 +53,8 @@
       kind: '',
       rotation: 0,
       cleanup: null,
+      cropEditing: false,
+      manualCorners: null,
       busy: false
     });
     const camera = $('#scannerCameraInput');
@@ -67,10 +74,13 @@
   function render() {
     const empty = $('#scannerEmpty');
     const preview = $('#scannerPreview');
+    const imageStage = $('#scannerImageStage');
     const image = $('#scannerPreviewImage');
     const pdf = $('#scannerPreviewPdf');
+    const cropOverlay = $('#scannerCropOverlay');
     const meta = $('#scannerFileMeta');
     const process = $('#scannerProcess');
+    const adjustCrop = $('#scannerAdjustCrop');
     const rotateLeft = $('#scannerRotateLeft');
     const rotateRight = $('#scannerRotateRight');
     const remove = $('#scannerRemove');
@@ -82,16 +92,21 @@
     preview.hidden = !hasFile;
     remove.hidden = !hasFile;
     process.hidden = state.kind !== 'image';
+    adjustCrop.hidden = state.kind !== 'image';
     rotateLeft.hidden = state.kind !== 'image';
     rotateRight.hidden = state.kind !== 'image';
     process.disabled = state.busy || !hasFile;
+    adjustCrop.disabled = state.busy || !hasFile;
+    adjustCrop.textContent = state.cropEditing ? 'Apply crop' : 'Adjust crop';
     rotateLeft.disabled = state.busy || !hasFile;
     rotateRight.disabled = state.busy || !hasFile;
-    use.disabled = state.busy || !state.processedFile || (state.kind === 'pdf' && !state.allowPdfUse);
+    use.disabled = state.busy || state.cropEditing || !state.processedFile || (state.kind === 'pdf' && !state.allowPdfUse);
 
     if (!hasFile) {
+      imageStage.hidden = true;
       image.hidden = true;
       pdf.hidden = true;
+      cropOverlay.hidden = true;
       image.removeAttribute('src');
       pdf.removeAttribute('src');
       meta.innerHTML = '';
@@ -99,9 +114,13 @@
       return;
     }
 
-    const url = state.processedUrl || state.previewUrl;
+    const url = state.cropEditing
+      ? state.cropPreviewUrl
+      : (state.processedUrl || state.previewUrl);
+    imageStage.hidden = state.kind !== 'image';
     image.hidden = state.kind !== 'image';
     pdf.hidden = state.kind !== 'pdf';
+    cropOverlay.hidden = state.kind !== 'image' || !state.cropEditing;
     if (state.kind === 'image') image.src = url;
     if (state.kind === 'pdf') pdf.src = url;
 
@@ -115,6 +134,23 @@
       );
     }
     meta.innerHTML = details.map(line => `<span>${line}</span>`).join('');
+    renderCropOverlay();
+  }
+
+  function renderCropOverlay() {
+    const overlay = $('#scannerCropOverlay');
+    const polygon = $('#scannerCropPolygon');
+    const handles = [...document.querySelectorAll('[data-scanner-corner]')];
+    if (!overlay || !polygon || !state.manualCorners) return;
+    polygon.setAttribute('points', state.manualCorners
+      .map(point => `${(point.x * 100).toFixed(2)},${(point.y * 100).toFixed(2)}`)
+      .join(' '));
+    handles.forEach((handle, index) => {
+      const point = state.manualCorners[index];
+      if (!point) return;
+      handle.style.left = `${point.x * 100}%`;
+      handle.style.top = `${point.y * 100}%`;
+    });
   }
 
   function escapeText(value) {
@@ -154,6 +190,8 @@
     state.kind = isPdf ? 'pdf' : 'image';
     state.rotation = 0;
     state.cleanup = null;
+    state.cropEditing = false;
+    state.manualCorners = null;
     render();
 
     if (isPdf) {
@@ -314,6 +352,17 @@
     return canvas;
   }
 
+  function insetCorners(points, amount = .012) {
+    const center = points.reduce((total, point) => ({
+      x: total.x + point.x / points.length,
+      y: total.y + point.y / points.length
+    }), { x: 0, y: 0 });
+    return points.map(point => ({
+      x: point.x + (center.x - point.x) * amount,
+      y: point.y + (center.y - point.y) * amount
+    }));
+  }
+
   function squareDocument(sourceCanvas, points) {
     const [topLeft, topRight, bottomRight, bottomLeft] = points;
     const naturalWidth = Math.max(distance(topLeft, topRight), distance(bottomLeft, bottomRight));
@@ -400,7 +449,17 @@
       const sourceCanvas = rotatedCanvas(bitmap, state.rotation);
       if (typeof bitmap.close === 'function') bitmap.close();
       const autoCleanup = $('#scannerAutoCleanup')?.checked !== false;
-      const paper = autoCleanup ? estimatePaperCorners(sourceCanvas) : null;
+      const manualPoints = state.manualCorners?.map(point => ({
+        x: point.x * sourceCanvas.width,
+        y: point.y * sourceCanvas.height
+      }));
+      const detectedPaper = autoCleanup && !manualPoints ? estimatePaperCorners(sourceCanvas) : null;
+      const points = manualPoints || (detectedPaper ? insetCorners(detectedPaper.points) : null);
+      const paper = points ? {
+        points,
+        confidence: manualPoints ? 1 : detectedPaper.confidence,
+        manual: Boolean(manualPoints)
+      } : null;
       let output = paper ? squareDocument(sourceCanvas, paper.points) : scaledCanvas(sourceCanvas);
       output = enhanceReadability(output);
       let blob = await canvasBlob(output, DOCUMENT_QUALITY);
@@ -425,12 +484,17 @@
         width: output.width,
         height: output.height,
         originalBytes: state.file.size,
-        optimizedBytes: file.size
+        optimizedBytes: file.size,
+        manual: Boolean(paper?.manual),
+        pointsNormalized: paper?.points.map(point => ({
+          x: point.x / sourceCanvas.width,
+          y: point.y / sourceCanvas.height
+        })) || null
       };
       setStatus(
         paper
-          ? `Cleanup complete. Paper edges were detected and squared locally; file size is ${bytes(file.size)}.`
-          : `Cleanup complete. The full image was retained because a safe paper boundary was not certain; file size is ${bytes(file.size)}.`,
+          ? `${paper.manual ? 'Your crop' : 'Paper edges'} ${paper.manual ? 'was applied' : 'were detected'} and squared locally; file size is ${bytes(file.size)}.`
+          : `Cleanup complete. The full image was retained because a safe paper boundary was not certain. Choose Adjust crop to trim it manually; file size is ${bytes(file.size)}.`,
         'success'
       );
     } catch (error) {
@@ -447,7 +511,69 @@
   async function rotate(amount) {
     if (!state.file || state.kind !== 'image' || state.busy) return;
     state.rotation = (state.rotation + amount + 360) % 360;
+    state.cropEditing = false;
+    state.manualCorners = null;
     await processImage();
+  }
+
+  async function toggleCropEditor() {
+    if (!state.file || state.kind !== 'image' || state.busy) return;
+    if (state.cropEditing) {
+      state.cropEditing = false;
+      await processImage();
+      return;
+    }
+    state.busy = true;
+    render();
+    setStatus('Preparing the full image so you can place the four paper corners…');
+    try {
+      const bitmap = await loadBitmap(state.file);
+      const sourceCanvas = rotatedCanvas(bitmap, state.rotation);
+      if (typeof bitmap.close === 'function') bitmap.close();
+      const blob = await canvasBlob(sourceCanvas, .92);
+      if (!blob) throw new Error('The crop preview could not be created.');
+      if (state.cropPreviewUrl) URL.revokeObjectURL(state.cropPreviewUrl);
+      state.cropPreviewUrl = URL.createObjectURL(blob);
+      state.manualCorners = state.cleanup?.pointsNormalized || [
+        { x: .035, y: .035 },
+        { x: .965, y: .035 },
+        { x: .965, y: .965 },
+        { x: .035, y: .965 }
+      ];
+      state.cropEditing = true;
+      setStatus('Drag each gold corner onto the matching corner of the paper, then tap Apply crop.');
+    } catch (error) {
+      console.error(error);
+      setStatus(`The crop editor could not open. ${error.message}`, 'error');
+    } finally {
+      state.busy = false;
+      render();
+    }
+  }
+
+  function moveCropCorner(index, clientX, clientY) {
+    const stage = $('#scannerImageStage');
+    if (!stage || !state.manualCorners?.[index]) return;
+    const bounds = stage.getBoundingClientRect();
+    if (!bounds.width || !bounds.height) return;
+    let x = Math.max(.01, Math.min(.99, (clientX - bounds.left) / bounds.width));
+    let y = Math.max(.01, Math.min(.99, (clientY - bounds.top) / bounds.height));
+    const points = state.manualCorners;
+    if (index === 0) {
+      x = Math.min(x, points[1].x - .04);
+      y = Math.min(y, points[3].y - .04);
+    } else if (index === 1) {
+      x = Math.max(x, points[0].x + .04);
+      y = Math.min(y, points[2].y - .04);
+    } else if (index === 2) {
+      x = Math.max(x, points[3].x + .04);
+      y = Math.max(y, points[1].y + .04);
+    } else if (index === 3) {
+      x = Math.min(x, points[2].x - .04);
+      y = Math.max(y, points[0].y + .04);
+    }
+    points[index] = { x, y };
+    renderCropOverlay();
   }
 
   function useDocument() {
@@ -476,10 +602,23 @@
     $('#scannerCameraInput')?.addEventListener('change', event => selectFile(event.target.files?.[0]));
     $('#scannerFileInput')?.addEventListener('change', event => selectFile(event.target.files?.[0]));
     $('#scannerProcess')?.addEventListener('click', processImage);
+    $('#scannerAdjustCrop')?.addEventListener('click', toggleCropEditor);
     $('#scannerRotateLeft')?.addEventListener('click', () => rotate(-90));
     $('#scannerRotateRight')?.addEventListener('click', () => rotate(90));
     $('#scannerRemove')?.addEventListener('click', reset);
     $('#scannerUse')?.addEventListener('click', useDocument);
+    document.querySelectorAll('[data-scanner-corner]').forEach(handle => {
+      handle.addEventListener('pointerdown', event => {
+        if (!state.cropEditing) return;
+        const index = Number(handle.dataset.scannerCorner);
+        handle.setPointerCapture?.(event.pointerId);
+        moveCropCorner(index, event.clientX, event.clientY);
+      });
+      handle.addEventListener('pointermove', event => {
+        if (!state.cropEditing || !handle.hasPointerCapture?.(event.pointerId)) return;
+        moveCropCorner(Number(handle.dataset.scannerCorner), event.clientX, event.clientY);
+      });
+    });
     dialog.querySelectorAll('[data-close-scanner]').forEach(button => button.addEventListener('click', () => dialog.close()));
     dialog.addEventListener('close', () => {
       state.onUse = null;

@@ -2,6 +2,11 @@
 
 Travel Journal is Scott and Kayla's private travel companion.
 
+## Version 0.39.1
+
+- Tightened automatic document-edge crops so background slivers are less likely to remain.
+- Added a four-corner manual crop editor for scans that need an exact paper boundary.
+
 ## Version 0.39.0
 
 - Introduces the reusable Higgins Hub scanner inside Lehigh Gorge electric
