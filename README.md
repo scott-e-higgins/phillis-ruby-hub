@@ -2,6 +2,13 @@
 
 Travel Journal is Scott and Kayla's private travel companion.
 
+## Version 0.46.1
+
+- Lets every travel year remain collapsed at the same time.
+- Stops the newest year from automatically reopening when the last open year is
+  closed.
+- Keeps year searching and individual expand/collapse controls unchanged.
+
 ## Version 0.46.0
 
 - Adds a complete digital campground-book form inside every campground or host

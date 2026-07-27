@@ -1,4 +1,4 @@
-const APP_VERSION='0.46.0';
+const APP_VERSION='0.46.1';
 const SEED={"tripSummaries":[],"campgrounds":[],"stays":[],"tripPlans":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"vehicleDetails":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const NO_TRIP_VALUE='__everyday_ruby__';
@@ -652,7 +652,6 @@ function renderTrips(){
   const groups=new Map();
   trips.forEach(t=>{const year=Number(t.year)||new Date(tripDates(t)[0]+'T12:00:00').getFullYear();if(!groups.has(year))groups.set(year,[]);groups.get(year).push(t)});
   const years=[...groups.keys()].sort((a,b)=>b-a);
-  if(!openTripYears.size&&years.length) openTripYears.add(years[0]);
   if(q) years.forEach(year=>openTripYears.add(year));
   $('#tripList').innerHTML=years.map(year=>{
     const yearTrips=groups.get(year), totals=yearTotals(yearTrips), expanded=openTripYears.has(year);
