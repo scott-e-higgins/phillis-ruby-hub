@@ -2,6 +2,17 @@
 
 Travel Journal is Scott and Kayla's private travel companion.
 
+## Version 0.45.0
+
+- Adds a Trips / Campground Log switch without changing the bottom navigation.
+- Builds a searchable collection of the 42 campgrounds and hosts already linked
+  to the Journal's 52 stays.
+- Shows each place's location, most recent visit, visit count, photos, and
+  complete stay history.
+- Establishes one reusable campground profile plus visit-specific journal data,
+  ready for the detailed digital campground-book form.
+- Keeps the Campground Log private to owners and full-access editors.
+
 ## Version 0.44.2
 
 - Keeps the current trip as the navigation parent when opening one of its

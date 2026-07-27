@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-title" content="Travel Journal">
   <meta name="description" content="The private travel, maintenance and seasonal-site hub for Phillis & Ruby.">
   <title>Phillis & Ruby Travel Journal</title>
-  <link rel="manifest" href="manifest.webmanifest?v=0.44.2">
+  <link rel="manifest" href="manifest.webmanifest?v=0.45.0">
   <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
   <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
   <script>
@@ -21,7 +21,7 @@
       document.documentElement.style.setProperty('--standalone-screen-height', `${window.screen.height}px`);
     }
   </script>
-  <link rel="stylesheet" href="styles.css?v=0.44.2">
+  <link rel="stylesheet" href="styles.css?v=0.45.0">
 </head>
 <body>
 <div id="pullRefresh" class="pull-refresh" aria-live="polite">
@@ -75,14 +75,27 @@
 
   <section id="trips" class="view">
     <div class="page-title">
-      <div><small>YOUR TRAVEL LOG</small><h2>Trips</h2></div>
-      <button class="primary" data-open="trip">Add trip</button>
+      <div><small id="travelLogKicker">YOUR TRAVEL LOG</small><h2 id="travelLogTitle">Trips</h2></div>
+      <button class="primary" id="travelLogAddTrip" data-open="trip">Add trip</button>
     </div>
-    <div class="filters">
+    <div class="travel-log-switch" id="travelLogSwitch" role="group" aria-label="Choose travel log view">
+      <button class="active" type="button" data-travel-log-mode="trips" aria-pressed="true">Trips</button>
+      <button type="button" data-travel-log-mode="campgrounds" aria-pressed="false">Campground Log</button>
+    </div>
+    <div class="filters" id="tripFilters">
       <input id="tripSearch" type="search" placeholder="Search trips">
       <select id="tripYear"><option value="all">All years</option></select>
     </div>
+    <div class="filters campground-log-filters" id="campgroundFilters" hidden>
+      <input id="campgroundSearch" type="search" placeholder="Search campgrounds, hosts, cities, or states">
+      <select id="campgroundSort" aria-label="Sort campground log">
+        <option value="recent">Most recently visited</option>
+        <option value="name">Name</option>
+        <option value="visits">Most visits</option>
+      </select>
+    </div>
     <div id="tripList" class="stack"></div>
+    <div id="campgroundList" class="campground-log-list" hidden></div>
   </section>
 
   <section id="garage" class="view">
@@ -216,9 +229,13 @@
     <article class="card updates-card">
       <div class="updates-heading">
         <div><small>WHAT'S NEW</small><h3>Recent updates</h3></div>
-        <span class="version-badge">v0.44.2</span>
+        <span class="version-badge">v0.45.0</span>
       </div>
       <div class="updates-list">
+        <div>
+          <b>v0.45.0</b>
+          <span>Adds the first Campground Log, combining repeat visits and photos into one searchable place history.</span>
+        </div>
         <div>
           <b>v0.44.2</b>
           <span>Returns you to the same trip after closing or cancelling a campground, fuel stop, plan, or linked note.</span>
@@ -490,10 +507,10 @@
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
 <script src="supabase-config.js" defer></script>
-<script src="cloud.js?v=0.44.2" defer></script>
-<script src="cloud-store.js?v=0.44.2" defer></script>
-<script src="document-scanner.js?v=0.44.2" defer></script>
-<script src="hub-document-review.js?v=0.44.2" defer></script>
-<script src="app.js?v=0.44.2" defer></script>
+<script src="cloud.js?v=0.45.0" defer></script>
+<script src="cloud-store.js?v=0.45.0" defer></script>
+<script src="document-scanner.js?v=0.45.0" defer></script>
+<script src="hub-document-review.js?v=0.45.0" defer></script>
+<script src="app.js?v=0.45.0" defer></script>
 </body>
 </html>

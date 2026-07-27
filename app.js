@@ -1,5 +1,5 @@
-const APP_VERSION='0.44.2';
-const SEED={"tripSummaries":[],"stays":[],"tripPlans":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"vehicleDetails":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
+const APP_VERSION='0.45.0';
+const SEED={"tripSummaries":[],"campgrounds":[],"stays":[],"tripPlans":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"vehicleDetails":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const NO_TRIP_VALUE='__everyday_ruby__';
 const NO_TRIP_LABEL='No trip · Everyday Ruby';
@@ -18,7 +18,7 @@ function migrate(x){
   migratedTrailerAssignments=false;
   if(x.maintenance&&!x.phillisMaintenance) x.phillisMaintenance=x.maintenance;
   delete x.maintenance;
-  for(const k of ['phillisMaintenance','phillisUpgrades','rubyMaintenance','rubyUpgrades','fuel','electric','siteFees','stays','tripPlans','tripSummaries','sharedNotes','vehicleDetails']) x[k]=x[k]||[];
+  for(const k of ['phillisMaintenance','phillisUpgrades','rubyMaintenance','rubyUpgrades','fuel','electric','siteFees','stays','tripPlans','tripSummaries','campgrounds','sharedNotes','vehicleDetails']) x[k]=x[k]||[];
   for(const key of ['phillisMaintenance','phillisUpgrades']){
     x[key].forEach(record=>{
       const trailer=Number(String(record.date||'').slice(0,4))>=2026?'Phillis II.0':'Phillis';
@@ -500,6 +500,107 @@ function initYears(){
   $('#tripYear').value=years.includes(+selected)?selected:'all';
 }
 const openTripYears=new Set();
+let travelLogMode='trips';
+const campgroundPlaceTypeLabel=value=>({
+  campground:'Campground',
+  harvest_host:'Harvest Host',
+  'harvest-host':'Harvest Host',
+  moochdocking:'Moochdocking',
+  boondocking:'Boondocking',
+  other:'Other'
+}[value]||'Campground');
+const campgroundIdentity=value=>[
+  String(value?.name||'').trim().toLowerCase(),
+  String(value?.city||'').trim().toLowerCase(),
+  String(value?.state||'').trim().toUpperCase()
+].join('|');
+function campgroundVisits(campground){
+  const identity=campgroundIdentity(campground);
+  return db.stays
+    .filter(stay=>stay.arrival!=='Season'&&(
+      (stay._campgroundId&&campground._cloudId&&stay._campgroundId===campground._cloudId)
+      ||(!stay._campgroundId&&campgroundIdentity(stay)===identity)
+    ))
+    .sort((a,b)=>String(b.arrival||'').localeCompare(String(a.arrival||'')));
+}
+function campgroundLocation(campground,full=false){
+  return full
+    ?[campground.address,campground.city,campground.state,campground.zip].filter(Boolean).join(', ')
+    :[campground.city,campground.state].filter(Boolean).join(', ');
+}
+function updateTravelLogModeUi(){
+  const viewer=window.ADVENTURE_HUB_CLOUD?.role==='viewer';
+  if(viewer)travelLogMode='trips';
+  $('#travelLogSwitch').hidden=viewer;
+  const showingCampgrounds=travelLogMode==='campgrounds';
+  $('#travelLogKicker').textContent=showingCampgrounds?'PLACES WE HAVE STAYED':'YOUR TRAVEL LOG';
+  $('#travelLogTitle').textContent=showingCampgrounds?'Campground Log':'Trips';
+  $('#travelLogAddTrip').hidden=showingCampgrounds;
+  $('#tripFilters').hidden=showingCampgrounds;
+  $('#campgroundFilters').hidden=!showingCampgrounds;
+  $('#tripList').hidden=showingCampgrounds;
+  $('#campgroundList').hidden=!showingCampgrounds;
+  $$('[data-travel-log-mode]').forEach(button=>{
+    const active=button.dataset.travelLogMode===travelLogMode;
+    button.classList.toggle('active',active);
+    button.setAttribute('aria-pressed',String(active));
+  });
+}
+function setTravelLogMode(mode){
+  travelLogMode=mode==='campgrounds'?'campgrounds':'trips';
+  updateTravelLogModeUi();
+  renderTrips();
+}
+function campgroundCardHtml(campground){
+  const index=db.campgrounds.indexOf(campground);
+  const visits=campgroundVisits(campground);
+  const latest=visits[0];
+  const photo=latest?.signPhotoUrl||latest?.sitePhotoUrl||'';
+  const completed=visits.filter(stay=>stay.journalCompletedAt).length;
+  const location=campgroundLocation(campground)||'Location not recorded';
+  const lastVisit=latest?.arrival?`Last stayed ${date(latest.arrival)}`:'No visit date';
+  return `<article class="campground-log-card" data-campground-index="${index}" tabindex="0" aria-label="Open ${escapeHtml(campground.name)} campground log"><div class="campground-log-thumb">${photo?`<img src="${escapeHtml(photo)}" alt="" loading="lazy">`:'<span aria-hidden="true">⌂</span>'}</div><div class="campground-log-copy"><small>${escapeHtml(campgroundPlaceTypeLabel(campground.placeType))}</small><h3>${escapeHtml(campground.name)}</h3><p>${escapeHtml(location)}</p><div class="campground-log-meta"><span>${visits.length} ${visits.length===1?'visit':'visits'}</span><span>${escapeHtml(lastVisit)}</span>${completed?`<span>${completed} ${completed===1?'log':'logs'} completed</span>`:''}</div></div><span class="campground-log-chevron" aria-hidden="true">›</span></article>`;
+}
+function renderCampgroundLog(){
+  updateTravelLogModeUi();
+  const q=$('#campgroundSearch').value.trim().toLowerCase();
+  const sort=$('#campgroundSort').value;
+  const campgrounds=(db.campgrounds||[]).filter(campground=>{
+    const haystack=[campground.name,campground.address,campground.city,campground.state,campground.zip,campgroundPlaceTypeLabel(campground.placeType)].join(' ').toLowerCase();
+    return !q||haystack.includes(q);
+  });
+  campgrounds.sort((a,b)=>{
+    const aVisits=campgroundVisits(a),bVisits=campgroundVisits(b);
+    if(sort==='name')return String(a.name||'').localeCompare(String(b.name||''));
+    if(sort==='visits')return bVisits.length-aVisits.length||String(a.name||'').localeCompare(String(b.name||''));
+    return String(bVisits[0]?.arrival||'').localeCompare(String(aVisits[0]?.arrival||''))||String(a.name||'').localeCompare(String(b.name||''));
+  });
+  $('#campgroundList').innerHTML=campgrounds.map(campgroundCardHtml).join('')||'<div class="empty">No campgrounds or hosts found.</div>';
+  $$('[data-campground-index]',$('#campgroundList')).forEach(card=>{
+    const open=()=>showCampgroundProfile(+card.dataset.campgroundIndex);
+    card.onclick=open;
+    card.onkeydown=event=>{
+      if(!['Enter',' '].includes(event.key))return;
+      event.preventDefault();
+      open();
+    };
+  });
+}
+function showCampgroundProfile(index){
+  const campground=db.campgrounds[index]; if(!campground)return;
+  detailReturnTripIndex=null;
+  const visits=campgroundVisits(campground);
+  const completed=visits.filter(stay=>stay.journalCompletedAt).length;
+  const profile={...campground,zip:campground.zip||campground.postalCode||''};
+  const location=campgroundLocation(profile,true);
+  setDetailHeader('CAMPGROUND LOG',campground.name,null,location?`<p class="detail-header-dates">${escapeHtml(campgroundLocation(profile))}</p>`:'');
+  const contact=[campground.phone?`<div class="detail-row"><span>Phone</span><span>${escapeHtml(campground.phone)}</span></div>`:'',campground.websiteUrl?`<div class="detail-row"><span>Website</span><a class="text-button" href="${escapeHtml(campground.websiteUrl)}" target="_blank" rel="noopener">Open website ↗</a></div>`:''].join('');
+  $('#detailBody').innerHTML=`<div class="campground-profile-summary"><div><small>VISIT HISTORY</small><b>${visits.length}</b><span>${visits.length===1?'stay':'stays'}</span></div><div><small>COMPLETED LOGS</small><b>${completed}</b><span>${completed===1?'entry':'entries'}</span></div></div>${location?`<div class="detail-section"><h3>Location</h3>${stayLocationHtml(profile,{full:true})}${contact}</div>`:''}<div class="detail-section"><h3>Our visits</h3><div class="stay-listing-stack">${visits.map(stay=>stayListing(stay)).join('')||'<p class="intro">No visits are linked yet.</p>'}</div></div><p class="campground-log-coming">The detailed campground-book entry will live here next. Existing dates, site information, costs, photos, and notes will carry into it automatically.</p>`;
+  bindStayPhotoButtons($('#detailBody'));
+  bindStayMapLinks($('#detailBody'));
+  bindStayCards($('#detailBody'));
+  $('#detailDialog').showModal();
+}
 function tripStayNights(stay){
   if(Number.isFinite(Number(stay.nights))) return Number(stay.nights);
   const arrival=stay.arrival&&stay.arrival!=='Season'?new Date(stay.arrival+'T12:00:00'):null;
@@ -531,6 +632,11 @@ function yearTotals(trips){
   return {distance,gallons,fuel,stayCost,nights,stays:allStays.length,mpg:gallons>0?distance/gallons:null};
 }
 function renderTrips(){
+  updateTravelLogModeUi();
+  if(travelLogMode==='campgrounds'){
+    renderCampgroundLog();
+    return;
+  }
   initYears();
   const q=$('#tripSearch').value.trim().toLowerCase(), y=$('#tripYear').value;
   const trips=db.tripSummaries.filter(t=>(y==='all'||String(t.year)===y)&&t.name.toLowerCase().includes(q)).sort((a,b)=>{
@@ -552,6 +658,9 @@ function renderTrips(){
   bindTripButtons();
 }
 $('#tripSearch').addEventListener('input',renderTrips); $('#tripYear').addEventListener('change',renderTrips);
+$('#campgroundSearch').addEventListener('input',renderCampgroundLog);
+$('#campgroundSort').addEventListener('change',renderCampgroundLog);
+$$('[data-travel-log-mode]').forEach(button=>button.onclick=()=>setTravelLogMode(button.dataset.travelLogMode));
 function matchingStays(t){
   const [start,end]=tripDates(t);
   if(tripHasDates(t)){

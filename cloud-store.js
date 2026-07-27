@@ -1145,6 +1145,7 @@
         await Promise.all([hydrateStayPhotoUrls(stays), hydrateTripPhotoUrls(tripSummaries)]);
         return {
           tripSummaries,
+          campgrounds: [],
           stays,
           tripPlans,
           fuel: [],
@@ -1161,6 +1162,7 @@
       }
       const results = await Promise.all([
         client.from('trips').select('*').eq('household_id', householdId),
+        client.from('campgrounds').select('*').eq('household_id', householdId),
         client.from('campground_stays').select('*'),
         client.from('trip_fuel').select('*'),
         client.from('vehicles').select('*').eq('household_id', householdId),
@@ -1176,9 +1178,10 @@
         client.from('hub_document_files').select('*'),
         client.from('hub_document_links').select('*').eq('source_app', 'travel-journal')
       ]);
-      const [trips, stays, fuel, vehicles, maintenance, sites, seasons, payments, electric, notes, plans, privateVehicleDetails, documents, documentFiles, documentLinks] = results.map(assert);
+      const [trips, campgrounds, stays, fuel, vehicles, maintenance, sites, seasons, payments, electric, notes, plans, privateVehicleDetails, documents, documentFiles, documentLinks] = results.map(assert);
       known = {
         trips: new Set(trips.map(x => x.id)),
+        campgrounds: new Set(campgrounds.map(x => x.id)),
         campground_stays: new Set(stays.map(x => x.id)),
         trip_fuel: new Set(fuel.map(x => x.id)),
         maintenance: new Set(maintenance.map(x => x.id)),
@@ -1264,9 +1267,24 @@
       await hydrateTripPhotoUrls(tripSummaries);
 
       const tripName = id => tripById.get(id)?.name || '';
+      const localCampgrounds = campgrounds.map(row => ({
+        _cloudId: row.id,
+        name: row.name,
+        placeType: row.place_type || 'campground',
+        address: row.address || '',
+        city: row.city || '',
+        state: row.state || '',
+        zip: row.postal_code || '',
+        phone: row.phone || '',
+        websiteUrl: row.website_url || '',
+        profileData: row.profile_data && typeof row.profile_data === 'object' ? row.profile_data : {},
+        createdAt: row.created_at || '',
+        updatedAt: row.updated_at || ''
+      }));
       const localStays = stays.map(row => ({
         _cloudId: row.id,
         _tripId: row.trip_id,
+        _campgroundId: row.campground_id || null,
         year: Number(String(row.arrival_date).slice(0, 4)),
         arrival: row.arrival_date,
         departure: row.checkout_date,
@@ -1288,6 +1306,10 @@
         signPhotoPath: row.sign_photo_path || '',
         sitePhotoUrl: '',
         signPhotoUrl: '',
+        journalData: row.journal_data && typeof row.journal_data === 'object' ? row.journal_data : {},
+        overallRating: num(row.overall_rating),
+        wouldReturn: row.would_return,
+        journalCompletedAt: row.journal_completed_at || '',
         notes: row.notes || ''
       }));
       await hydrateStayPhotoUrls(localStays);
@@ -1533,6 +1555,7 @@
 
       return {
         tripSummaries,
+        campgrounds: localCampgrounds,
         stays: localStays,
         fuel: localFuel,
         siteFees,
@@ -1580,6 +1603,22 @@
         on_road_photo_path: x.onRoadPhotoPath || null
       }));
       assert(await client.from('trips').upsert(tripRows));
+      snapshot.campgrounds ||= [];
+      snapshot.campgrounds.forEach(x => { if (!x._cloudId) x._cloudId = uuid(); });
+      const campgroundRows = snapshot.campgrounds.map(x => ({
+        id: x._cloudId,
+        household_id: householdId,
+        name: x.name,
+        place_type: x.placeType === 'harvest-host' ? 'harvest_host' : (x.placeType || 'campground'),
+        address: x.address || null,
+        city: x.city || null,
+        state: x.state || null,
+        postal_code: x.zip || null,
+        phone: x.phone || null,
+        website_url: x.websiteUrl || null,
+        profile_data: x.profileData && typeof x.profileData === 'object' ? x.profileData : {}
+      }));
+      if (campgroundRows.length) assert(await client.from('campgrounds').upsert(campgroundRows));
       const tripFor = (name, date) => snapshot.tripSummaries.find(x =>
         x.name === name && (!date || String(x.startDate).slice(0, 4) === String(date).slice(0, 4))
       ) || snapshot.tripSummaries.find(x => x.name === name);
@@ -1589,8 +1628,57 @@
 
       const ordinaryStays = snapshot.stays.filter(x => x.arrival !== 'Season');
       ordinaryStays.forEach(x => { if (!x._cloudId) x._cloudId = uuid(); });
+      const campgroundKey = value => [
+        String(value?.name || '').trim().toLowerCase(),
+        String(value?.city || '').trim().toLowerCase(),
+        String(value?.state || '').trim().toUpperCase()
+      ].join('|');
+      const campgroundByKey = new Map(snapshot.campgrounds.map(campground => [campgroundKey(campground), campground]));
+      const newCampgrounds = [];
+      ordinaryStays.forEach(stay => {
+        if (stay._campgroundId) return;
+        let campground = campgroundByKey.get(campgroundKey(stay));
+        if (!campground) {
+          campground = {
+            _cloudId: uuid(),
+            name: stay.name,
+            placeType: stay.harvestHost || stay.stayType === 'harvest-host' || stay.stayType === 'harvest_host'
+              ? 'harvest_host'
+              : stay.moochdocking || stay.stayType === 'moochdocking'
+                ? 'moochdocking'
+                : stay.boondocking || stay.stayType === 'boondocking'
+                  ? 'boondocking'
+                  : 'campground',
+            address: stay.address || '',
+            city: stay.city || '',
+            state: stay.state || '',
+            zip: stay.zip || '',
+            phone: '',
+            websiteUrl: '',
+            profileData: {}
+          };
+          snapshot.campgrounds.push(campground);
+          campgroundByKey.set(campgroundKey(campground), campground);
+          newCampgrounds.push(campground);
+        }
+        stay._campgroundId = campground._cloudId;
+      });
+      if (newCampgrounds.length) {
+        assert(await client.from('campgrounds').upsert(newCampgrounds.map(x => ({
+          id: x._cloudId,
+          household_id: householdId,
+          name: x.name,
+          place_type: x.placeType || 'campground',
+          address: x.address || null,
+          city: x.city || null,
+          state: x.state || null,
+          postal_code: x.zip || null,
+          profile_data: {}
+        }))));
+      }
       const stayRows = ordinaryStays.map(x => ({
         id: x._cloudId, trip_id: x._tripId || tripForStay(x)?._cloudId,
+        campground_id: x._campgroundId || null,
         campground_name: x.name, arrival_date: x.arrival, checkout_date: x.departure,
         check_in_time: x.checkInTime || null, check_out_time: x.checkOutTime || null,
         site_number: x.site || null, cost: x.price || 0, address: x.address || null,
@@ -1603,6 +1691,10 @@
               ? 'boondocking'
               : 'campground',
         site_photo_path: x.sitePhotoPath || null, sign_photo_path: x.signPhotoPath || null,
+        journal_data: x.journalData && typeof x.journalData === 'object' ? x.journalData : {},
+        overall_rating: x.overallRating || null,
+        would_return: x.wouldReturn == null ? null : Boolean(x.wouldReturn),
+        journal_completed_at: x.journalCompletedAt || null,
         notes: x.notes || null
       })).filter(x => x.trip_id);
       if (stayRows.length) assert(await client.from('campground_stays').upsert(stayRows));
@@ -1732,7 +1824,8 @@
       await removeMissing('trip_plans', new Set(snapshot.tripPlans.map(x => x._cloudId)));
       await removeMissing('trips', new Set(snapshot.tripSummaries.map(x => x._cloudId)));
       Object.keys(known).forEach(table => {
-        const source = table === 'campground_stays' ? ordinaryStays :
+        const source = table === 'campgrounds' ? snapshot.campgrounds :
+          table === 'campground_stays' ? ordinaryStays :
           table === 'trip_fuel' ? snapshot.fuel :
           table === 'maintenance' ? maintRows.map(x => ({ _cloudId: x.id })) :
           table === 'site_seasons' ? seasonEntries :
