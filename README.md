@@ -2,6 +2,13 @@
 
 Travel Journal is Scott and Kayla's private travel companion.
 
+## Version 0.44.2
+
+- Keeps the current trip as the navigation parent when opening one of its
+  campground stays, fuel stops, plans, or linked notes.
+- Closing, cancelling, or backing out of the inner record now returns to that
+  same trip instead of dropping back to the complete trip list.
+
 ## Version 0.44.1
 
 - Corrects trip and yearly distance/MPG totals by treating Ruby's trip meter as

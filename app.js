@@ -1,4 +1,4 @@
-const APP_VERSION='0.44.1';
+const APP_VERSION='0.44.2';
 const SEED={"tripSummaries":[],"stays":[],"tripPlans":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"vehicleDetails":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const NO_TRIP_VALUE='__everyday_ruby__';
@@ -49,6 +49,25 @@ function migrate(x){
 }
 let db=migrate(JSON.parse(localStorage.getItem(KEY)||localStorage.getItem(OLDKEY)||'null'))||clone(SEED);
 let cloudLoaded=false;
+let detailReturnTripIndex=null;
+let entryReturnTripIndex=null;
+let suppressNextDetailReturn=false;
+let suppressNextEntryReturn=false;
+function closeDetailForTransition(){
+  detailReturnTripIndex=null;
+  if($('#detailDialog')?.open){
+    suppressNextDetailReturn=true;
+    $('#detailDialog').close();
+  }
+}
+function closeEntryForTransition(){
+  entryReturnTripIndex=null;
+  if($('#entryStayIndex'))$('#entryStayIndex').value='';
+  if($('#entryDialog')?.open){
+    suppressNextEntryReturn=true;
+    $('#entryDialog').close();
+  }
+}
 const save=()=>{
   localStorage.setItem(KEY,JSON.stringify(db));
   if(cloudLoaded&&window.ADVENTURE_HUB_STORE){
@@ -409,7 +428,7 @@ function noteCardHtml(note,compact=false){
 }
 function bindNoteCards(host,returnTripIndex=null){
   $$('[data-note-index]',host).forEach(button=>button.onclick=()=>{
-    if(returnTripIndex!==null&&$('#detailDialog').open)$('#detailDialog').close();
+    if(returnTripIndex!==null)closeDetailForTransition();
     openEntry('hub-note',+button.dataset.noteIndex,returnTripIndex);
   });
 }
@@ -554,6 +573,7 @@ function cumulativeTripDistance(rows){
 const fuelLocation=record=>[record.city,record.state].filter(Boolean).join(', ')||record.location||'';
 function showStay(index,tripIndex=null){
   const stay=db.stays[index]; if(!stay)return;
+  detailReturnTripIndex=tripIndex;
   const viewer=window.ADVENTURE_HUB_CLOUD?.role==='viewer';
   const type=stay.harvestHost||stay.stayType==='harvest-host'?'HARVEST HOST':stay.moochdocking||stay.stayType==='moochdocking'?'MOOCHDOCKING':stay.boondocking||stay.stayType==='boondocking'?'BOONDOCKING':'CAMPGROUND';
   const headerMeta=`<p class="detail-header-dates">${date(stay.arrival)} – ${date(stay.departure)}</p>`;
@@ -561,8 +581,8 @@ function showStay(index,tripIndex=null){
   const actions=`<div class="record-detail-actions stay-detail-actions">${tripIndex!==null?'<button class="text-button" id="backToTripButton">← Back to trip</button>':''}${viewer?'':'<button class="primary" id="editStayButton">Edit stay</button>'}</div>`;
   const photos=stayPhotoGallery(stay);
   $('#detailBody').innerHTML=`${actions}<div class="detail-section"><div class="detail-row"><span>Arrival</span><span>${date(stay.arrival)}${stay.checkInTime?` · ${clockTime(stay.checkInTime)}`:''}</span></div><div class="detail-row"><span>Departure</span><span>${date(stay.departure)}${stay.checkOutTime?` · ${clockTime(stay.checkOutTime)}`:''}</span></div>${stay.site?`<div class="detail-row"><span>Site</span><span>${escapeHtml(stay.site)}</span></div>`:''}${viewer?'':`<div class="detail-row"><span>Stay cost</span><span>${money(stay.price)}</span></div>`}<div class="stay-detail-location"><small>LOCATION</small>${stayLocationHtml(stay,{full:true})}</div>${photos?`<div class="stay-detail-photos"><small>PHOTOS</small>${photos}</div>`:''}${stay.notes?`<div class="record-notes"><small>NOTES</small><p>${escapeHtml(stay.notes)}</p></div>`:''}</div>`;
-  if(tripIndex!==null)$('#backToTripButton').onclick=()=>{$('#detailDialog').close();showTrip(tripIndex)};
-  if(!viewer)$('#editStayButton').onclick=()=>{$('#detailDialog').close();openEntry('stay',index,tripIndex)};
+  if(tripIndex!==null)$('#backToTripButton').onclick=()=>$('#detailDialog').close();
+  if(!viewer)$('#editStayButton').onclick=()=>{closeDetailForTransition();openEntry('stay',index,tripIndex)};
   bindStayPhotoButtons($('#detailBody'));
   bindStayMapLinks($('#detailBody'));
   if(!$('#detailDialog').open)$('#detailDialog').showModal();
@@ -621,13 +641,14 @@ function planCardHtml(plan,{viewer=false}={}){
 }
 function bindPlanCards(root,returnTripIndex){
   $$('[data-trip-plan-index]',root).forEach(button=>button.onclick=()=>{
-    if($('#detailDialog').open)$('#detailDialog').close();
+    closeDetailForTransition();
     showPlanRecord(+button.dataset.tripPlanIndex,returnTripIndex);
   });
 }
 function bindTripButtons(){$$('[data-trip-index]').forEach(b=>b.onclick=()=>showTrip(+b.dataset.tripIndex))}
 function showTrip(index){
   const t=db.tripSummaries[index]; if(!t)return;
+  detailReturnTripIndex=null;
   const [s,e]=tripDates(t), stays=matchingStays(t), plans=plansForTrip(t), fuel=matchingFuel(t), linkedNotes=notesForTrip(t);
   const stayCost=stays.reduce((total,stay)=>total+(Number(stay.price)||0),0);
   const fuelCost=fuel.length?fuel.reduce((total,stop)=>total+(Number(stop.total)||0),0):Number(t.cost)||0;
@@ -642,10 +663,10 @@ function showTrip(index){
     return;
   }
   $('#detailBody').innerHTML=`<div class="record-detail-actions"><button class="primary" id="editTripButton">Edit trip</button></div><div class="detail-section trip-totals-section"><h3>Trip totals</h3><div class="trip-totals-compact"><div><small>Stay cost</small><b>${money(stayCost)}</b></div><div><small>Fuel cost</small><b>${money(fuelCost)}</b></div><div><small>Miles</small><b>${number(t.distance,1)}</b></div><div><small>MPG</small><b>${number(t.mpg,2)}</b></div></div></div><div class="detail-section"><h3>Campgrounds & hosts</h3><div class="stay-listing-stack">${stays.map(x=>stayListing(x)).join('')||'<p class="intro">No campground stays linked yet.</p>'}</div></div><div class="detail-section trip-plans-section"><div class="detail-section-head"><h3>Plans & reservations</h3><button class="text-button" id="addTripPlanButton">Add plan</button></div><div class="trip-plan-list">${plans.map(plan=>planCardHtml(plan)).join('')||'<p class="intro">No activity plans or reservations linked yet.</p>'}</div></div><div class="detail-section trip-linked-notes-section"><div class="detail-section-head"><h3>Linked notes</h3><button class="text-button" id="addTripNoteButton">Add note</button></div><div class="trip-linked-notes">${linkedNotes.map(note=>noteCardHtml(note,true)).join('')||'<p class="intro">No notes linked to this trip yet.</p>'}</div></div><div class="detail-section"><div class="detail-section-head"><h3>Fuel stops</h3><button class="text-button" id="addTripFuelButton">Add fuel</button></div>${fuel.map(x=>`<button class="detail-row editable-detail-row trip-fuel-record record-link" type="button" data-trip-fuel-record-index="${db.fuel.indexOf(x)}"><span><b>${escapeHtml(x.station||'Fuel stop')}</b><br><small>${date(x.date)}${fuelLocation(x)?` · ${escapeHtml(fuelLocation(x))}`:''} · ${escapeHtml(x.vehicle||t.towVehicle||'')} · ${x.fuelType==='diesel'?'Diesel':'Gasoline'} · ${number(x.gallons,2)} gal</small></span><span class="trip-fuel-record-end"><b>${money(x.total)}</b><span class="record-chevron">›</span></span></button>`).join('')||'<p class="intro">No fuel stops linked yet.</p>'}</div>${t.notes?`<div class="detail-section"><h3>Trip description</h3><p>${escapeHtml(t.notes)}</p></div>`:''}<div class="trip-delete-area"><button class="delete-link" id="deleteTripButton">Delete trip</button></div>`;
-  $('#editTripButton').onclick=()=>{$('#detailDialog').close();openEntry('trip',index)};
-  $('#addTripFuelButton').onclick=()=>{$('#detailDialog').close();openEntry('fuel',null,index)};
-  $('#addTripPlanButton').onclick=()=>{$('#detailDialog').close();openEntry('trip-plan',null,index)};
-  $('#addTripNoteButton').onclick=()=>{$('#detailDialog').close();openEntry('hub-note',null,index)};
+  $('#editTripButton').onclick=()=>{closeDetailForTransition();openEntry('trip',index)};
+  $('#addTripFuelButton').onclick=()=>{closeDetailForTransition();openEntry('fuel',null,index)};
+  $('#addTripPlanButton').onclick=()=>{closeDetailForTransition();openEntry('trip-plan',null,index)};
+  $('#addTripNoteButton').onclick=()=>{closeDetailForTransition();openEntry('hub-note',null,index)};
   $$('[data-trip-fuel-record-index]').forEach(button=>button.onclick=()=>showFuelRecord(+button.dataset.tripFuelRecordIndex,index));
   bindNoteCards($('#detailBody'),index);
   bindPlanCards($('#detailBody'),index);
@@ -662,6 +683,7 @@ function normalizedWebsiteUrl(value){
 }
 function showPlanRecord(index,returnTripIndex=null){
   const plan=db.tripPlans?.[index]; if(!plan)return;
+  detailReturnTripIndex=returnTripIndex;
   setDetailHeader(planTypeLabel(plan.planType).toUpperCase(),plan.title||'Plan details');
   const website=normalizedWebsiteUrl(plan.websiteUrl);
   const mapAddress=[plan.address,plan.city,plan.state,plan.zip].filter(Boolean).join(', ');
@@ -669,8 +691,8 @@ function showPlanRecord(index,returnTripIndex=null){
   $('#detailBody').innerHTML=`${actions}<div class="detail-section"><div class="detail-row"><span>Type</span><span>${escapeHtml(planTypeLabel(plan.planType))}</span></div><div class="detail-row"><span>Status</span><span>${escapeHtml(planStatusLabel(plan.status))}</span></div><div class="detail-row"><span>Date</span><span>${date(plan.date)}</span></div>${plan.startTime||plan.endTime?`<div class="detail-row"><span>Time</span><span>${[plan.startTime?clockTime(plan.startTime):'',plan.endTime?clockTime(plan.endTime):''].filter(Boolean).join(' – ')}</span></div>`:''}${plan.locationName?`<div class="detail-row"><span>Location</span><span>${escapeHtml(plan.locationName)}</span></div>`:''}${mapAddress?`<div class="plan-detail-address">${planLocationHtml(plan,{full:true})}</div>`:''}<div class="detail-row"><span>Cost</span><span>${money(plan.cost||0)}</span></div>${plan.confirmationCode?`<div class="detail-row"><span>Confirmation</span><span class="confirmation-code">${escapeHtml(plan.confirmationCode)}</span></div>`:''}${website?`<div class="detail-row"><span>Website / tickets</span><a class="text-button plan-website-link" href="${escapeHtml(website)}" target="_blank" rel="noopener">Open link ↗</a></div>`:''}${plan.notes?`<div class="record-notes"><small>NOTES</small><p>${escapeHtml(plan.notes)}</p></div>`:''}${tripPlanAttachmentsDetailHtml(plan)}</div><div class="trip-delete-area"><button class="delete-link" id="deletePlanRecord">Delete plan</button></div>`;
   bindStayPhotoButtons($('#detailBody'));
   bindStayMapLinks($('#detailBody'));
-  if(returnTripIndex!==null)$('#backToTripButton').onclick=()=>{$('#detailDialog').close();showTrip(returnTripIndex)};
-  $('#editPlanRecord').onclick=()=>{$('#detailDialog').close();openEntry('trip-plan',index,returnTripIndex)};
+  if(returnTripIndex!==null)$('#backToTripButton').onclick=()=>$('#detailDialog').close();
+  $('#editPlanRecord').onclick=()=>{closeDetailForTransition();openEntry('trip-plan',index,returnTripIndex)};
   $('#deletePlanRecord').onclick=async()=>{
     if(!confirm(`Delete “${plan.title||'this plan'}”?`))return;
     const button=$('#deletePlanRecord');
@@ -686,7 +708,7 @@ function showPlanRecord(index,returnTripIndex=null){
       try{await window.ADVENTURE_HUB_STORE.setTripPlanPdfDocument(removed,null)}
       catch(error){console.warn('The deleted reservation PDF could not be removed.',error)}
     }
-    $('#detailDialog').close();
+    closeDetailForTransition();
     renderTrips();
     if(returnTripIndex!==null)showTrip(returnTripIndex);
   };
@@ -791,13 +813,14 @@ function fuelRecordList(items){
 }
 function showFuelRecord(index,returnTripIndex=null){
   const record=db.fuel?.[index]; if(!record)return;
+  detailReturnTripIndex=returnTripIndex;
   setDetailHeader(`${record.vehicle||'TRIP'} FUEL STOP`.toUpperCase(),record.station||'Fuel stop');
   const actions=`<div class="record-detail-actions stay-detail-actions">${returnTripIndex!==null?'<button class="text-button" id="backToTripButton">← Back to trip</button>':''}<button class="primary" id="editFuelRecord">Edit fuel stop</button></div>`;
   const receipt=receiptDetailHtml(record,`${record.station||'Fuel stop'} receipt`);
   $('#detailBody').innerHTML=`${actions}<div class="detail-section"><div class="detail-row"><span>Date</span><span>${date(record.date)}</span></div><div class="detail-row"><span>Trip</span><span>${escapeHtml(record.trip||NO_TRIP_LABEL)}</span></div>${record.vehicle?`<div class="detail-row"><span>Vehicle</span><span>${escapeHtml(record.vehicle)}</span></div>`:''}<div class="detail-row"><span>Fuel</span><span>${record.fuelType==='diesel'?'Diesel':'Gasoline'}</span></div>${record.city?`<div class="detail-row"><span>City</span><span>${escapeHtml(record.city)}</span></div>`:''}${record.state?`<div class="detail-row"><span>State</span><span>${escapeHtml(record.state)}</span></div>`:''}<div class="detail-row"><span>Gallons</span><span>${number(record.gallons,3)}</span></div><div class="detail-row"><span>Total</span><span>${money(record.total||0)}</span></div><div class="detail-row"><span>Price per gallon</span><span>${money(record.price||((record.gallons&&record.total)?record.total/record.gallons:0))}</span></div>${record.tripMiles!=null?`<div class="detail-row"><span>Trip meter</span><span>${number(record.tripMiles,1)}</span></div>`:''}${record.odometer?`<div class="detail-row"><span>Odometer</span><span>${number(record.odometer,1)}</span></div>`:''}${record.notes?`<div class="record-notes"><small>NOTES</small><p>${escapeHtml(record.notes)}</p></div>`:''}${receipt}</div><div class="trip-delete-area"><button class="delete-link" id="deleteFuelRecord">Delete fuel stop</button></div>`;
   bindStayPhotoButtons($('#detailBody'));
-  if(returnTripIndex!==null)$('#backToTripButton').onclick=()=>{$('#detailDialog').close();showTrip(returnTripIndex)};
-  $('#editFuelRecord').onclick=()=>{$('#detailDialog').close();openEntry('fuel',index,returnTripIndex)};
+  if(returnTripIndex!==null)$('#backToTripButton').onclick=()=>$('#detailDialog').close();
+  $('#editFuelRecord').onclick=()=>{closeDetailForTransition();openEntry('fuel',index,returnTripIndex)};
   $('#deleteFuelRecord').onclick=async()=>{
     if(!confirm(`Delete this fuel stop at ${record.station||'this station'}?`))return;
     const button=$('#deleteFuelRecord');
@@ -815,7 +838,7 @@ function showFuelRecord(index,returnTripIndex=null){
       try{await window.ADVENTURE_HUB_STORE.deleteRecordReceipt(removed);}
       catch(error){console.warn('The deleted fuel stop receipt could not be removed.',error);}
     }
-    $('#detailDialog').close();
+    closeDetailForTransition();
     renderHome();
     renderTrips();
     if(returnTripIndex!==null)showTrip(returnTripIndex);
@@ -1703,6 +1726,7 @@ function notePhotoChanges(){
 function openEntry(type,index=null,returnTripIndex=null){
   const titles={'hub-note':index===null?'Add note':'Edit note',trip:index===null?'Add trip':'Edit trip','trip-plan':index===null?'Add plan or reservation':'Edit plan or reservation',fuel:index===null?'Add fuel':'Edit fuel stop',stay:index===null?'Add campground':'Edit stay','phillis-maint':index===null?'Add Phillis maintenance':'Edit Phillis maintenance','phillis-upgrade':index===null?'Add Phillis upgrade':'Edit Phillis upgrade','ruby-maint':index===null?'Add Ruby maintenance':'Edit Ruby maintenance','ruby-upgrade':index===null?'Add Ruby upgrade':'Edit Ruby upgrade',electric:index===null?'Add electric reading':'Edit electric reading',sitepayment:index===null?'Add seasonal payment':'Edit seasonal payment',sitefee:index===null?'Add season':'Edit season'};
   $('#entryType').value=type; $('#entryIndex').value=index===null?'':index; $('#entryStayIndex').value=returnTripIndex===null?'':returnTripIndex;
+  entryReturnTripIndex=returnTripIndex;
   $('#entryKicker').textContent=index===null?'NEW RECORD':'EDIT RECORD';
   $('#entryTitle').textContent=titles[type]; $('#entryFields').innerHTML=fields(type); $('#entryExtras').innerHTML=type==='hub-note'?notePhotoFields():''; $('#entryNotes').value='';
   $('#entryForm').querySelector('.form-actions .primary').textContent=type==='electric'?'Save bill':'Save';
@@ -1736,7 +1760,7 @@ function openEntry(type,index=null,returnTripIndex=null){
         try{
           await save();
           clearNotePhotoEditor();
-          $('#entryDialog').close();
+          closeEntryForTransition();
           renderHome();
           renderNotes();
           if(returnTripIndex!==null)showTrip(returnTripIndex);
@@ -1758,9 +1782,10 @@ function openEntry(type,index=null,returnTripIndex=null){
           db.sharedNotes.splice(index,1);
           await save();
           clearNotePhotoEditor();
-          $('#entryDialog').close();
+          closeEntryForTransition();
           renderHome();
           renderNotes();
+          if(returnTripIndex!==null)showTrip(returnTripIndex);
         }catch(error){
           console.error(error);
           alert(`The note could not be deleted.\n\n${error.message}`);
@@ -1809,7 +1834,7 @@ function openEntry(type,index=null,returnTripIndex=null){
         }
         clearMultiReceiptEditor();
         clearTripPlanPdfEditor();
-        $('#entryDialog').close();
+        closeEntryForTransition();
         renderTrips();
         if(returnTripIndex!==null)showTrip(returnTripIndex);
       };
@@ -1885,7 +1910,7 @@ function openEntry(type,index=null,returnTripIndex=null){
             try{await window.ADVENTURE_HUB_STORE.deleteRecordReceipt(removed);}
             catch(error){console.warn('The deleted fuel stop receipt could not be removed.',error);}
           }
-          $('#entryDialog').close();
+          closeEntryForTransition();
           renderHome();
           renderTrips();
           if(returnTripIndex!==null)showTrip(returnTripIndex);
@@ -1965,6 +1990,25 @@ function openEntry(type,index=null,returnTripIndex=null){
 }
 $$('dialog .close').forEach(b=>b.onclick=()=>{const dialog=b.closest('dialog');dialog.close();if(dialog.id==='entryDialog'){pendingElectricAiApproval=null;clearStayPhotoPreviewUrls();clearNotePhotoEditor();clearMultiReceiptEditor();clearTripPlanPdfEditor();clearElectricDocumentEditor();}if(dialog.id==='seasonDocumentDialog')clearSeasonDocumentDraft();});
 $$('dialog').forEach(dialog=>dialog.addEventListener('mousedown',event=>{const box=dialog.getBoundingClientRect();const outside=event.clientX<box.left||event.clientX>box.right||event.clientY<box.top||event.clientY>box.bottom;if(outside){dialog.close();if(dialog.id==='entryDialog'){pendingElectricAiApproval=null;clearStayPhotoPreviewUrls();clearNotePhotoEditor();clearMultiReceiptEditor();clearTripPlanPdfEditor();clearElectricDocumentEditor();}if(dialog.id==='seasonDocumentDialog')clearSeasonDocumentDraft();}}));
+$('#detailDialog').addEventListener('close',()=>{
+  if(suppressNextDetailReturn){
+    suppressNextDetailReturn=false;
+    return;
+  }
+  const returnTripIndex=detailReturnTripIndex;
+  detailReturnTripIndex=null;
+  if(returnTripIndex!==null)queueMicrotask(()=>showTrip(returnTripIndex));
+});
+$('#entryDialog').addEventListener('close',()=>{
+  if(suppressNextEntryReturn){
+    suppressNextEntryReturn=false;
+    return;
+  }
+  const returnTripIndex=entryReturnTripIndex;
+  entryReturnTripIndex=null;
+  if($('#entryStayIndex'))$('#entryStayIndex').value='';
+  if(returnTripIndex!==null)queueMicrotask(()=>showTrip(returnTripIndex));
+});
 $('#tripStayForm').onsubmit=event=>{
   event.preventDefault();
   const prior=tripStayModalIndex===null?{}:tripStayEditorItems[tripStayModalIndex];
@@ -2216,7 +2260,7 @@ $('#entryForm').onsubmit=async e=>{
   clearTripPlanPdfEditor();
   clearElectricDocumentEditor();
   pendingElectricAiApproval=null;
-  $('#entryDialog').close(); renderHome(); renderTrips(); renderNotes();
+  closeEntryForTransition(); renderHome(); renderTrips(); renderNotes();
   if(type==='fuel' && returnTripIndex===null) showPanel('fuel-history');
   if(type==='phillis-maint') showPanel('phillis-maintenance');
   if(type==='phillis-upgrade') showPanel('phillis-upgrades');
