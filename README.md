@@ -2,6 +2,18 @@
 
 Travel Journal is Scott and Kayla's private travel companion.
 
+## Version 0.46.0
+
+- Adds a complete digital campground-book form inside every campground or host
+  visit.
+- Keeps permanent facility information with the campground while preserving
+  campsite, local-area, connectivity, rating, and return notes for each visit.
+- Reuses the stay's dates, site information, cost, photos, and existing notes.
+- Adds clear Not Started, Draft, and Completed states throughout the Campground
+  Log.
+- Keeps all detailed campground-book information private to owners and
+  full-access editors.
+
 ## Version 0.45.0
 
 - Adds a Trips / Campground Log switch without changing the bottom navigation.

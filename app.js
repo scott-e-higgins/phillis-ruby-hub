@@ -1,4 +1,4 @@
-const APP_VERSION='0.45.0';
+const APP_VERSION='0.46.0';
 const SEED={"tripSummaries":[],"campgrounds":[],"stays":[],"tripPlans":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"vehicleDetails":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const NO_TRIP_VALUE='__everyday_ruby__';
@@ -145,10 +145,14 @@ function stayLocationHtml(stay,{full=false}={}){
 }
 function stayListing(stay,{viewer=false}={}){
   const index=db.stays.indexOf(stay);
+  const journalStatus=viewer?null:campgroundJournalStatus(stay);
+  const journalBadge=journalStatus&&journalStatus.tone!=='empty'
+    ?`<span class="stay-log-badge stay-log-${journalStatus.tone}">${journalStatus.tone==='complete'?'Log complete':'Log draft'}</span>`
+    :'';
   const summary=viewer
     ?'<span class="stay-card-chevron" aria-hidden="true">›</span>'
     :`<div class="stay-card-summary"><span>${money(stay.price)}</span><i aria-hidden="true">›</i></div>`;
-  return `<article class="stay-listing-card" data-stay-detail="${index}" tabindex="0" aria-label="Open details for ${escapeHtml(stay.name)}"><div class="stay-listing-main"><div class="stay-listing-copy"><h4>${escapeHtml(stay.name)}</h4><p>${date(stay.arrival)}${stay.checkInTime?` · Check in ${clockTime(stay.checkInTime)}`:''} – ${date(stay.departure)}${stay.checkOutTime?` · Check out ${clockTime(stay.checkOutTime)}`:''}</p>${stayLocationHtml(stay)}${stay.site?`<p>Site ${escapeHtml(stay.site)}</p>`:''}<div class="stay-badges">${stayTypeBadges(stay)}</div></div>${stayPhotoGallery(stay)}${summary}</div></article>`;
+  return `<article class="stay-listing-card" data-stay-detail="${index}" tabindex="0" aria-label="Open details for ${escapeHtml(stay.name)}"><div class="stay-listing-main"><div class="stay-listing-copy"><h4>${escapeHtml(stay.name)}</h4><p>${date(stay.arrival)}${stay.checkInTime?` · Check in ${clockTime(stay.checkInTime)}`:''} – ${date(stay.departure)}${stay.checkOutTime?` · Check out ${clockTime(stay.checkOutTime)}`:''}</p>${stayLocationHtml(stay)}${stay.site?`<p>Site ${escapeHtml(stay.site)}</p>`:''}<div class="stay-badges">${stayTypeBadges(stay)}${journalBadge}</div></div>${stayPhotoGallery(stay)}${summary}</div></article>`;
 }
 function bindStayPhotoButtons(root=document){
   $$('[data-photo-url]',root).forEach(button=>button.onclick=()=>{
@@ -595,7 +599,7 @@ function showCampgroundProfile(index){
   const location=campgroundLocation(profile,true);
   setDetailHeader('CAMPGROUND LOG',campground.name,null,location?`<p class="detail-header-dates">${escapeHtml(campgroundLocation(profile))}</p>`:'');
   const contact=[campground.phone?`<div class="detail-row"><span>Phone</span><span>${escapeHtml(campground.phone)}</span></div>`:'',campground.websiteUrl?`<div class="detail-row"><span>Website</span><a class="text-button" href="${escapeHtml(campground.websiteUrl)}" target="_blank" rel="noopener">Open website ↗</a></div>`:''].join('');
-  $('#detailBody').innerHTML=`<div class="campground-profile-summary"><div><small>VISIT HISTORY</small><b>${visits.length}</b><span>${visits.length===1?'stay':'stays'}</span></div><div><small>COMPLETED LOGS</small><b>${completed}</b><span>${completed===1?'entry':'entries'}</span></div></div>${location?`<div class="detail-section"><h3>Location</h3>${stayLocationHtml(profile,{full:true})}${contact}</div>`:''}<div class="detail-section"><h3>Our visits</h3><div class="stay-listing-stack">${visits.map(stay=>stayListing(stay)).join('')||'<p class="intro">No visits are linked yet.</p>'}</div></div><p class="campground-log-coming">The detailed campground-book entry will live here next. Existing dates, site information, costs, photos, and notes will carry into it automatically.</p>`;
+  $('#detailBody').innerHTML=`<div class="campground-profile-summary"><div><small>VISIT HISTORY</small><b>${visits.length}</b><span>${visits.length===1?'stay':'stays'}</span></div><div><small>COMPLETED LOGS</small><b>${completed}</b><span>${completed===1?'entry':'entries'}</span></div></div>${location?`<div class="detail-section"><h3>Location</h3>${stayLocationHtml(profile,{full:true})}${contact}</div>`:''}<div class="detail-section"><h3>Our visits</h3><p class="campground-profile-help">Open a visit to complete or edit its detailed campground log.</p><div class="stay-listing-stack">${visits.map(stay=>stayListing(stay)).join('')||'<p class="intro">No visits are linked yet.</p>'}</div></div>`;
   bindStayPhotoButtons($('#detailBody'));
   bindStayMapLinks($('#detailBody'));
   bindStayCards($('#detailBody'));
@@ -680,6 +684,199 @@ function cumulativeTripDistance(rows){
   return rows.reduce((greatest,row)=>Math.max(greatest,Number(row.tripMiles)||0),0);
 }
 const fuelLocation=record=>[record.city,record.state].filter(Boolean).join(', ')||record.location||'';
+const campgroundHookupChoices=[
+  ['full_all','Full hookups · all sites'],
+  ['full_some','Full hookups · some sites'],
+  ['water_electric','Water and electric'],
+  ['electric_only','Electric only'],
+  ['dry','Dry camping'],
+  ['dump_station','Dump station']
+];
+const campgroundAmenityChoices=[
+  ['pool','Swimming pool'],
+  ['hot_tub','Hot tub'],
+  ['lodge_game_room','Lodge / game room'],
+  ['adult_center','Adult center'],
+  ['laundry','Laundry'],
+  ['restaurant','Restaurant'],
+  ['pickleball','Pickleball'],
+  ['mini_golf','Mini golf'],
+  ['pet_friendly','Pet-friendly'],
+  ['dog_park','Dog park'],
+  ['hiking','Hiking'],
+  ['canoeing','Canoeing / kayaking'],
+  ['fishing','Fishing'],
+  ['horseback_riding','Horseback riding'],
+  ['fitness_center','Fitness center']
+];
+const internetSourceChoices=[
+  ['campground_wifi','Campground Wi-Fi'],
+  ['travlfi','TravlFi'],
+  ['starlink','Starlink'],
+  ['none','None used']
+];
+const journalCheckboxGrid=(name,choices,selected=[])=>{
+  const values=new Set(Array.isArray(selected)?selected:[]);
+  return `<div class="campground-journal-checks">${choices.map(([value,label])=>`<label><input type="checkbox" name="${escapeHtml(name)}" value="${escapeHtml(value)}" ${values.has(value)?'checked':''}><span>${escapeHtml(label)}</span></label>`).join('')}</div>`;
+};
+const journalBoolean=(id,label,checked=false)=>`<label class="campground-journal-boolean"><input id="${id}" type="checkbox" ${checked?'checked':''}><span>${escapeHtml(label)}</span></label>`;
+const journalRatingOptions=value=>`<option value="">Not rated</option>${[
+  [1,'1 · Poor'],
+  [2,'2 · Fair'],
+  [3,'3 · Good'],
+  [4,'4 · Very good'],
+  [5,'5 · Excellent']
+].map(([rating,label])=>`<option value="${rating}" ${Number(value)===rating?'selected':''}>${label}</option>`).join('')}`;
+function campgroundForStay(stay){
+  if(!stay)return null;
+  return (db.campgrounds||[]).find(campground=>campground._cloudId&&campground._cloudId===stay._campgroundId)
+    ||(db.campgrounds||[]).find(campground=>campgroundIdentity(campground)===campgroundIdentity(stay))
+    ||null;
+}
+function journalSelectedValues(name){
+  return $$(`input[name="${name}"]:checked`,$('#campgroundJournalDialog')).map(input=>input.value);
+}
+function campsiteLogSummary(stay){
+  const campsite=stay?.journalData?.campsite||{};
+  return [
+    stay.site?`Site ${stay.site}`:'',
+    campsite.electrical||'',
+    campsite.hookups||'',
+    campsite.level||'',
+    campsite.surface||'',
+    campsite.size||'',
+    campsite.shade||'',
+    campsite.noise||''
+  ].filter(Boolean).join(' · ');
+}
+function campgroundJournalStatus(stay){
+  if(stay.journalCompletedAt)return {label:'Completed',tone:'complete',button:'View / edit campground log'};
+  if(stay.journalData&&Object.keys(stay.journalData).length)return {label:'Draft',tone:'draft',button:'Continue campground log'};
+  return {label:'Not started',tone:'empty',button:'Complete campground log'};
+}
+function campgroundJournalCallout(stay){
+  const status=campgroundJournalStatus(stay);
+  const summary=campsiteLogSummary(stay);
+  const rating=Number(stay.overallRating)||0;
+  return `<section class="campground-journal-callout campground-journal-callout-${status.tone}"><div class="campground-journal-callout-heading"><div><small>CAMPGROUND LOG</small><h3>${escapeHtml(status.label)}</h3></div>${rating?`<span class="campground-rating" aria-label="${rating} out of 5 stars">${'★'.repeat(rating)}${'☆'.repeat(5-rating)}</span>`:''}</div>${summary?`<p>${escapeHtml(summary)}</p>`:''}<button class="secondary" id="openCampgroundJournalButton" type="button">${escapeHtml(status.button)}</button></section>`;
+}
+function openCampgroundJournal(stayIndex){
+  const stay=db.stays[stayIndex]; if(!stay)return;
+  const campground=campgroundForStay(stay);
+  if(!campground){
+    alert('This stay is not connected to its campground profile yet. Refresh the Journal and try again.');
+    return;
+  }
+  const profile=campground.profileData&&typeof campground.profileData==='object'?campground.profileData:{};
+  const facilities=profile.facilities||{};
+  const bathhouse=facilities.bathhouse||{};
+  const access=profile.access||{};
+  const journal=stay.journalData&&typeof stay.journalData==='object'?stay.journalData:{};
+  const campsite=journal.campsite||{};
+  const localArea=journal.localArea||{};
+  const connectivity=journal.connectivity||{};
+  $('#campgroundJournalStayIndex').value=String(stayIndex);
+  $('#campgroundJournalTitle').textContent=stay.name;
+  $('#campgroundJournalSubtitle').textContent=`${date(stay.arrival)} – ${date(stay.departure)}${stay.site?` · Site ${stay.site}`:''}`;
+  $('#campgroundJournalComplete').checked=Boolean(stay.journalCompletedAt);
+  $('#campgroundJournalBody').innerHTML=`
+    <section class="campground-journal-lead">
+      <div class="campground-journal-rating-row">
+        <label>Overall rating<select id="journalOverallRating">${journalRatingOptions(stay.overallRating)}</select></label>
+        <label>Would we return?<select id="journalWouldReturn"><option value="" ${stay.wouldReturn==null?'selected':''}>Not answered</option><option value="yes" ${stay.wouldReturn===true?'selected':''}>Yes</option><option value="no" ${stay.wouldReturn===false?'selected':''}>No</option></select></label>
+      </div>
+      <label>Our notes<textarea id="journalOurNotes" rows="7" placeholder="The story of this stay, what stood out, and anything you want to remember…">${escapeHtml(journal.ourNotes||stay.notes||'')}</textarea></label>
+    </section>
+
+    <details class="campground-journal-section" open>
+      <summary><span><small>PERMANENT PROFILE</small><b>Campground & facilities</b></span><i>⌄</i></summary>
+      <div class="campground-journal-section-body">
+        <p class="campground-journal-help">These details carry forward when you return to this campground or host.</p>
+        <fieldset><legend>Hookups</legend>${journalCheckboxGrid('journalCampgroundHookups',campgroundHookupChoices,facilities.hookups)}</fieldset>
+        <fieldset><legend>Bathhouse</legend>
+          <div class="campground-journal-checks compact">
+            ${journalBoolean('journalFlushToilets','Flush toilets',bathhouse.flushToilets)}
+            ${journalBoolean('journalShowers','Showers',bathhouse.showers)}
+            ${journalBoolean('journalFreeShowers','Free showers',bathhouse.freeShowers)}
+            ${journalBoolean('journalQuarterShowers','Quarter-operated showers',bathhouse.quarterShowers)}
+            ${journalBoolean('journalHotWater','Hot water',bathhouse.hotWater)}
+          </div>
+          <div class="campground-journal-two"><label>Cleanliness<select id="journalBathhouseCleanliness">${journalRatingOptions(bathhouse.cleanliness)}</select></label><label>Bathhouse notes<input id="journalBathhouseNotes" value="${escapeHtml(bathhouse.notes||'')}"></label></div>
+        </fieldset>
+        <fieldset><legend>Amenities</legend>${journalCheckboxGrid('journalAmenities',campgroundAmenityChoices,facilities.amenities)}<label>Other amenities<input id="journalOtherAmenities" value="${escapeHtml(facilities.otherAmenities||'')}" placeholder="Anything else worth remembering"></label></fieldset>
+        <label>Management, booking, and cancellation notes<textarea id="journalBookingNotes" rows="3">${escapeHtml(profile.bookingNotes||'')}</textarea></label>
+        <label>Scenery<textarea id="journalScenery" rows="2">${escapeHtml(profile.scenery||'')}</textarea></label>
+        <fieldset><legend>Maneuvering and access</legend>
+          <div class="campground-journal-checks compact">
+            ${journalBoolean('journalTightRoads','Tight roads or turns',access.tightRoads)}
+            ${journalBoolean('journalLowTrees','Low trees',access.lowTrees)}
+            ${journalBoolean('journalBadRoads','Rough or bad roads',access.badRoads)}
+          </div>
+          <label>Parking and access notes<textarea id="journalAccessNotes" rows="3">${escapeHtml(access.notes||'')}</textarea></label>
+        </fieldset>
+      </div>
+    </details>
+
+    <details class="campground-journal-section">
+      <summary><span><small>THIS VISIT</small><b>Our campsite</b></span><i>⌄</i></summary>
+      <div class="campground-journal-section-body">
+        <div class="campground-journal-two">
+          <label>Hookups<select id="journalSiteHookups"><option value="">Not recorded</option>${['Full hookups','Water / electric','Electric only','Dry'].map(value=>`<option ${campsite.hookups===value?'selected':''}>${value}</option>`).join('')}</select></label>
+          <label>Electrical service<select id="journalSiteElectrical"><option value="">Not recorded</option>${['50 amp','30 amp','20 amp','None'].map(value=>`<option ${campsite.electrical===value?'selected':''}>${value}</option>`).join('')}</select></label>
+          <label>Pad level<select id="journalSiteLevel"><option value="">Not recorded</option>${['Level','Slightly unlevel','Unlevel'].map(value=>`<option ${campsite.level===value?'selected':''}>${value}</option>`).join('')}</select></label>
+          <label>Surface<select id="journalSiteSurface"><option value="">Not recorded</option>${['Concrete','Paved','Gravel','Grass','Dirt','Rock / grass','Mixed','Other'].map(value=>`<option ${campsite.surface===value?'selected':''}>${value}</option>`).join('')}</select></label>
+          <label>Site size<select id="journalSiteSize"><option value="">Not recorded</option>${['Tight','Average','Spacious'].map(value=>`<option ${campsite.size===value?'selected':''}>${value}</option>`).join('')}</select></label>
+          <label>Shade<select id="journalSiteShade"><option value="">Not recorded</option>${['None','Some shade','Heavy shade'].map(value=>`<option ${campsite.shade===value?'selected':''}>${value}</option>`).join('')}</select></label>
+        </div>
+        <div class="campground-journal-checks compact">
+          ${journalBoolean('journalFireRing','Fire ring',campsite.fireRing)}
+          ${journalBoolean('journalFiresAllowed','Fires allowed',campsite.firesAllowed)}
+          ${journalBoolean('journalPicnicTable','Picnic table',campsite.picnicTable)}
+          ${journalBoolean('journalCloseAmenities','Close to amenities',campsite.closeToAmenities)}
+        </div>
+        <label>View<input id="journalSiteView" value="${escapeHtml(campsite.view||'')}"></label>
+        <label>Noise<input id="journalSiteNoise" value="${escapeHtml(campsite.noise||'')}" placeholder="Quiet, road noise, train noise…"></label>
+        <label>Wildlife and bugs<input id="journalWildlife" value="${escapeHtml(campsite.wildlife||'')}"></label>
+        <label>Campsite notes<textarea id="journalCampsiteNotes" rows="4">${escapeHtml(campsite.notes||'')}</textarea></label>
+      </div>
+    </details>
+
+    <details class="campground-journal-section">
+      <summary><span><small>THIS VISIT</small><b>Local area</b></span><i>⌄</i></summary>
+      <div class="campground-journal-section-body">
+        <label>Weather<textarea id="journalWeather" rows="2">${escapeHtml(localArea.weather||'')}</textarea></label>
+        <label>Sightseeing<textarea id="journalSightseeing" rows="3">${escapeHtml(localArea.sightseeing||'')}</textarea></label>
+        <label>Restaurants<textarea id="journalRestaurants" rows="3">${escapeHtml(localArea.restaurants||'')}</textarea></label>
+        <label>Grocery distance and notes<textarea id="journalGrocery" rows="2">${escapeHtml(localArea.grocery||'')}</textarea></label>
+        <label>Places visited<textarea id="journalPlacesVisited" rows="3">${escapeHtml(localArea.placesVisited||'')}</textarea></label>
+        <label>Next time<textarea id="journalNextTime" rows="3">${escapeHtml(localArea.nextTime||'')}</textarea></label>
+      </div>
+    </details>
+
+    <details class="campground-journal-section">
+      <summary><span><small>THIS VISIT</small><b>Connectivity</b></span><i>⌄</i></summary>
+      <div class="campground-journal-section-body">
+        <div class="campground-journal-two">
+          <label>Campground Wi-Fi<select id="journalWifiAvailable"><option value="">Not recorded</option><option value="yes" ${connectivity.campgroundWifiAvailable===true?'selected':''}>Available</option><option value="no" ${connectivity.campgroundWifiAvailable===false?'selected':''}>Not available</option></select></label>
+          <label>Wi-Fi quality<select id="journalWifiRating">${journalRatingOptions(connectivity.wifiRating)}</select></label>
+          <label>Mobile service<select id="journalMobileService"><option value="">Not recorded</option>${['None','Poor','Fair','Good','Excellent'].map(value=>`<option ${connectivity.mobileService===value?'selected':''}>${value}</option>`).join('')}</select></label>
+        </div>
+        <fieldset><legend>Internet used</legend>${journalCheckboxGrid('journalInternetUsed',internetSourceChoices,connectivity.internetUsed)}</fieldset>
+        <label>Connectivity notes<textarea id="journalConnectivityNotes" rows="3">${escapeHtml(connectivity.notes||'')}</textarea></label>
+      </div>
+    </details>`;
+  $$('input[name="journalInternetUsed"]',$('#campgroundJournalDialog')).forEach(input=>input.onchange=()=>{
+    if(!input.checked)return;
+    const choices=$$('input[name="journalInternetUsed"]',$('#campgroundJournalDialog'));
+    if(input.value==='none')choices.forEach(choice=>{if(choice!==input)choice.checked=false;});
+    else choices.find(choice=>choice.value==='none')?.removeAttribute('checked');
+    if(input.value!=='none'){
+      const none=choices.find(choice=>choice.value==='none');
+      if(none)none.checked=false;
+    }
+  });
+  $('#campgroundJournalDialog').showModal();
+}
 function showStay(index,tripIndex=null){
   const stay=db.stays[index]; if(!stay)return;
   detailReturnTripIndex=tripIndex;
@@ -689,9 +886,10 @@ function showStay(index,tripIndex=null){
   setDetailHeader(type,stay.name,null,headerMeta);
   const actions=`<div class="record-detail-actions stay-detail-actions">${tripIndex!==null?'<button class="text-button" id="backToTripButton">← Back to trip</button>':''}${viewer?'':'<button class="primary" id="editStayButton">Edit stay</button>'}</div>`;
   const photos=stayPhotoGallery(stay);
-  $('#detailBody').innerHTML=`${actions}<div class="detail-section"><div class="detail-row"><span>Arrival</span><span>${date(stay.arrival)}${stay.checkInTime?` · ${clockTime(stay.checkInTime)}`:''}</span></div><div class="detail-row"><span>Departure</span><span>${date(stay.departure)}${stay.checkOutTime?` · ${clockTime(stay.checkOutTime)}`:''}</span></div>${stay.site?`<div class="detail-row"><span>Site</span><span>${escapeHtml(stay.site)}</span></div>`:''}${viewer?'':`<div class="detail-row"><span>Stay cost</span><span>${money(stay.price)}</span></div>`}<div class="stay-detail-location"><small>LOCATION</small>${stayLocationHtml(stay,{full:true})}</div>${photos?`<div class="stay-detail-photos"><small>PHOTOS</small>${photos}</div>`:''}${stay.notes?`<div class="record-notes"><small>NOTES</small><p>${escapeHtml(stay.notes)}</p></div>`:''}</div>`;
+  $('#detailBody').innerHTML=`${actions}<div class="detail-section"><div class="detail-row"><span>Arrival</span><span>${date(stay.arrival)}${stay.checkInTime?` · ${clockTime(stay.checkInTime)}`:''}</span></div><div class="detail-row"><span>Departure</span><span>${date(stay.departure)}${stay.checkOutTime?` · ${clockTime(stay.checkOutTime)}`:''}</span></div>${stay.site?`<div class="detail-row"><span>Site</span><span>${escapeHtml(stay.site)}</span></div>`:''}${viewer?'':`<div class="detail-row"><span>Stay cost</span><span>${money(stay.price)}</span></div>`}<div class="stay-detail-location"><small>LOCATION</small>${stayLocationHtml(stay,{full:true})}</div>${photos?`<div class="stay-detail-photos"><small>PHOTOS</small>${photos}</div>`:''}${stay.notes?`<div class="record-notes"><small>NOTES</small><p>${escapeHtml(stay.notes)}</p></div>`:''}</div>${viewer?'':campgroundJournalCallout(stay)}`;
   if(tripIndex!==null)$('#backToTripButton').onclick=()=>$('#detailDialog').close();
   if(!viewer)$('#editStayButton').onclick=()=>{closeDetailForTransition();openEntry('stay',index,tripIndex)};
+  if(!viewer)$('#openCampgroundJournalButton').onclick=()=>openCampgroundJournal(index);
   bindStayPhotoButtons($('#detailBody'));
   bindStayMapLinks($('#detailBody'));
   if(!$('#detailDialog').open)$('#detailDialog').showModal();
@@ -2097,6 +2295,114 @@ function openEntry(type,index=null,returnTripIndex=null){
   }
   $('#entryDialog').showModal();
 }
+$('#campgroundJournalForm').onsubmit=async event=>{
+  event.preventDefault();
+  const stayIndex=Number($('#campgroundJournalStayIndex').value);
+  const stay=db.stays[stayIndex];
+  const campground=campgroundForStay(stay);
+  if(!stay||!campground)return;
+  const existingProfile=campground.profileData&&typeof campground.profileData==='object'?campground.profileData:{};
+  const existingFacilities=existingProfile.facilities&&typeof existingProfile.facilities==='object'?existingProfile.facilities:{};
+  const existingBathhouse=existingFacilities.bathhouse&&typeof existingFacilities.bathhouse==='object'?existingFacilities.bathhouse:{};
+  const existingAccess=existingProfile.access&&typeof existingProfile.access==='object'?existingProfile.access:{};
+  const existingJournal=stay.journalData&&typeof stay.journalData==='object'?stay.journalData:{};
+  const existingCampsite=existingJournal.campsite&&typeof existingJournal.campsite==='object'?existingJournal.campsite:{};
+  const existingLocalArea=existingJournal.localArea&&typeof existingJournal.localArea==='object'?existingJournal.localArea:{};
+  const existingConnectivity=existingJournal.connectivity&&typeof existingJournal.connectivity==='object'?existingJournal.connectivity:{};
+  const value=id=>$(id)?.value?.trim()||'';
+  const checked=id=>Boolean($(id)?.checked);
+  const optionalNumber=id=>{
+    const raw=value(id);
+    return raw===''?null:Number(raw);
+  };
+  const optionalBoolean=id=>{
+    const raw=value(id);
+    return raw==='yes'?true:raw==='no'?false:null;
+  };
+
+  campground.profileData={
+    ...existingProfile,
+    facilities:{
+      ...existingFacilities,
+      hookups:journalSelectedValues('journalCampgroundHookups'),
+      bathhouse:{
+        ...existingBathhouse,
+        flushToilets:checked('#journalFlushToilets'),
+        showers:checked('#journalShowers'),
+        freeShowers:checked('#journalFreeShowers'),
+        quarterShowers:checked('#journalQuarterShowers'),
+        hotWater:checked('#journalHotWater'),
+        cleanliness:optionalNumber('#journalBathhouseCleanliness'),
+        notes:value('#journalBathhouseNotes')
+      },
+      amenities:journalSelectedValues('journalAmenities'),
+      otherAmenities:value('#journalOtherAmenities')
+    },
+    bookingNotes:value('#journalBookingNotes'),
+    scenery:value('#journalScenery'),
+    access:{
+      ...existingAccess,
+      tightRoads:checked('#journalTightRoads'),
+      lowTrees:checked('#journalLowTrees'),
+      badRoads:checked('#journalBadRoads'),
+      notes:value('#journalAccessNotes')
+    }
+  };
+  stay.journalData={
+    ...existingJournal,
+    ourNotes:value('#journalOurNotes'),
+    campsite:{
+      ...existingCampsite,
+      hookups:value('#journalSiteHookups'),
+      electrical:value('#journalSiteElectrical'),
+      level:value('#journalSiteLevel'),
+      surface:value('#journalSiteSurface'),
+      size:value('#journalSiteSize'),
+      shade:value('#journalSiteShade'),
+      fireRing:checked('#journalFireRing'),
+      firesAllowed:checked('#journalFiresAllowed'),
+      picnicTable:checked('#journalPicnicTable'),
+      closeToAmenities:checked('#journalCloseAmenities'),
+      view:value('#journalSiteView'),
+      noise:value('#journalSiteNoise'),
+      wildlife:value('#journalWildlife'),
+      notes:value('#journalCampsiteNotes')
+    },
+    localArea:{
+      ...existingLocalArea,
+      weather:value('#journalWeather'),
+      sightseeing:value('#journalSightseeing'),
+      restaurants:value('#journalRestaurants'),
+      grocery:value('#journalGrocery'),
+      placesVisited:value('#journalPlacesVisited'),
+      nextTime:value('#journalNextTime')
+    },
+    connectivity:{
+      ...existingConnectivity,
+      campgroundWifiAvailable:optionalBoolean('#journalWifiAvailable'),
+      wifiRating:optionalNumber('#journalWifiRating'),
+      mobileService:value('#journalMobileService'),
+      internetUsed:journalSelectedValues('journalInternetUsed'),
+      notes:value('#journalConnectivityNotes')
+    }
+  };
+  stay.overallRating=optionalNumber('#journalOverallRating');
+  stay.wouldReturn=optionalBoolean('#journalWouldReturn');
+  const complete=checked('#campgroundJournalComplete');
+  stay.journalCompletedAt=complete?(stay.journalCompletedAt||new Date().toISOString()):'';
+
+  const saveButton=$('#saveCampgroundJournal');
+  saveButton.disabled=true;
+  saveButton.textContent='Saving…';
+  const saved=await save();
+  saveButton.disabled=false;
+  saveButton.textContent='Save campground log';
+  if(!saved)return;
+  $('#campgroundJournalDialog').close();
+  renderHome();
+  renderTrips();
+  if($('#detailDialog').open)showStay(stayIndex,detailReturnTripIndex);
+};
 $$('dialog .close').forEach(b=>b.onclick=()=>{const dialog=b.closest('dialog');dialog.close();if(dialog.id==='entryDialog'){pendingElectricAiApproval=null;clearStayPhotoPreviewUrls();clearNotePhotoEditor();clearMultiReceiptEditor();clearTripPlanPdfEditor();clearElectricDocumentEditor();}if(dialog.id==='seasonDocumentDialog')clearSeasonDocumentDraft();});
 $$('dialog').forEach(dialog=>dialog.addEventListener('mousedown',event=>{const box=dialog.getBoundingClientRect();const outside=event.clientX<box.left||event.clientX>box.right||event.clientY<box.top||event.clientY>box.bottom;if(outside){dialog.close();if(dialog.id==='entryDialog'){pendingElectricAiApproval=null;clearStayPhotoPreviewUrls();clearNotePhotoEditor();clearMultiReceiptEditor();clearTripPlanPdfEditor();clearElectricDocumentEditor();}if(dialog.id==='seasonDocumentDialog')clearSeasonDocumentDraft();}}));
 $('#detailDialog').addEventListener('close',()=>{

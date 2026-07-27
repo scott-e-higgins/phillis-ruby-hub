@@ -1226,6 +1226,7 @@ html.standalone-app body{
 .campground-profile-summary small{color:#9eaaa4;font-size:9px;font-weight:850;letter-spacing:.07em}
 .campground-profile-summary b{color:var(--gold);font-size:23px}
 .campground-profile-summary span{color:var(--muted);font-size:11px}
+.campground-profile-help{margin:0 0 10px;color:#aeb9b3;font-size:11px}
 .campground-log-coming{margin:22px 0 2px;padding:13px;border-left:3px solid #9b8248;background:#2b312a;color:#bbc5bf;font-size:11px;line-height:1.5}
 .viewer-mode #travelLogSwitch{display:none}
 
@@ -1242,4 +1243,184 @@ html.standalone-app body{
   .campground-log-card{grid-template-columns:60px minmax(0,1fr) auto}
   .campground-log-thumb{width:60px;height:60px}
   .campground-log-meta span:nth-child(2){display:none}
+}
+
+/* v0.46.0 — detailed digital campground book */
+.campground-journal-dialog{
+  width:min(820px,calc(100vw - 18px));
+  max-height:calc(100dvh - 18px);
+  padding:0;
+  overflow:auto;
+  border-color:#5e7066;
+  border-radius:10px;
+  background:#222d27;
+}
+.campground-journal-dialog>.dialog-head{
+  position:sticky;
+  z-index:6;
+  top:0;
+  align-items:center;
+  margin:0;
+  padding:17px 20px;
+  border-bottom:1px solid #506158;
+  background:linear-gradient(150deg,#173d31,#102c24);
+  box-shadow:0 8px 18px #0005;
+}
+.campground-journal-dialog>.dialog-head>div{min-width:0}
+.campground-journal-dialog>.dialog-head h2{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.campground-journal-dialog>.dialog-head p{margin:3px 0 0;color:#acb9b2;font-size:11px}
+#campgroundJournalForm{margin:0}
+#campgroundJournalBody{display:grid;gap:12px;padding:16px}
+.campground-journal-lead{
+  padding:16px;
+  border:1px solid #5e6956;
+  border-radius:8px;
+  background:linear-gradient(145deg,#3a3a2d,#30352d);
+  box-shadow:var(--shadow-sm);
+}
+.campground-journal-lead>label:last-child{margin-bottom:0}
+.campground-journal-rating-row,.campground-journal-two{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:11px;
+}
+.campground-journal-section{
+  overflow:hidden;
+  border:1px solid #4e5d55;
+  border-radius:8px;
+  background:#2b3530;
+  box-shadow:var(--shadow-sm);
+}
+.campground-journal-section>summary{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  padding:15px 17px;
+  list-style:none;
+  cursor:pointer;
+  user-select:none;
+}
+.campground-journal-section>summary::-webkit-details-marker{display:none}
+.campground-journal-section>summary:hover{background:#334038}
+.campground-journal-section>summary span{display:grid;gap:2px}
+.campground-journal-section>summary small{color:var(--gold);font-size:9px;font-weight:900;letter-spacing:.12em}
+.campground-journal-section>summary b{color:#f3f6f4;font-size:16px}
+.campground-journal-section>summary i{color:#aebbb4;font-size:22px;font-style:normal;transition:transform .18s var(--ease)}
+.campground-journal-section[open]>summary{border-bottom:1px solid #46544d;background:#303c35}
+.campground-journal-section[open]>summary i{transform:rotate(180deg)}
+.campground-journal-section-body{display:grid;gap:9px;padding:5px 17px 18px}
+.campground-journal-section fieldset{
+  margin:11px 0 2px;
+  padding:12px;
+  border:1px solid #526159;
+  border-radius:7px;
+  background:#29322e;
+}
+.campground-journal-section legend{padding:0 6px;color:#c7d2cc;font-size:11px;font-weight:850;letter-spacing:.04em}
+.campground-journal-help{margin:10px 0 1px;color:#9faaa4;font-size:11px;line-height:1.45}
+.campground-journal-checks{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:8px;
+}
+.campground-journal-checks.compact{grid-template-columns:repeat(2,minmax(0,1fr))}
+.campground-journal-checks>label,.campground-journal-boolean{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  min-height:42px;
+  margin:0;
+  padding:9px 10px;
+  border:1px solid #4e5c55;
+  border-radius:7px;
+  background:#303a35;
+  color:#d5ded9;
+  font-size:11px;
+  line-height:1.25;
+  cursor:pointer;
+}
+.campground-journal-checks>label:has(input:checked),.campground-journal-boolean:has(input:checked){
+  border-color:#719b87;
+  background:#284b3e;
+  color:#c3ead7;
+}
+.campground-journal-checks input,.campground-journal-boolean input{
+  width:18px;
+  height:18px;
+  flex:0 0 18px;
+  margin:0;
+  padding:0;
+  accent-color:#76b294;
+}
+.campground-journal-footer{
+  position:sticky;
+  z-index:5;
+  bottom:0;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  padding:14px 16px calc(14px + env(safe-area-inset-bottom));
+  border-top:1px solid #53645b;
+  background:rgba(31,42,36,.97);
+  box-shadow:0 -9px 20px #0005;
+}
+.campground-log-complete-toggle{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin:0;
+  color:#e3e9e5;
+  cursor:pointer;
+}
+.campground-log-complete-toggle input{width:20px;height:20px;flex:0 0 20px;margin:0;accent-color:#72ae90}
+.campground-log-complete-toggle span{display:grid;gap:1px}
+.campground-log-complete-toggle b{font-size:12px}
+.campground-log-complete-toggle small{color:#9eaaa4;font-size:9px;font-weight:600}
+.campground-journal-footer .primary{flex:0 0 auto;min-width:175px}
+.campground-journal-callout{
+  margin:17px 0 2px;
+  padding:15px;
+  border:1px solid #55635b;
+  border-left:4px solid #7c8b83;
+  border-radius:8px;
+  background:linear-gradient(145deg,#303a35,#29332e);
+}
+.campground-journal-callout-draft{border-left-color:#d6ad55}
+.campground-journal-callout-complete{border-left-color:#70b08e;background:linear-gradient(145deg,#2d4439,#29362f)}
+.campground-journal-callout-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.campground-journal-callout-heading small{color:var(--gold);font-size:9px;font-weight:900;letter-spacing:.12em}
+.campground-journal-callout-heading h3{margin:2px 0 0;color:#eff4f1;font-size:17px;text-transform:none;letter-spacing:-.01em}
+.campground-journal-callout>p{margin:8px 0 12px;color:#b2beb7;font-size:11px}
+.campground-journal-callout .secondary{width:100%;margin-top:11px}
+.campground-rating{color:#e5bd62;font-size:16px;letter-spacing:1px;white-space:nowrap}
+.stay-log-badge{
+  display:inline-block;
+  margin-top:5px;
+  padding:3px 8px;
+  border:1px solid #6b6551;
+  border-radius:999px;
+  background:#483f28;
+  color:#f0d78f;
+  font-size:10px;
+  font-weight:850;
+}
+.stay-log-complete{border-color:#527e68;background:#28483a;color:#ade0c5}
+
+@media(max-width:680px){
+  .campground-journal-dialog{width:calc(100vw - 10px);max-height:calc(100dvh - 10px)}
+  .campground-journal-dialog>.dialog-head{padding:14px}
+  #campgroundJournalBody{padding:11px}
+  .campground-journal-lead{padding:13px}
+  .campground-journal-rating-row,.campground-journal-two{grid-template-columns:1fr}
+  .campground-journal-checks{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .campground-journal-section>summary{padding:14px}
+  .campground-journal-section-body{padding:4px 13px 15px}
+  .campground-journal-footer{align-items:stretch;flex-direction:column;padding:11px 12px calc(11px + env(safe-area-inset-bottom))}
+  .campground-journal-footer .primary{width:100%}
+}
+
+@media(max-width:390px){
+  .campground-journal-checks,.campground-journal-checks.compact{grid-template-columns:1fr}
 }

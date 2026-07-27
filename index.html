@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-title" content="Travel Journal">
   <meta name="description" content="The private travel, maintenance and seasonal-site hub for Phillis & Ruby.">
   <title>Phillis & Ruby Travel Journal</title>
-  <link rel="manifest" href="manifest.webmanifest?v=0.45.0">
+  <link rel="manifest" href="manifest.webmanifest?v=0.46.0">
   <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
   <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
   <script>
@@ -21,7 +21,7 @@
       document.documentElement.style.setProperty('--standalone-screen-height', `${window.screen.height}px`);
     }
   </script>
-  <link rel="stylesheet" href="styles.css?v=0.45.0">
+  <link rel="stylesheet" href="styles.css?v=0.46.0">
 </head>
 <body>
 <div id="pullRefresh" class="pull-refresh" aria-live="polite">
@@ -229,9 +229,13 @@
     <article class="card updates-card">
       <div class="updates-heading">
         <div><small>WHAT'S NEW</small><h3>Recent updates</h3></div>
-        <span class="version-badge">v0.45.0</span>
+        <span class="version-badge">v0.46.0</span>
       </div>
       <div class="updates-list">
+        <div>
+          <b>v0.46.0</b>
+          <span>Adds the detailed digital campground book with campsite, facilities, local-area, connectivity, rating, and return notes.</span>
+        </div>
         <div>
           <b>v0.45.0</b>
           <span>Adds the first Campground Log, combining repeat visits and photos into one searchable place history.</span>
@@ -478,6 +482,20 @@
   <div class="dialog-head"><div><small>PHOTO</small><h2 id="photoDialogCaption">Travel Journal picture</h2></div><button type="button" class="close">×</button></div>
   <img id="photoDialogImage" alt="">
 </dialog>
+<dialog id="campgroundJournalDialog" class="campground-journal-dialog">
+  <div class="dialog-head">
+    <div><small>CAMPGROUND LOG</small><h2 id="campgroundJournalTitle">Campground visit</h2><p id="campgroundJournalSubtitle"></p></div>
+    <button type="button" class="close" aria-label="Close campground log">×</button>
+  </div>
+  <form id="campgroundJournalForm">
+    <input id="campgroundJournalStayIndex" type="hidden">
+    <div id="campgroundJournalBody"></div>
+    <div class="campground-journal-footer">
+      <label class="campground-log-complete-toggle"><input id="campgroundJournalComplete" type="checkbox"><span><b>Mark this campground log complete</b><small>You can still edit it whenever you like.</small></span></label>
+      <button class="primary" id="saveCampgroundJournal" type="submit">Save campground log</button>
+    </div>
+  </form>
+</dialog>
 <div id="authGate" class="auth-gate" hidden>
   <section class="auth-card">
     <img class="auth-brand-mark" src="icons/icon-192.png" alt="">
@@ -507,10 +525,10 @@
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
 <script src="supabase-config.js" defer></script>
-<script src="cloud.js?v=0.45.0" defer></script>
-<script src="cloud-store.js?v=0.45.0" defer></script>
-<script src="document-scanner.js?v=0.45.0" defer></script>
-<script src="hub-document-review.js?v=0.45.0" defer></script>
-<script src="app.js?v=0.45.0" defer></script>
+<script src="cloud.js?v=0.46.0" defer></script>
+<script src="cloud-store.js?v=0.46.0" defer></script>
+<script src="document-scanner.js?v=0.46.0" defer></script>
+<script src="hub-document-review.js?v=0.46.0" defer></script>
+<script src="app.js?v=0.46.0" defer></script>
 </body>
 </html>
