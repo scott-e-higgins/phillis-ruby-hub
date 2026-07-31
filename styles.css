@@ -1073,7 +1073,7 @@ html.standalone-app body{
 .scanner-status{min-height:22px;margin:13px 18px;padding:10px 11px;border-left:3px solid #8f7a42;background:#222e28;color:#c9d2cd;font-size:11px;line-height:1.45}
 .scanner-status[data-tone="success"]{border-left-color:#70a888;color:#c3e3d0}
 .scanner-status[data-tone="error"]{border-left-color:#b45b67;color:#f1bdc4}
-.scanner-footer{position:sticky;bottom:0;display:flex;justify-content:flex-end;gap:9px;padding:14px 18px calc(14px + env(safe-area-inset-bottom));background:#202b26ef;border-top:1px solid #46584f;backdrop-filter:blur(8px)}
+.scanner-footer{position:sticky;bottom:0;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:9px;padding:14px 18px calc(14px + env(safe-area-inset-bottom));background:#202b26ef;border-top:1px solid #46584f;backdrop-filter:blur(8px)}
 
 @media(max-width:620px){
   .document-scanner-entry-heading{display:grid}

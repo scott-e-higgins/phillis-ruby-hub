@@ -1,4 +1,4 @@
-const APP_VERSION='0.48.3';
+const APP_VERSION='0.48.4';
 const SEED={"tripSummaries":[],"campgrounds":[],"stays":[],"tripPlans":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"vehicleDetails":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const NO_TRIP_VALUE='__everyday_ruby__';
@@ -1817,7 +1817,8 @@ function bindFuelReceiptScanner(record={}){
     if(!window.HIGGINS_DOCUMENT_SCANNER){alert('The scanner is still loading. Please try again in a moment.');return;}
     window.HIGGINS_DOCUMENT_SCANNER.open({
       title:'Fuel receipt',
-      useLabel:'Use photo & read receipt',
+      useLabel:'Read receipt',
+      useOnlyLabel:'Use photo',
       allowPdfUse:false,
       preferFullImage:true,
       maxDimension:1600,
@@ -1825,7 +1826,10 @@ function bindFuelReceiptScanner(record={}){
       cameraLabel:'Take receipt photo',
       fileLabel:'Choose receipt photo',
       emptyPrompt:'Take a receipt photo or choose one from your phone.',
-      onUse:async({file,metadata})=>{
+      onUseOnly:async({file,metadata})=>saveFuelReceiptScan(file,metadata,false),
+      onUse:async({file,metadata})=>saveFuelReceiptScan(file,metadata,true)
+    });
+    async function saveFuelReceiptScan(file,metadata,readReceipt){
         const status=$('#fuelReceiptScannerStatus');
         launch.disabled=true;
         if(status)status.textContent='Securely saving the cleaned receipt…';
@@ -1836,16 +1840,19 @@ function bindFuelReceiptScanner(record={}){
           fuelReceiptScannerState.draftDocumentId=document.documentId;
           fuelReceiptScannerState.approval=null;
           renderFuelReceiptScanner();
-          if(status)status.textContent='Receipt saved. Starting the reader…';
-          setTimeout(()=>openFuelReceiptDocumentReview(document,true),0);
+          if(readReceipt){
+            if(status)status.textContent='Receipt saved. Starting the reader…';
+            setTimeout(()=>openFuelReceiptDocumentReview(document,true),0);
+          }else if(status){
+            status.textContent='Receipt saved. Enter the fuel-stop details, then tap Save.';
+          }
           return true;
         }catch(error){
           console.error(error);
           if(status)status.textContent='The receipt was not uploaded.';
           throw new Error(`The fuel receipt could not be prepared. ${error.message||error}`);
         }finally{launch.disabled=false;}
-      }
-    });
+    }
   };
 }
 let electricDocumentEditorState={items:[],initialOrder:'',changed:false};

@@ -2,6 +2,12 @@
 
 Travel Journal is Scott and Kayla's private travel companion.
 
+## Version 0.48.4
+
+- Gives fuel-receipt scans three clear choices: Cancel, Use photo, or Read receipt.
+- Use photo securely attaches the optimized receipt while leaving all fuel fields available for manual entry.
+- Read receipt attaches the same photo and then starts the optional AI reader.
+
 ## Version 0.48.3
 
 - Keeps the scanner open with a clear saving message instead of dropping back

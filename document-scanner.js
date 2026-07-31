@@ -24,6 +24,7 @@
     activeCropCorner: null,
     pdfHasSelectableText: null,
     onUse: null,
+    onUseOnly: null,
     allowPdfUse: false,
     preferFullImage: false,
     maxDimension: MAX_DOCUMENT_DIMENSION,
@@ -106,6 +107,7 @@
     const rotateRight = $('#scannerRotateRight');
     const remove = $('#scannerRemove');
     const use = $('#scannerUse');
+    const useOnly = $('#scannerUseOnly');
     if (!empty || !preview) return;
 
     const hasFile = Boolean(state.file);
@@ -123,6 +125,7 @@
     rotateLeft.disabled = state.busy || !hasFile;
     rotateRight.disabled = state.busy || !hasFile;
     use.disabled = state.busy || state.cropEditing || !state.processedFile || (state.kind === 'pdf' && !state.allowPdfUse);
+    if (useOnly) useOnly.disabled = use.disabled;
 
     if (!hasFile) {
       imageStage.hidden = true;
@@ -611,7 +614,7 @@
     renderCropOverlay();
   }
 
-  async function useDocument() {
+  async function useDocument(mode = 'primary') {
     if (!state.processedFile || state.busy) return;
     if (state.kind === 'pdf' && !state.allowPdfUse) {
       setStatus('PDF cloud saving begins in the next shared-document stage. This version safely previews it without changing the database.');
@@ -622,7 +625,8 @@
     setStatus('Securely saving this document…');
     render();
     try {
-      const accepted = await state.onUse?.({
+      const callback = mode === 'secondary' ? state.onUseOnly : state.onUse;
+      const accepted = await callback?.({
         file: state.processedFile,
         originalFile: state.file,
         kind: state.kind,
@@ -658,7 +662,8 @@
     $('#scannerRotateLeft')?.addEventListener('click', () => rotate(-90));
     $('#scannerRotateRight')?.addEventListener('click', () => rotate(90));
     $('#scannerRemove')?.addEventListener('click', reset);
-    $('#scannerUse')?.addEventListener('click', useDocument);
+    $('#scannerUse')?.addEventListener('click', () => useDocument('primary'));
+    $('#scannerUseOnly')?.addEventListener('click', () => useDocument('secondary'));
     document.querySelectorAll('[data-scanner-corner]').forEach(handle => {
       handle.addEventListener('pointerdown', event => {
         if (!state.cropEditing) return;
@@ -680,6 +685,7 @@
     dialog.querySelectorAll('[data-close-scanner]').forEach(button => button.addEventListener('click', () => dialog.close()));
     dialog.addEventListener('close', () => {
       state.onUse = null;
+      state.onUseOnly = null;
       reset();
     });
   }
@@ -688,6 +694,7 @@
     bind();
     reset();
     state.onUse = typeof options.onUse === 'function' ? options.onUse : null;
+    state.onUseOnly = typeof options.onUseOnly === 'function' ? options.onUseOnly : null;
     state.allowPdfUse = Boolean(options.allowPdfUse);
     state.preferFullImage = Boolean(options.preferFullImage);
     state.maxDimension = Math.max(1200, Math.min(MAX_DOCUMENT_DIMENSION, Number(options.maxDimension) || MAX_DOCUMENT_DIMENSION));
@@ -703,6 +710,11 @@
     if (fileInput) fileInput.accept = state.allowPdfUse ? 'image/*,application/pdf,.pdf' : 'image/*';
     const use = $('#scannerUse');
     if (use) use.textContent = options.useLabel || 'Use this scan';
+    const useOnly = $('#scannerUseOnly');
+    if (useOnly) {
+      useOnly.hidden = !state.onUseOnly;
+      useOnly.textContent = options.useOnlyLabel || 'Use without reading';
+    }
     render();
     $('#documentScannerDialog')?.showModal();
   }
