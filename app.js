@@ -1142,7 +1142,7 @@ function showFuelRecord(index,returnTripIndex=null){
   const mpg=Number(record.gallons)>0&&Number.isFinite(tankMiles)?tankMiles/Number(record.gallons):null;
   $('#detailBody').innerHTML=`${actions}<div class="detail-section"><div class="detail-row"><span>Date</span><span>${date(record.date)}${record.time?` · ${escapeHtml(clockTime(record.time))}`:''}</span></div><div class="detail-row"><span>Trip</span><span>${escapeHtml(record.trip||NO_TRIP_LABEL)}</span></div>${record.vehicle?`<div class="detail-row"><span>Vehicle</span><span>${escapeHtml(record.vehicle)}</span></div>`:''}<div class="detail-row"><span>Fuel</span><span>${record.fuelType==='diesel'?'Diesel':'Gasoline'}</span></div>${record.address?`<div class="detail-row"><span>Address</span><span>${escapeHtml(record.address)}</span></div>`:''}${record.city?`<div class="detail-row"><span>City</span><span>${escapeHtml(record.city)}</span></div>`:''}${record.state?`<div class="detail-row"><span>State</span><span>${escapeHtml(record.state)}</span></div>`:''}<div class="detail-row"><span>Gallons</span><span>${number(record.gallons,3)}</span></div><div class="detail-row"><span>Total</span><span>${money(record.total||0)}</span></div><div class="detail-row"><span>Price per gallon</span><span>${money(record.price||((record.gallons&&record.total)?record.total/record.gallons:0))}</span></div>${record.receiptNumber?`<div class="detail-row"><span>Receipt number</span><span>${escapeHtml(record.receiptNumber)}</span></div>`:''}${record.tripMiles!=null?`<div class="detail-row"><span>Trip meter</span><span>${number(record.tripMiles,1)}</span></div>`:''}${previous?`<div class="detail-row"><span>Tank miles</span><span>${number(tankMiles,1)}</span></div>`:''}${mpg!=null?`<div class="detail-row"><span>${previous?'Tank MPG':'Trip MPG'}</span><span>${number(mpg,2)}</span></div>`:''}${record.odometer?`<div class="detail-row"><span>Odometer</span><span>${number(record.odometer,1)}</span></div>`:''}${record.notes?`<div class="record-notes"><small>NOTES</small><p>${escapeHtml(record.notes)}</p></div>`:''}${receipt}</div><div class="trip-delete-area"><button class="delete-link" id="deleteFuelRecord">Delete fuel stop</button></div>`;
   bindStayPhotoButtons($('#detailBody'));
-  if($('#openFuelDocument'))$('#openFuelDocument').onclick=()=>openFuelReceiptDocumentReview(record,false);
+  if($('#openFuelDocument'))$('#openFuelDocument').onclick=()=>openFuelReceiptDocumentReview(record,false,{index,returnTripIndex});
   if(returnTripIndex!==null)$('#backToTripButton').onclick=()=>$('#detailDialog').close();
   $('#editFuelRecord').onclick=()=>{closeDetailForTransition();openEntry('fuel',index,returnTripIndex)};
   $('#deleteFuelRecord').onclick=async()=>{
@@ -1778,7 +1778,7 @@ function applyFuelReceiptSuggestions(document,result){
   ['#gallons','#total','#tripMeter','#pricePerGallon'].forEach(selector=>$(selector)?.dispatchEvent(new Event('input')));
   renderFuelReceiptScanner();
 }
-function openFuelReceiptDocumentReview(document,autoAnalyze=false){
+function openFuelReceiptDocumentReview(document,autoAnalyze=false,editContext=null){
   if(!window.HIGGINS_DOCUMENT_REVIEW){alert('The document viewer is still loading. Please try again in a moment.');return;}
   window.HIGGINS_DOCUMENT_REVIEW.open({
     profile:'fuel_receipt',
@@ -1786,10 +1786,18 @@ function openFuelReceiptDocumentReview(document,autoAnalyze=false){
     autoAnalyze,
     onExtracted:updated=>{
       Object.assign(document,updated);
+      if(editContext?.index!=null&&db.fuel?.[editContext.index])Object.assign(db.fuel[editContext.index],updated);
       fuelReceiptScannerState.document=document;
       renderFuelReceiptScanner();
     },
-    onUse:result=>applyFuelReceiptSuggestions(document,result)
+    onUse:result=>{
+      if(editContext?.index!=null&&!$('#entryDialog')?.open){
+        if(db.fuel?.[editContext.index])Object.assign(db.fuel[editContext.index],document);
+        closeDetailForTransition();
+        openEntry('fuel',editContext.index,editContext.returnTripIndex??null);
+      }
+      applyFuelReceiptSuggestions(document,result);
+    }
   });
 }
 function bindFuelReceiptScanner(record={}){
