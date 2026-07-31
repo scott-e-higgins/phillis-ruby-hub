@@ -9,6 +9,8 @@
   const hubDocumentFields = row => ({
     documentId: row?.id || '',
     documentTitle: row?.display_title || '',
+    documentType: row?.document_type || '',
+    documentDate: row?.document_date || '',
     documentStatus: row?.processing_status || '',
     documentAiStatus: row?.ai_processing_status || 'not_requested',
     documentExtractedText: row?.extracted_text || '',
@@ -848,6 +850,183 @@
       });
     }
 
+    async function createFuelReceiptDraft(file, metadata = {}) {
+      if (role === 'viewer') throw new Error('Family Viewer accounts cannot scan fuel receipts.');
+      if (!file) throw new Error('Take or choose a fuel receipt first.');
+      const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '');
+      if (isPdf) throw new Error('Fuel receipts currently use a single photo. Please take or choose a picture.');
+      if (file.size > 25 * 1024 * 1024) throw new Error('That receipt picture is larger than the 25 MB document limit.');
+
+      const userResult = await client.auth.getUser();
+      if (userResult.error) throw userResult.error;
+      const userId = userResult.data?.user?.id;
+      if (!userId) throw new Error('Please sign in again before scanning this receipt.');
+
+      const documentId = uuid();
+      const fileId = uuid();
+      const prepared = file?.higginsDocumentScan
+        ? { blob: file, extension: 'jpg', contentType: 'image/jpeg' }
+        : await preparePhoto(file);
+      const originalFilename = file.name || `fuel-receipt-${Date.now()}.${prepared.extension}`;
+      const storagePath = `${householdId}/${documentId}/${fileId}.${prepared.extension}`;
+      const now = new Date().toISOString();
+      let documentCreated = false;
+      let uploaded = false;
+
+      try {
+        const inserted = await client.from('hub_documents').insert({
+          id: documentId,
+          household_id: householdId,
+          display_title: 'Fuel receipt · awaiting review',
+          document_type: 'fuel_receipt',
+          source_app: 'travel-journal',
+          processing_status: 'draft',
+          ai_processing_status: 'not_requested',
+          retention_status: 'keep',
+          created_by: userId,
+          uploaded_at: now
+        }).select('*').single();
+        if (inserted.error) throw inserted.error;
+        documentCreated = true;
+
+        const upload = await hubDocumentBucket.upload(storagePath, prepared.blob, {
+          cacheControl: '3600',
+          contentType: prepared.contentType,
+          upsert: false
+        });
+        if (upload.error) throw upload.error;
+        uploaded = true;
+
+        const dimensions = { ...(file.higginsDocumentMetadata || {}), ...(metadata || {}) };
+        const fileInsert = await client.from('hub_document_files').insert({
+          id: fileId,
+          document_id: documentId,
+          page_number: 1,
+          original_filename: originalFilename,
+          mime_type: prepared.contentType,
+          file_size_bytes: Number(prepared.blob.size) || 0,
+          storage_bucket: 'hub-documents',
+          storage_path: storagePath,
+          width: Number(dimensions.width) || null,
+          height: Number(dimensions.height) || null,
+          cleanup_metadata: file?.higginsDocumentScan
+            ? { cleaned_locally: true, scanner_version: '0.48.0', ...dimensions }
+            : { optimized_locally: true }
+        });
+        if (fileInsert.error) throw fileInsert.error;
+
+        return {
+          ...hubDocumentFields(inserted.data),
+          documentFiles: [{
+            id: fileId,
+            documentId,
+            pageNumber: 1,
+            originalFilename,
+            mimeType: prepared.contentType,
+            fileSizeBytes: Number(prepared.blob.size) || 0,
+            storageBucket: 'hub-documents',
+            storagePath,
+            url: await signedPhotoUrl(hubDocumentBucket, storagePath)
+          }]
+        };
+      } catch (error) {
+        if (uploaded) await hubDocumentBucket.remove([storagePath]);
+        if (documentCreated) await client.from('hub_documents').delete().eq('id', documentId);
+        throw error;
+      }
+    }
+
+    async function discardHubDocumentDraft(documentId) {
+      if (role === 'viewer' || !documentId) return;
+      const links = assert(await client.from('hub_document_links').select('id').eq('document_id', documentId).limit(1));
+      if (links.length) return;
+      const files = assert(await client.from('hub_document_files').select('storage_bucket, storage_path').eq('document_id', documentId));
+      assert(await client.from('hub_documents').delete().eq('id', documentId));
+      for (const [bucketName, paths] of Object.entries(files.reduce((groups, storedFile) => {
+        if (!storedFile.storage_path) return groups;
+        (groups[storedFile.storage_bucket || 'hub-documents'] ||= []).push(storedFile.storage_path);
+        return groups;
+      }, {}))) {
+        const removed = await client.storage.from(bucketName).remove(paths);
+        if (removed.error) console.warn('A discarded draft file could not be removed.', removed.error);
+      }
+    }
+
+    async function linkFuelReceiptDocument(record, document) {
+      if (role === 'viewer') throw new Error('Family Viewer accounts cannot change fuel receipts.');
+      if (!record?._cloudId) throw new Error('Save this fuel stop before attaching its receipt.');
+      if (!document?.documentId) throw new Error('The scanned receipt could not be found.');
+
+      const userResult = await client.auth.getUser();
+      if (userResult.error) throw userResult.error;
+      const userId = userResult.data?.user?.id;
+      if (!userId) throw new Error('Please sign in again before saving this receipt.');
+
+      const existingLinks = assert(await client.from('hub_document_links')
+        .select('id, document_id')
+        .eq('source_app', 'travel-journal')
+        .eq('record_type', 'fuel_stop')
+        .eq('record_id', String(record._cloudId))
+        .eq('link_role', 'receipt_scan'));
+      const replacedIds = existingLinks.map(link => link.document_id).filter(id => id !== document.documentId);
+      if (replacedIds.length) await removeLinkedDocumentsByIds(record, 'fuel_stop', 'receipt_scan', replacedIds);
+
+      const alreadyLinked = existingLinks.some(link => link.document_id === document.documentId);
+      if (!alreadyLinked) {
+        const link = await client.from('hub_document_links').insert({
+          document_id: document.documentId,
+          source_app: 'travel-journal',
+          record_type: 'fuel_stop',
+          record_id: String(record._cloudId),
+          link_role: 'receipt_scan',
+          is_primary: true,
+          created_by: userId
+        });
+        if (link.error) throw link.error;
+      }
+
+      const titleDate = record.date
+        ? new Date(`${record.date}T12:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+        : 'Undated';
+      const displayTitle = `${record.station || 'Fuel'} receipt · ${titleDate}`;
+      const documentUpdate = await client.from('hub_documents').update({
+        display_title: displayTitle,
+        document_date: record.date || null,
+        processing_status: 'approved',
+        updated_at: new Date().toISOString()
+      }).eq('id', document.documentId).select('*').single();
+      if (documentUpdate.error) throw documentUpdate.error;
+
+      const fuelUpdate = await client.from('trip_fuel').update({ receipt_photo_path: null }).eq('id', record._cloudId);
+      if (fuelUpdate.error) throw fuelUpdate.error;
+      if (record.receiptPhotoPath) {
+        const removed = await receiptBucket.remove([record.receiptPhotoPath]);
+        if (removed.error) console.warn('The old fuel receipt image could not be removed.', removed.error);
+      }
+
+      Object.assign(record, hubDocumentFields(documentUpdate.data), {
+        documentFiles: [...(document.documentFiles || [])],
+        receiptPhotoPath: '',
+        receiptPhotoUrl: document.documentFiles?.find(file => /^image\//i.test(file.mimeType) && file.url)?.url || ''
+      });
+      return record;
+    }
+
+    async function deleteFuelReceiptDocument(record) {
+      if (role === 'viewer') throw new Error('Family Viewer accounts cannot delete fuel receipts.');
+      if (!record?._cloudId) return;
+      await detachLinkedDocuments(record, 'fuel_stop', 'receipt_scan');
+      if (record.receiptPhotoPath) {
+        const removed = await receiptBucket.remove([record.receiptPhotoPath]);
+        if (removed.error) console.warn('The legacy fuel receipt image could not be removed.', removed.error);
+      }
+      await client.from('trip_fuel').update({ receipt_photo_path: null }).eq('id', record._cloudId);
+      record.documentId = '';
+      record.documentFiles = [];
+      record.receiptPhotoPath = '';
+      record.receiptPhotoUrl = '';
+    }
+
     async function functionErrorMessage(error) {
       try {
         if (error?.context?.json) {
@@ -1209,6 +1388,12 @@
           .sort((a, b) => Number(Boolean(b.is_primary)) - Number(Boolean(a.is_primary)))
           .map(link => [String(link.record_id), link])
       );
+      const fuelDocumentLinkByRecordId = new Map(
+        documentLinks
+          .filter(link => link.record_type === 'fuel_stop' && link.link_role === 'receipt_scan')
+          .sort((a, b) => Number(Boolean(b.is_primary)) - Number(Boolean(a.is_primary)))
+          .map(link => [String(link.record_id), link])
+      );
       const planDocumentLinksByRecordId = new Map();
       documentLinks
         .filter(link => link.record_type === 'trip_plan' && link.link_role === 'supporting_document')
@@ -1520,6 +1705,9 @@
         const legacyMatch = legacyLocation.match(/^(.*?),\s*([A-Za-z]{2})$/);
         const legacyCity = legacyMatch ? legacyMatch[1].trim() : legacyLocation;
         const legacyState = legacyMatch ? legacyMatch[2].toUpperCase() : '';
+        const documentLink = fuelDocumentLinkByRecordId.get(String(row.id));
+        const document = documentLink ? documentById.get(documentLink.document_id) : null;
+        const linkedFiles = document ? (documentFilesById.get(document.id) || []) : [];
         return {
           _cloudId: row.id,
           _tripId: row.trip_id,
@@ -1527,7 +1715,9 @@
           trip: tripName(row.trip_id),
           vehicle: vehicleById.get(row.vehicle_id || tripById.get(row.trip_id)?.tow_vehicle_id)?.name || '',
           date: row.fuel_date,
+          time: time(row.fuel_time),
           station: row.station || '',
+          address: row.address || '',
           city: row.city || legacyCity,
           state: row.state || legacyState,
           location: [row.city || legacyCity,row.state || legacyState].filter(Boolean).join(', '),
@@ -1535,14 +1725,37 @@
           tripMiles: num(row.trip_meter),
           gallons: num(row.gallons) || 0,
           total: num(row.total_cost) || 0,
-          price: num(row.gallons) ? num(row.total_cost) / num(row.gallons) : 0,
+          price: num(row.price_per_gallon) ?? (num(row.gallons) ? num(row.total_cost) / num(row.gallons) : 0),
           fuelType: row.fuel_type || '',
+          receiptNumber: row.receipt_number || '',
+          ...hubDocumentFields(document),
+          documentFiles: linkedFiles.map(file => ({
+            id: file.id,
+            documentId: file.document_id,
+            pageNumber: Number(file.page_number) || 1,
+            originalFilename: file.original_filename || '',
+            mimeType: file.mime_type || '',
+            fileSizeBytes: Number(file.file_size_bytes) || 0,
+            storageBucket: file.storage_bucket || 'hub-documents',
+            storagePath: file.storage_path || '',
+            url: ''
+          })),
           receiptPhotoPath: row.receipt_photo_path || '',
           receiptPhotoUrl: '',
           notes: row.notes || ''
         };
       });
-      await hydrateReceiptUrls(localFuel);
+      await Promise.all(localFuel.map(async record => {
+        if (!record.documentFiles.length) return;
+        await Promise.all(record.documentFiles.map(async file => {
+          const bucket = file.storageBucket === 'record-receipts' ? receiptBucket :
+            file.storageBucket === 'hub-documents' ? hubDocumentBucket :
+            client.storage.from(file.storageBucket);
+          file.url = await signedPhotoUrl(bucket, file.storagePath);
+        }));
+        record.receiptPhotoUrl = record.documentFiles.find(file => /^image\//i.test(file.mimeType) && file.url)?.url || '';
+      }));
+      await hydrateReceiptUrls(localFuel.filter(record => !record.receiptPhotoUrl));
 
       const aiUsage = documents.reduce((usage, document) => {
         const month = String(document.updated_at || document.created_at || '').slice(0, 7);
@@ -1704,11 +1917,14 @@
         id: x._cloudId, household_id: householdId,
         trip_id: x._tripId || tripFor(x.trip, x.date)?._cloudId || null,
         vehicle_id: x._vehicleId || tripFor(x.trip, x.date)?._towVehicleId || ruby.id,
-        fuel_date: x.date, station: x.station || null,
+        fuel_date: x.date, fuel_time: x.time || null, station: x.station || null,
+        address: x.address || null,
         city: x.city || null, state: x.state || null,
         location: [x.city,x.state].filter(Boolean).join(', ') || x.location || null,
         odometer: x.odometer, trip_meter: x.tripMiles, gallons: x.gallons,
-        total_cost: x.total, fuel_type: x.fuelType || (Number(String(x.date).slice(0, 4)) >= 2025 ? 'diesel' : 'gasoline'),
+        total_cost: x.total, price_per_gallon: x.price || null,
+        fuel_type: x.fuelType || (Number(String(x.date).slice(0, 4)) >= 2025 ? 'diesel' : 'gasoline'),
+        receipt_number: x.receiptNumber || null,
         receipt_photo_path: x.receiptPhotoPath || null,
         notes: x.notes || null
       }));
@@ -1852,6 +2068,10 @@
       deleteSeasonDocument,
       setElectricBillDocument,
       setElectricBillDocuments,
+      createFuelReceiptDraft,
+      discardHubDocumentDraft,
+      linkFuelReceiptDocument,
+      deleteFuelReceiptDocument,
       extractHubDocument,
       approveHubDocument,
       setTripPlanPdfDocument,

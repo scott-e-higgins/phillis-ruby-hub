@@ -225,3 +225,23 @@ The first document reader now follows the campground's actual bill format:
   date, check number, and amount paid.
 - Printed and handwritten values remain suggestions until Scott or Kayla
   reviews and saves the electric record.
+
+## Version 0.48.0 fuel-receipt workflow
+
+Fuel receipts use the same `document-scanner.js`, private `hub-documents`
+storage, `hub-document-review.js`, and `extract-document` Edge Function as
+electric bills. There is no second capture or cleanup interface.
+
+The fuel profile extracts printed receipt date, time, station, address, city,
+state, fuel type, gallons, price per gallon, total cost, and optional receipt
+number. For handwriting it reads only values beside the explicit labels
+`TRIP` and `ODO`; all other handwritten content is ignored.
+
+The scan is temporarily stored as an unlinked `fuel_receipt` document while
+the owner/editor reviews the suggestions. Saving the fuel stop creates the
+`fuel_stop` / `receipt_scan` link and records the user's corrections. Cancelling
+the entry removes the unlinked draft.
+
+MPG never crosses trip boundaries. The first saved stop in a trip uses trip
+meter divided by gallons. Later stops use the difference between the current
+and immediately preceding trip-meter values from that same trip.

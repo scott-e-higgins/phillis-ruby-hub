@@ -997,6 +997,12 @@ html.standalone-app body{
 .document-scanner-entry-heading b{font-size:16px}
 .document-scanner-entry-heading p,.document-scanner-current p{margin:0;color:var(--muted);font-size:12px;line-height:1.45}
 .document-scanner-entry-heading button{flex:0 0 auto}
+.fuel-receipt-document-preview{margin-top:2px}
+.fuel-receipt-document-card{width:100%;display:grid;grid-template-columns:72px minmax(0,1fr) auto;align-items:center;gap:12px;text-align:left;background:rgba(255,255,255,.035);border:1px solid rgba(175,211,188,.24);border-radius:8px;padding:9px;color:inherit}
+.fuel-receipt-document-card img{width:72px;height:82px;display:block;object-fit:cover;border-radius:6px;background:#f3efe4}
+.fuel-receipt-document-card>span:nth-child(2){display:grid;gap:4px;min-width:0}
+.fuel-receipt-document-card b,.fuel-receipt-document-card small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fuel-receipt-document-card small{color:var(--muted)}
 .document-scanner-current{display:grid;grid-template-columns:104px 1fr;align-items:center;gap:13px;padding-top:12px;border-top:1px solid #46564d}
 .document-scanner-current .stay-photo-preview{width:104px;min-height:92px}
 .document-scanner-current>div:last-child{display:grid;align-content:center;gap:6px}
