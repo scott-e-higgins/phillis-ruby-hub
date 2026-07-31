@@ -38,68 +38,86 @@ const outputText = (response: Record<string, unknown>) => {
 };
 
 const valueSchema = (type: 'string' | 'number') => ({ type: [type, 'null'] });
-const extractionSchema = {
+const buildExtractionSchema = (fields: Record<string, 'string' | 'number'>) => ({
   type: 'object',
   additionalProperties: false,
   properties: {
     fields: {
       type: 'object',
       additionalProperties: false,
-      properties: {
-        campground: valueSchema('string'),
-        bill_date: valueSchema('string'),
-        current_meter_reading: valueSchema('number'),
-        electricity_usage: valueSchema('number'),
-        rate: valueSchema('number'),
-        amount_due: valueSchema('number'),
-        payment_date: valueSchema('string'),
-        check_number: valueSchema('string'),
-        amount_paid: valueSchema('number')
-      },
-      required: [
-        'campground',
-        'bill_date',
-        'current_meter_reading',
-        'electricity_usage',
-        'rate',
-        'amount_due',
-        'payment_date',
-        'check_number',
-        'amount_paid'
-      ]
+      properties: Object.fromEntries(Object.entries(fields).map(([key, type]) => [key, valueSchema(type)])),
+      required: Object.keys(fields)
     },
     field_confidence: {
       type: 'object',
       additionalProperties: false,
-      properties: {
-        campground: valueSchema('number'),
-        bill_date: valueSchema('number'),
-        current_meter_reading: valueSchema('number'),
-        electricity_usage: valueSchema('number'),
-        rate: valueSchema('number'),
-        amount_due: valueSchema('number'),
-        payment_date: valueSchema('number'),
-        check_number: valueSchema('number'),
-        amount_paid: valueSchema('number')
-      },
-      required: [
-        'campground',
-        'bill_date',
-        'current_meter_reading',
-        'electricity_usage',
-        'rate',
-        'amount_due',
-        'payment_date',
-        'check_number',
-        'amount_paid'
-      ]
+      properties: Object.fromEntries(Object.keys(fields).map(key => [key, valueSchema('number')])),
+      required: Object.keys(fields)
     },
     review_fields: { type: 'array', items: { type: 'string' } },
     extracted_text: { type: 'string' },
     overall_confidence: { type: ['number', 'null'] }
   },
   required: ['fields', 'field_confidence', 'review_fields', 'extracted_text', 'overall_confidence']
-};
+});
+
+const extractionProfiles = {
+  electric_bill: {
+    schemaName: 'electric_bill_extraction',
+    schema: buildExtractionSchema({
+      campground: 'string',
+      bill_date: 'string',
+      current_meter_reading: 'number',
+      electricity_usage: 'number',
+      rate: 'number',
+      amount_due: 'number',
+      payment_date: 'string',
+      check_number: 'string',
+      amount_paid: 'number'
+    }),
+    prompt: [
+      'Read this seasonal-site electricity bill.',
+      'Read both printed text and handwritten payment notes.',
+      'The site number and previous meter reading are supplied by the Travel Journal, so do not extract or infer them.',
+      'Use YYYY-MM-DD for dates. Use null when a field is absent or uncertain.',
+      'bill_date is the printed bill date.',
+      'payment_date, check_number, and amount_paid refer to handwritten payment notes when present.',
+      'Do not infer a billing period, due date, rate, payment detail, or amount that is not visible.',
+      'Put any uncertain field names in review_fields.',
+      'extracted_text should be a concise transcription useful for later search, not an explanation.'
+    ].join(' ')
+  },
+  fuel_receipt: {
+    schemaName: 'fuel_receipt_extraction',
+    schema: buildExtractionSchema({
+      receipt_date: 'string',
+      receipt_time: 'string',
+      station_name: 'string',
+      address: 'string',
+      city: 'string',
+      state: 'string',
+      fuel_type: 'string',
+      gallons: 'number',
+      price_per_gallon: 'number',
+      total_cost: 'number',
+      receipt_number: 'string',
+      trip_meter: 'number',
+      odometer: 'number'
+    }),
+    prompt: [
+      'Read this fuel receipt and return only values that are visible.',
+      'Extract the printed transaction date, time, station name, street address, city, state, fuel type, gallons, price per gallon, total cost, and optional receipt or transaction number.',
+      'Normalize fuel_type to diesel or gasoline when the receipt clearly identifies it; otherwise use null.',
+      'Use YYYY-MM-DD for receipt_date and 24-hour HH:MM for receipt_time.',
+      'For handwriting, inspect only values written beside the explicit labels TRIP and ODO.',
+      'TRIP means trip_meter and ODO means odometer.',
+      'Ignore every other handwritten note, number, mark, or annotation.',
+      'Do not infer missing printed or handwritten values.',
+      'Use null when a field is absent or uncertain, and put every uncertain field name in review_fields.',
+      'extracted_text should be a concise transcription useful for later search, not an explanation.'
+    ].join(' ')
+  }
+} as const;
 
 Deno.serve(async request => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -131,9 +149,9 @@ Deno.serve(async request => {
       .eq('id', documentId)
       .single();
     if (documentResult.error) throw documentResult.error;
-    if (documentResult.data.document_type !== 'electric_bill') {
-      return json({ error: 'This reader currently supports electric bills only.' }, 400);
-    }
+    const documentType = documentResult.data.document_type as keyof typeof extractionProfiles;
+    const profile = extractionProfiles[documentType];
+    if (!profile) return json({ error: 'This document type is not supported by the secure reader.' }, 400);
 
     const filesResult = await client
       .from('hub_document_files')
@@ -148,20 +166,7 @@ Deno.serve(async request => {
       ai_processing_status: 'processing'
     }).eq('id', documentId);
 
-    const content: Array<Record<string, unknown>> = [{
-      type: 'input_text',
-      text: [
-        'Read this seasonal-site electricity bill.',
-        'Read both printed text and handwritten payment notes.',
-        'The site number and previous meter reading are supplied by the Travel Journal, so do not extract or infer them.',
-        'Use YYYY-MM-DD for dates. Use null when a field is absent or uncertain.',
-        'bill_date is the printed bill date.',
-        'payment_date, check_number, and amount_paid refer to handwritten payment notes when present.',
-        'Do not infer a billing period, due date, rate, payment detail, or amount that is not visible.',
-        'Put any uncertain field names in review_fields.',
-        'extracted_text should be a concise transcription of the bill text useful for later search, not an explanation.'
-      ].join(' ')
-    }];
+    const content: Array<Record<string, unknown>> = [{ type: 'input_text', text: profile.prompt }];
     let totalBytes = 0;
     for (const file of filesResult.data) {
       const download = await client.storage.from(file.storage_bucket || 'hub-documents').download(file.storage_path);
@@ -198,9 +203,9 @@ Deno.serve(async request => {
         text: {
           format: {
             type: 'json_schema',
-            name: 'electric_bill_extraction',
+            name: profile.schemaName,
             strict: true,
-            schema: extractionSchema
+            schema: profile.schema
           }
         }
       })
@@ -210,7 +215,7 @@ Deno.serve(async request => {
       throw new Error(openaiResult?.error?.message || 'OpenAI could not read the document.');
     }
     const extractedTextOutput = outputText(openaiResult);
-    if (!extractedTextOutput) throw new Error('OpenAI returned no readable bill values.');
+    if (!extractedTextOutput) throw new Error('OpenAI returned no readable document values.');
     const extracted = JSON.parse(extractedTextOutput);
     const inputTokens = Number(openaiResult?.usage?.input_tokens) || 0;
     const outputTokens = Number(openaiResult?.usage?.output_tokens) || 0;
