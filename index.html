@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-title" content="Travel Journal">
   <meta name="description" content="The private travel, maintenance and seasonal-site hub for Phillis & Ruby.">
   <title>Phillis & Ruby Travel Journal</title>
-  <link rel="manifest" href="manifest.webmanifest?v=0.48.0">
+  <link rel="manifest" href="manifest.webmanifest?v=0.48.1">
   <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
   <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
   <script>
@@ -39,7 +39,7 @@
       }, { passive: true });
     })();
   </script>
-  <link rel="stylesheet" href="styles.css?v=0.48.0">
+  <link rel="stylesheet" href="styles.css?v=0.48.1">
 </head>
 <body>
 <div id="pullRefresh" class="pull-refresh" aria-live="polite">
@@ -247,9 +247,13 @@
     <article class="card updates-card">
       <div class="updates-heading">
         <div><small>WHAT'S NEW</small><h3>Recent updates</h3></div>
-        <span class="version-badge">v0.48.0</span>
+        <span class="version-badge">v0.48.1</span>
       </div>
       <div class="updates-list">
+        <div>
+          <b>v0.48.1</b>
+          <span>Simplifies fuel scanning, keeps the full receipt by default, and removes unneeded time, street-address, and receipt-number fields.</span>
+        </div>
         <div>
           <b>v0.48.0</b>
           <span>Adds the shared fuel-receipt scanner, reviewable OCR suggestions, handwritten TRIP and ODO reading, and same-trip tank MPG.</span>
@@ -473,8 +477,8 @@
     <span data-scanner-step="4">4 Add</span>
   </div>
   <section class="scanner-capture-actions">
-    <label class="primary scanner-picker">Take a picture<input id="scannerCameraInput" type="file" accept="image/*" capture="environment" hidden></label>
-    <label class="secondary scanner-picker">Choose image or PDF<input id="scannerFileInput" type="file" accept="image/*,application/pdf,.pdf" hidden></label>
+    <label class="primary scanner-picker"><span id="scannerCameraLabel">Take a picture</span><input id="scannerCameraInput" type="file" accept="image/*" capture="environment" hidden></label>
+    <label class="secondary scanner-picker"><span id="scannerFileLabel">Choose image or PDF</span><input id="scannerFileInput" type="file" accept="image/*,application/pdf,.pdf" hidden></label>
   </section>
   <section id="scannerEmpty" class="scanner-empty">
     <span aria-hidden="true">▤</span>
@@ -559,10 +563,10 @@
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
 <script src="supabase-config.js" defer></script>
-<script src="cloud.js?v=0.48.0" defer></script>
-<script src="cloud-store.js?v=0.48.0" defer></script>
-<script src="document-scanner.js?v=0.48.0" defer></script>
-<script src="hub-document-review.js?v=0.48.0" defer></script>
-<script src="app.js?v=0.48.0" defer></script>
+<script src="cloud.js?v=0.48.1" defer></script>
+<script src="cloud-store.js?v=0.48.1" defer></script>
+<script src="document-scanner.js?v=0.48.1" defer></script>
+<script src="hub-document-review.js?v=0.48.1" defer></script>
+<script src="app.js?v=0.48.1" defer></script>
 </body>
 </html>

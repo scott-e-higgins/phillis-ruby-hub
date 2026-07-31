@@ -46,15 +46,12 @@
       fields: [
         { key: 'station_name', label: 'Station name', type: 'text', group: 'Receipt details' },
         { key: 'receipt_date', label: 'Date', type: 'date', group: 'Receipt details' },
-        { key: 'receipt_time', label: 'Time', type: 'time', group: 'Receipt details' },
-        { key: 'address', label: 'Street address', type: 'text', group: 'Location' },
         { key: 'city', label: 'City', type: 'text', group: 'Location' },
         { key: 'state', label: 'State', type: 'text', group: 'Location' },
         { key: 'fuel_type', label: 'Fuel type', type: 'select', group: 'Fuel', options: [['', 'Not shown'], ['diesel', 'Diesel'], ['gasoline', 'Gasoline']] },
         { key: 'gallons', label: 'Gallons', type: 'number', step: '0.001', group: 'Fuel' },
         { key: 'price_per_gallon', label: 'Price / gallon', type: 'number', step: '0.001', group: 'Fuel' },
         { key: 'total_cost', label: 'Total cost', type: 'number', step: '0.01', group: 'Fuel' },
-        { key: 'receipt_number', label: 'Receipt number', type: 'text', group: 'Fuel' },
         { key: 'trip_meter', label: 'TRIP handwriting', type: 'number', step: '0.1', group: 'Handwritten labels' },
         { key: 'odometer', label: 'ODO handwriting', type: 'number', step: '0.1', group: 'Handwritten labels' }
       ]

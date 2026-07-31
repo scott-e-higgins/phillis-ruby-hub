@@ -232,10 +232,14 @@ Fuel receipts use the same `document-scanner.js`, private `hub-documents`
 storage, `hub-document-review.js`, and `extract-document` Edge Function as
 electric bills. There is no second capture or cleanup interface.
 
-The fuel profile extracts printed receipt date, time, station, address, city,
-state, fuel type, gallons, price per gallon, total cost, and optional receipt
-number. For handwriting it reads only values beside the explicit labels
+The fuel profile extracts printed receipt date, station, city, state, fuel
+type, gallons, price per gallon, and total cost. For handwriting it reads only values beside the explicit labels
 `TRIP` and `ODO`; all other handwritten content is ignored.
+
+Version 0.48.1 makes the full optimized receipt the default fuel workflow.
+Automatic perspective cropping remains part of the shared scanner for other
+documents, while fuel users can still choose **Adjust crop** manually. This
+keeps the successful full-picture reading path and reduces processing time.
 
 The scan is temporarily stored as an unlinked `fuel_receipt` document while
 the owner/editor reviews the suggestions. Saving the fuel stop creates the

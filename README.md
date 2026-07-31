@@ -2,13 +2,23 @@
 
 Travel Journal is Scott and Kayla's private travel companion.
 
+## Version 0.48.1
+
+- Moves **Take or add receipt** to the top of the fuel-stop form while keeping
+  the saved receipt at the bottom of the completed record.
+- Removes fuel time, street address, and receipt-number entry and review fields;
+  fuel location is now just city and state.
+- Uses a faster full-image optimization path for fuel receipts because it read
+  the complete receipt more reliably in real use. Manual **Adjust crop** remains
+  available when a picture genuinely needs trimming.
+
 ## Version 0.48.0
 
 - Reuses the Higgins Hub scanner for fuel receipts, including camera capture,
   cleanup, cropping, enhancement, preview, private storage, and secure AI
   reading.
-- Extracts printed station, date, time, address, fuel, gallons, price, total,
-  and receipt-number fields plus only the handwritten TRIP and ODO labels.
+- Extracts printed station, date, location, fuel, gallons, price, and total
+  fields plus only the handwritten TRIP and ODO labels.
 - Highlights uncertain suggestions before they can populate the fuel stop.
 - Calculates the first stop's trip MPG and later stops' tank miles and tank MPG
   using only earlier fuel stops from the same trip.

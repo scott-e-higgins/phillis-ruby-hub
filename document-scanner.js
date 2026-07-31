@@ -25,6 +25,8 @@
     pdfHasSelectableText: null,
     onUse: null,
     allowPdfUse: false,
+    preferFullImage: false,
+    maxDimension: MAX_DOCUMENT_DIMENSION,
     busy: false
   };
 
@@ -59,6 +61,8 @@
       manualCorners: null,
       activeCropCorner: null,
       pdfHasSelectableText: null,
+      preferFullImage: false,
+      maxDimension: MAX_DOCUMENT_DIMENSION,
       busy: false
     });
     const camera = $('#scannerCameraInput');
@@ -230,8 +234,10 @@
       }
       render();
     } else {
-      setStatus('Original image loaded. Cleaning and squaring it automatically…');
-      await new Promise(resolve => setTimeout(resolve, 300));
+      setStatus(state.preferFullImage
+        ? 'Original image loaded. Optimizing the full receipt…'
+        : 'Original image loaded. Cleaning and squaring it automatically…');
+      await new Promise(resolve => setTimeout(resolve, 80));
       await processImage();
     }
   }
@@ -256,7 +262,7 @@
   function rotatedCanvas(bitmap, rotation) {
     const sourceWidth = bitmap.width || bitmap.naturalWidth;
     const sourceHeight = bitmap.height || bitmap.naturalHeight;
-    const scale = Math.min(1, MAX_DOCUMENT_DIMENSION / Math.max(sourceWidth, sourceHeight));
+    const scale = Math.min(1, state.maxDimension / Math.max(sourceWidth, sourceHeight));
     const drawWidth = Math.max(1, Math.round(sourceWidth * scale));
     const drawHeight = Math.max(1, Math.round(sourceHeight * scale));
     const sideways = Math.abs(rotation % 180) === 90;
@@ -364,7 +370,7 @@
   }
 
   function scaledCanvas(sourceCanvas) {
-    const scale = Math.min(1, MAX_DOCUMENT_DIMENSION / Math.max(sourceCanvas.width, sourceCanvas.height));
+    const scale = Math.min(1, state.maxDimension / Math.max(sourceCanvas.width, sourceCanvas.height));
     const canvas = document.createElement('canvas');
     canvas.width = Math.max(1, Math.round(sourceCanvas.width * scale));
     canvas.height = Math.max(1, Math.round(sourceCanvas.height * scale));
@@ -390,7 +396,7 @@
     const [topLeft, topRight, bottomRight, bottomLeft] = points;
     const naturalWidth = Math.max(distance(topLeft, topRight), distance(bottomLeft, bottomRight));
     const naturalHeight = Math.max(distance(topLeft, bottomLeft), distance(topRight, bottomRight));
-    const scale = Math.min(1, MAX_DOCUMENT_DIMENSION / Math.max(naturalWidth, naturalHeight));
+    const scale = Math.min(1, state.maxDimension / Math.max(naturalWidth, naturalHeight));
     const width = Math.max(1, Math.round(naturalWidth * scale));
     const height = Math.max(1, Math.round(naturalHeight * scale));
     const source = sourceCanvas.getContext('2d', { willReadFrequently: true })
@@ -471,7 +477,7 @@
       const bitmap = await loadBitmap(state.file);
       const sourceCanvas = rotatedCanvas(bitmap, state.rotation);
       if (typeof bitmap.close === 'function') bitmap.close();
-      const autoCleanup = $('#scannerAutoCleanup')?.checked !== false;
+      const autoCleanup = !state.preferFullImage && $('#scannerAutoCleanup')?.checked !== false;
       const manualPoints = state.manualCorners?.map(point => ({
         x: point.x * sourceCanvas.width,
         y: point.y * sourceCanvas.height
@@ -517,7 +523,9 @@
       setStatus(
         paper
           ? `${paper.manual ? 'Your crop' : 'Paper edges'} ${paper.manual ? 'was applied' : 'were detected'} and squared locally; file size is ${bytes(file.size)}.`
-          : `Cleanup complete. The full image was retained because a safe paper boundary was not certain. Choose Adjust crop to trim it manually; file size is ${bytes(file.size)}.`,
+          : state.preferFullImage
+            ? `Full receipt optimized for fast reading; file size is ${bytes(file.size)}. Use Adjust crop only if you want to trim it manually.`
+            : `Cleanup complete. The full image was retained because a safe paper boundary was not certain. Choose Adjust crop to trim it manually; file size is ${bytes(file.size)}.`,
         'success'
       );
     } catch (error) {
@@ -665,8 +673,16 @@
     reset();
     state.onUse = typeof options.onUse === 'function' ? options.onUse : null;
     state.allowPdfUse = Boolean(options.allowPdfUse);
+    state.preferFullImage = Boolean(options.preferFullImage);
+    state.maxDimension = Math.max(1200, Math.min(MAX_DOCUMENT_DIMENSION, Number(options.maxDimension) || MAX_DOCUMENT_DIMENSION));
     const context = $('#scannerContext');
     if (context) context.textContent = options.title || 'Electric bill document';
+    const cameraLabel = $('#scannerCameraLabel');
+    const fileLabel = $('#scannerFileLabel');
+    const fileInput = $('#scannerFileInput');
+    if (cameraLabel) cameraLabel.textContent = options.cameraLabel || 'Take a picture';
+    if (fileLabel) fileLabel.textContent = options.fileLabel || (state.allowPdfUse ? 'Choose image or PDF' : 'Choose receipt photo');
+    if (fileInput) fileInput.accept = state.allowPdfUse ? 'image/*,application/pdf,.pdf' : 'image/*';
     const use = $('#scannerUse');
     if (use) use.textContent = options.useLabel || 'Use this scan';
     $('#documentScannerDialog')?.showModal();
