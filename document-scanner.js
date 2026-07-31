@@ -27,6 +27,7 @@
     allowPdfUse: false,
     preferFullImage: false,
     maxDimension: MAX_DOCUMENT_DIMENSION,
+    quality: DOCUMENT_QUALITY,
     emptyPrompt: 'Choose a camera photo, an existing image, or a PDF to begin.',
     busy: false
   };
@@ -64,6 +65,7 @@
       pdfHasSelectableText: null,
       preferFullImage: false,
       maxDimension: MAX_DOCUMENT_DIMENSION,
+      quality: DOCUMENT_QUALITY,
       emptyPrompt: 'Choose a camera photo, an existing image, or a PDF to begin.',
       busy: false
     });
@@ -493,7 +495,7 @@
       } : null;
       let output = paper ? squareDocument(sourceCanvas, paper.points) : scaledCanvas(sourceCanvas);
       output = enhanceReadability(output);
-      let blob = await canvasBlob(output, DOCUMENT_QUALITY);
+      let blob = await canvasBlob(output, state.quality);
       if (!blob) throw new Error('The cleaned image could not be created.');
       if (blob.size > 4.5 * 1024 * 1024) {
         blob = await canvasBlob(output, .8) || blob;
@@ -609,28 +611,40 @@
     renderCropOverlay();
   }
 
-  function useDocument() {
+  async function useDocument() {
     if (!state.processedFile || state.busy) return;
     if (state.kind === 'pdf' && !state.allowPdfUse) {
       setStatus('PDF cloud saving begins in the next shared-document stage. This version safely previews it without changing the database.');
       return;
     }
     setScannerStage(4);
-    const accepted = state.onUse?.({
-      file: state.processedFile,
-      originalFile: state.file,
-      kind: state.kind,
-      metadata: state.cleanup || {
-        preservedOriginal: state.kind === 'pdf',
-        bytes: state.processedFile.size,
-        hasSelectableText: state.kind === 'pdf' ? state.pdfHasSelectableText : null
+    state.busy = true;
+    setStatus('Securely saving this document…');
+    render();
+    try {
+      const accepted = await state.onUse?.({
+        file: state.processedFile,
+        originalFile: state.file,
+        kind: state.kind,
+        metadata: state.cleanup || {
+          preservedOriginal: state.kind === 'pdf',
+          bytes: state.processedFile.size,
+          hasSelectableText: state.kind === 'pdf' ? state.pdfHasSelectableText : null
+        }
+      });
+      if (accepted === false) {
+        setScannerStage(3);
+        return;
       }
-    });
-    if (accepted === false) {
+      $('#documentScannerDialog')?.close();
+    } catch (error) {
+      console.error(error);
+      setStatus(error?.message || 'This document could not be saved. Please try again.', 'error');
       setScannerStage(3);
-      return;
+    } finally {
+      state.busy = false;
+      render();
     }
-    $('#documentScannerDialog')?.close();
   }
 
   function bind() {
@@ -677,6 +691,7 @@
     state.allowPdfUse = Boolean(options.allowPdfUse);
     state.preferFullImage = Boolean(options.preferFullImage);
     state.maxDimension = Math.max(1200, Math.min(MAX_DOCUMENT_DIMENSION, Number(options.maxDimension) || MAX_DOCUMENT_DIMENSION));
+    state.quality = Math.max(.72, Math.min(.92, Number(options.quality) || DOCUMENT_QUALITY));
     state.emptyPrompt = options.emptyPrompt || 'Choose a camera photo, an existing image, or a PDF to begin.';
     const context = $('#scannerContext');
     if (context) context.textContent = options.title || 'Electric bill document';

@@ -23,7 +23,7 @@
   });
 
   function createStore(cloud) {
-    const { client, householdId, role } = cloud;
+    const { client, householdId, role, user } = cloud;
     let known = {};
     let syncing = Promise.resolve();
     const photoBucket = client.storage.from('stay-photos');
@@ -857,9 +857,7 @@
       if (isPdf) throw new Error('Fuel receipts currently use a single photo. Please take or choose a picture.');
       if (file.size > 25 * 1024 * 1024) throw new Error('That receipt picture is larger than the 25 MB document limit.');
 
-      const userResult = await client.auth.getUser();
-      if (userResult.error) throw userResult.error;
-      const userId = userResult.data?.user?.id;
+      const userId = user?.id;
       if (!userId) throw new Error('Please sign in again before scanning this receipt.');
 
       const documentId = uuid();
@@ -874,28 +872,29 @@
       let uploaded = false;
 
       try {
-        const inserted = await client.from('hub_documents').insert({
-          id: documentId,
-          household_id: householdId,
-          display_title: 'Fuel receipt · awaiting review',
-          document_type: 'fuel_receipt',
-          source_app: 'travel-journal',
-          processing_status: 'draft',
-          ai_processing_status: 'not_requested',
-          retention_status: 'keep',
-          created_by: userId,
-          uploaded_at: now
-        }).select('*').single();
+        const [inserted, upload] = await Promise.all([
+          client.from('hub_documents').insert({
+            id: documentId,
+            household_id: householdId,
+            display_title: 'Fuel receipt · awaiting review',
+            document_type: 'fuel_receipt',
+            source_app: 'travel-journal',
+            processing_status: 'draft',
+            ai_processing_status: 'not_requested',
+            retention_status: 'keep',
+            created_by: userId,
+            uploaded_at: now
+          }).select('*').single(),
+          hubDocumentBucket.upload(storagePath, prepared.blob, {
+            cacheControl: '3600',
+            contentType: prepared.contentType,
+            upsert: false
+          })
+        ]);
+        if (!inserted.error) documentCreated = true;
+        if (!upload.error) uploaded = true;
         if (inserted.error) throw inserted.error;
-        documentCreated = true;
-
-        const upload = await hubDocumentBucket.upload(storagePath, prepared.blob, {
-          cacheControl: '3600',
-          contentType: prepared.contentType,
-          upsert: false
-        });
         if (upload.error) throw upload.error;
-        uploaded = true;
 
         const dimensions = { ...(file.higginsDocumentMetadata || {}), ...(metadata || {}) };
         const fileInsert = await client.from('hub_document_files').insert({
@@ -926,7 +925,7 @@
             fileSizeBytes: Number(prepared.blob.size) || 0,
             storageBucket: 'hub-documents',
             storagePath,
-            url: await signedPhotoUrl(hubDocumentBucket, storagePath)
+            url: URL.createObjectURL(prepared.blob)
           }]
         };
       } catch (error) {

@@ -2,6 +2,17 @@
 
 Travel Journal is Scott and Kayla's private travel companion.
 
+## Version 0.48.3
+
+- Keeps the scanner open with a clear saving message instead of dropping back
+  to the fuel form during the upload handoff.
+- Starts the receipt reader immediately after **Use photo & read receipt**;
+  manual re-reads still require confirmation.
+- Reduces fuel-receipt image size slightly while preserving text readability.
+- Shortens cloud preparation by saving independent pieces together and lets
+  the secure reader use a short-lived private image link instead of rebuilding
+  the receipt as a large encoded request.
+
 ## Version 0.48.2
 
 - Polishes the faster fuel-receipt camera and photo-picker prompts.

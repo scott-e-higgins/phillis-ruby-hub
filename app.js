@@ -1,4 +1,4 @@
-const APP_VERSION='0.48.2';
+const APP_VERSION='0.48.3';
 const SEED={"tripSummaries":[],"campgrounds":[],"stays":[],"tripPlans":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"vehicleDetails":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const NO_TRIP_VALUE='__everyday_ruby__';
@@ -1817,33 +1817,33 @@ function bindFuelReceiptScanner(record={}){
     if(!window.HIGGINS_DOCUMENT_SCANNER){alert('The scanner is still loading. Please try again in a moment.');return;}
     window.HIGGINS_DOCUMENT_SCANNER.open({
       title:'Fuel receipt',
-      useLabel:'Use this receipt',
+      useLabel:'Use photo & read receipt',
       allowPdfUse:false,
       preferFullImage:true,
-      maxDimension:1800,
+      maxDimension:1600,
+      quality:.82,
       cameraLabel:'Take receipt photo',
       fileLabel:'Choose receipt photo',
       emptyPrompt:'Take a receipt photo or choose one from your phone.',
-      onUse:({file,metadata})=>{
+      onUse:async({file,metadata})=>{
         const status=$('#fuelReceiptScannerStatus');
         launch.disabled=true;
         if(status)status.textContent='Securely saving the cleaned receipt…';
-        (async()=>{
-          try{
-            discardPendingFuelReceiptDraft();
-            const document=await window.ADVENTURE_HUB_STORE.createFuelReceiptDraft(file,metadata);
-            fuelReceiptScannerState.document=document;
-            fuelReceiptScannerState.draftDocumentId=document.documentId;
-            fuelReceiptScannerState.approval=null;
-            renderFuelReceiptScanner();
-            openFuelReceiptDocumentReview(document,true);
-          }catch(error){
-            console.error(error);
-            if(status)status.textContent='The receipt was not uploaded.';
-            alert(`The fuel receipt could not be prepared.\n\n${error.message||error}`);
-          }finally{launch.disabled=false;}
-        })();
-        return true;
+        try{
+          discardPendingFuelReceiptDraft();
+          const document=await window.ADVENTURE_HUB_STORE.createFuelReceiptDraft(file,metadata);
+          fuelReceiptScannerState.document=document;
+          fuelReceiptScannerState.draftDocumentId=document.documentId;
+          fuelReceiptScannerState.approval=null;
+          renderFuelReceiptScanner();
+          if(status)status.textContent='Receipt saved. Starting the reader…';
+          setTimeout(()=>openFuelReceiptDocumentReview(document,true),0);
+          return true;
+        }catch(error){
+          console.error(error);
+          if(status)status.textContent='The receipt was not uploaded.';
+          throw new Error(`The fuel receipt could not be prepared. ${error.message||error}`);
+        }finally{launch.disabled=false;}
       }
     });
   };

@@ -143,13 +143,13 @@
       $('#hubDocumentDialog').close();
     };
   }
-  async function analyze() {
+  async function analyze(skipConfirmation = false) {
     const record = active?.record;
     const profile = activeProfile();
     const button = $('#hubDocumentAnalyze');
     const message = $('#hubDocumentAiMessage');
     if (!record?.documentId || !window.ADVENTURE_HUB_STORE?.extractHubDocument) { message.textContent = 'Save the document first, then try again.'; return; }
-    if (!window.confirm(`Read this ${profile.noun} with AI?\n\nThis makes one small paid OpenAI request. The suggested values will not be saved until you review and approve them.`)) return;
+    if (!skipConfirmation && !window.confirm(`Read this ${profile.noun} with AI?\n\nThis makes one small paid OpenAI request. The suggested values will not be saved until you review and approve them.`)) return;
     button.disabled = true; button.textContent = `Reading ${profile.noun}…`; message.textContent = 'Securely reading the saved document. This can take a few moments.';
     try {
       const result = await window.ADVENTURE_HUB_STORE.extractHubDocument(record.documentId);
@@ -173,9 +173,9 @@
     $('#hubDocumentAiMessage').textContent = '';
     renderPreview(); renderFileRail(); renderReview();
     $('#hubDocumentDialog').showModal();
-    if (options.autoAnalyze && !['review', 'complete'].includes(options.record.documentAiStatus || '')) setTimeout(analyze, 80);
+    if (options.autoAnalyze && !['review', 'complete'].includes(options.record.documentAiStatus || '')) setTimeout(() => analyze(true), 40);
   }
 
-  $('#hubDocumentAnalyze')?.addEventListener('click', analyze);
+  $('#hubDocumentAnalyze')?.addEventListener('click', () => analyze(false));
   window.HIGGINS_DOCUMENT_REVIEW = { open };
 })();
