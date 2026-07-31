@@ -2,6 +2,13 @@
 
 Travel Journal is Scott and Kayla's private travel companion.
 
+## Version 0.48.5
+
+- Gives electric-bill scans the same Cancel, Use document, and Read bill choices as fuel receipts.
+- Use document attaches the page or PDF without making an AI request.
+- Read bill starts the secure reader automatically after the completed multi-page bill is saved.
+- Replacing or adding bill pages clears stale extraction results so the updated document can be read accurately.
+
 ## Version 0.48.4
 
 - Gives fuel-receipt scans three clear choices: Cancel, Use photo, or Read receipt.

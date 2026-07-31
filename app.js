@@ -1,4 +1,4 @@
-const APP_VERSION='0.48.4';
+const APP_VERSION='0.48.5';
 const SEED={"tripSummaries":[],"campgrounds":[],"stays":[],"tripPlans":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"vehicleDetails":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const NO_TRIP_VALUE='__everyday_ruby__';
@@ -1412,13 +1412,14 @@ function useElectricDocumentSuggestions(record,index,result){
   const status=$('#documentScannerAttachStatus');
   if(status)status.textContent='AI suggestions are loaded. Check the bill values, then tap Save bill to approve them.';
 }
-function openElectricDocumentReview(record,index){
+function openElectricDocumentReview(record,index,autoAnalyze=false){
   if(!window.HIGGINS_DOCUMENT_REVIEW){
     alert('The document viewer is still loading. Please try again in a moment.');
     return;
   }
   window.HIGGINS_DOCUMENT_REVIEW.open({
     record,
+    autoAnalyze,
     defaultFields:{
       campground:'Lehigh Gorge Campground',
       site_number:'39',
@@ -1855,10 +1856,10 @@ function bindFuelReceiptScanner(record={}){
     }
   };
 }
-let electricDocumentEditorState={items:[],initialOrder:'',changed:false};
+let electricDocumentEditorState={items:[],initialOrder:'',changed:false,readAfterSave:false};
 function clearElectricDocumentEditor(){
   electricDocumentEditorState.items.filter(item=>item.kind==='pending').forEach(item=>item.url&&URL.revokeObjectURL(item.url));
-  electricDocumentEditorState={items:[],initialOrder:'',changed:false};
+  electricDocumentEditorState={items:[],initialOrder:'',changed:false,readAfterSave:false};
 }
 function electricDocumentItemKey(item){
   return item.kind==='existing'?`existing:${item.fileId}`:item.kind==='legacy'?`legacy:${item.legacyPath}`:`pending:${item.token}`;
@@ -1907,7 +1908,7 @@ function removeElectricDocumentItem(index){
     ?'The unsaved file was removed.'
     :'The saved file will be removed when you tap Save bill. Tap Cancel to keep it.';
 }
-function addElectricDocumentFile(file,metadata={}){
+function addElectricDocumentFile(file,metadata={},readAfterSave=false){
   if(!file)return;
   const token=crypto.randomUUID?.()||`${Date.now()}-${Math.random()}`;
   try{Object.defineProperty(file,'higginsDocumentMetadata',{value:{...metadata},configurable:true});}catch{}
@@ -1921,6 +1922,7 @@ function addElectricDocumentFile(file,metadata={}){
     fileSizeBytes:Number(file.size)||0
   });
   electricDocumentEditorState.changed=true;
+  electricDocumentEditorState.readAfterSave=Boolean(electricDocumentEditorState.readAfterSave||readAfterSave);
   renderElectricDocumentEditor();
 }
 function bindElectricDocumentEditor(record={}){
@@ -1949,6 +1951,7 @@ function bindElectricDocumentEditor(record={}){
   electricDocumentEditorState.items=files;
   electricDocumentEditorState.initialOrder=files.map(electricDocumentItemKey).join('|');
   electricDocumentEditorState.changed=false;
+  electricDocumentEditorState.readAfterSave=false;
   renderElectricDocumentEditor();
   const status=$('#documentScannerAttachStatus');
   if(status)status.textContent=files.length
@@ -1978,19 +1981,23 @@ function bindDocumentScannerLauncher(){
     }
     window.HIGGINS_DOCUMENT_SCANNER.open({
       title:'Lehigh Gorge electric bill',
-      useLabel:'Add to bill',
+      useLabel:'Read bill',
+      useOnlyLabel:'Use document',
       allowPdfUse:true,
-      onUse:({file,metadata})=>{
-        addElectricDocumentFile(file,metadata);
+      onUseOnly:({file,metadata})=>addBillDocument(file,metadata,false),
+      onUse:({file,metadata})=>addBillDocument(file,metadata,true)
+    });
+    function addBillDocument(file,metadata,readAfterSave){
+        addElectricDocumentFile(file,metadata,readAfterSave);
         if(status){
           const saved=Math.max(0,(metadata.originalBytes||0)-(metadata.optimizedBytes||0));
+          const nextStep=readAfterSave?'Tap Save bill to upload it and start the reader.':'Add another file or save the electric record.';
           status.textContent=metadata.preservedOriginal
-            ?'PDF added intact. Add another file or save the electric record.'
-            :`Page prepared locally at ${metadata.width||'—'} × ${metadata.height||'—'}${saved?` · ${Math.round(saved/1024)} KB smaller`:''}. Add another page or save the electric record.`;
+            ?`PDF added intact. ${nextStep}`
+            :`Page prepared locally at ${metadata.width||'—'} × ${metadata.height||'—'}${saved?` · ${Math.round(saved/1024)} KB smaller`:''}. ${nextStep}`;
         }
         return true;
-      }
-    });
+    }
   };
 }
 let multiReceiptEditorState={existing:[],pending:[],removedPaths:new Set()};
@@ -2625,11 +2632,14 @@ $('#entryForm').onsubmit=async e=>{
   let savedReceiptKind='';
   let savedMultiReceiptRecord=null;
   let savedMultiReceiptKind='';
+  let electricDocumentToRead=null;
+  let electricDocumentToReadIndex=null;
   const pendingNotePhotoChanges=type==='hub-note'?notePhotoChanges():{addFiles:[],removePaths:[]};
   const multiReceiptKinds={'phillis-maint':'maintenance','phillis-upgrade':'maintenance','ruby-maint':'maintenance','ruby-upgrade':'maintenance',sitepayment:'seasonal-payment','trip-plan':'trip-plan'};
   const pendingMultiReceiptChanges=multiReceiptKinds[type]?multiReceiptChanges():{addFiles:[],removePaths:[]};
   const pendingTripPlanPdfChanges=type==='trip-plan'?tripPlanPdfChanges():null;
   const pendingElectricDocumentChanges=type==='electric'?electricDocumentChanges():null;
+  const shouldReadElectricDocument=type==='electric'&&Boolean(electricDocumentEditorState.readAfterSave)&&Boolean(pendingElectricDocumentChanges?.items?.some(item=>item.file));
   const pendingFuelReceiptDocument=type==='fuel'&&fuelReceiptScannerState.draftDocumentId?fuelReceiptScannerState.document:null;
   const stayPhotoChanges=type==='stay'?[
     {kind:'site',file:$('#sitePhotoFile')?.files?.[0]||null,remove:$('#sitePhotoFile')?.dataset.remove==='true'},
@@ -2799,6 +2809,10 @@ $('#entryForm').onsubmit=async e=>{
     try{
       submitButton.textContent='Uploading bill document…';
       await window.ADVENTURE_HUB_STORE.setElectricBillDocuments(savedReceiptRecord,pendingElectricDocumentChanges);
+      if(shouldReadElectricDocument&&savedReceiptRecord.documentId){
+        electricDocumentToRead=savedReceiptRecord;
+        electricDocumentToReadIndex=db.electric.indexOf(savedReceiptRecord);
+      }
       localStorage.setItem(KEY,JSON.stringify(db));
     }catch(error){
       console.error(error);
@@ -2863,6 +2877,9 @@ $('#entryForm').onsubmit=async e=>{
   if(type==='phillis-maint') showPanel('phillis-maintenance');
   if(type==='phillis-upgrade') showPanel('phillis-upgrades');
   if(type==='electric'||type==='sitepayment'||type==='sitefee') showPanel('lehigh');
+  if(electricDocumentToRead&&electricDocumentToReadIndex>=0){
+    setTimeout(()=>openElectricDocumentReview(electricDocumentToRead,electricDocumentToReadIndex,true),0);
+  }
   if(returnTripIndex!==null && !['sitepayment','electric'].includes(type)) showTrip(returnTripIndex);
 };
 $('#export').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(db,null,2)],{type:'application/json'}));a.download='adventure-hub-backup.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500)};

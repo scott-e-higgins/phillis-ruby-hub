@@ -671,6 +671,11 @@
             display_title: displayTitle,
             document_date: record.date || null,
             processing_status: 'approved',
+            ai_processing_status: 'not_requested',
+            extracted_text: null,
+            extracted_data: {},
+            user_corrections: {},
+            review_fields: [],
             updated_at: new Date().toISOString()
           }).eq('id', documentId);
           if (documentUpdate.error) throw documentUpdate.error;
@@ -830,6 +835,11 @@
         record.documentId = documentId;
         record.documentTitle = displayTitle;
         record.documentStatus = 'approved';
+        record.documentAiStatus = 'not_requested';
+        record.documentExtractedText = '';
+        record.documentExtractedData = {};
+        record.documentUserCorrections = {};
+        record.documentReviewFields = [];
         record.documentFiles = finalFiles;
         record.receiptPhotoPath = '';
         record.receiptPhotoUrl = finalFiles.find(file => /^image\//i.test(file.mimeType) && file.url)?.url || '';
