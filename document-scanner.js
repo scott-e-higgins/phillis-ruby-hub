@@ -27,6 +27,7 @@
     allowPdfUse: false,
     preferFullImage: false,
     maxDimension: MAX_DOCUMENT_DIMENSION,
+    emptyPrompt: 'Choose a camera photo, an existing image, or a PDF to begin.',
     busy: false
   };
 
@@ -63,6 +64,7 @@
       pdfHasSelectableText: null,
       preferFullImage: false,
       maxDimension: MAX_DOCUMENT_DIMENSION,
+      emptyPrompt: 'Choose a camera photo, an existing image, or a PDF to begin.',
       busy: false
     });
     const camera = $('#scannerCameraInput');
@@ -128,7 +130,7 @@
       image.removeAttribute('src');
       pdf.removeAttribute('src');
       meta.innerHTML = '';
-      setStatus('Choose a camera photo, an existing image, or a PDF to begin.');
+      setStatus(state.emptyPrompt);
       return;
     }
 
@@ -675,6 +677,7 @@
     state.allowPdfUse = Boolean(options.allowPdfUse);
     state.preferFullImage = Boolean(options.preferFullImage);
     state.maxDimension = Math.max(1200, Math.min(MAX_DOCUMENT_DIMENSION, Number(options.maxDimension) || MAX_DOCUMENT_DIMENSION));
+    state.emptyPrompt = options.emptyPrompt || 'Choose a camera photo, an existing image, or a PDF to begin.';
     const context = $('#scannerContext');
     if (context) context.textContent = options.title || 'Electric bill document';
     const cameraLabel = $('#scannerCameraLabel');
@@ -685,6 +688,7 @@
     if (fileInput) fileInput.accept = state.allowPdfUse ? 'image/*,application/pdf,.pdf' : 'image/*';
     const use = $('#scannerUse');
     if (use) use.textContent = options.useLabel || 'Use this scan';
+    render();
     $('#documentScannerDialog')?.showModal();
   }
 

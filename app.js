@@ -1742,7 +1742,7 @@ function renderFuelReceiptScanner(){
   const file=document?.documentFiles?.find(item=>/^image\//i.test(item.mimeType||''))||document?.documentFiles?.[0];
   if(!file?.url){
     host.innerHTML='<div class="note-photo-empty">No fuel receipt attached yet.</div>';
-    status.textContent='Nothing is uploaded until you scan a receipt.';
+    status.textContent='Nothing is uploaded until you add a receipt.';
     button.textContent='Take or add receipt';
     return;
   }
@@ -1823,6 +1823,7 @@ function bindFuelReceiptScanner(record={}){
       maxDimension:1800,
       cameraLabel:'Take receipt photo',
       fileLabel:'Choose receipt photo',
+      emptyPrompt:'Take a receipt photo or choose one from your phone.',
       onUse:({file,metadata})=>{
         const status=$('#fuelReceiptScannerStatus');
         launch.disabled=true;
