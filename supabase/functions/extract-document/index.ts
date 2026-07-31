@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const OPENAI_MODEL = 'gpt-5-mini';
 const MAX_AI_INPUT_BYTES = 30 * 1024 * 1024;
@@ -11,12 +11,12 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS'
 };
 
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
+const json = (body, status = 200) => new Response(JSON.stringify(body), {
   status,
   headers: { ...corsHeaders, 'Content-Type': 'application/json' }
 });
 
-const toDataUrl = async (blob: Blob, mimeType: string) => {
+const toDataUrl = async (blob, mimeType) => {
   const bytes = new Uint8Array(await blob.arrayBuffer());
   let binary = '';
   const chunkSize = 0x8000;
@@ -26,19 +26,19 @@ const toDataUrl = async (blob: Blob, mimeType: string) => {
   return `data:${mimeType};base64,${btoa(binary)}`;
 };
 
-const outputText = (response: Record<string, unknown>) => {
+const outputText = response => {
   const output = Array.isArray(response.output) ? response.output : [];
-  for (const item of output as Array<Record<string, unknown>>) {
+  for (const item of output) {
     const content = Array.isArray(item.content) ? item.content : [];
-    for (const part of content as Array<Record<string, unknown>>) {
+    for (const part of content) {
       if (part.type === 'output_text' && typeof part.text === 'string') return part.text;
     }
   }
   return '';
 };
 
-const valueSchema = (type: 'string' | 'number') => ({ type: [type, 'null'] });
-const buildExtractionSchema = (fields: Record<string, 'string' | 'number'>) => ({
+const valueSchema = type => ({ type: [type, 'null'] });
+const buildExtractionSchema = fields => ({
   type: 'object',
   additionalProperties: false,
   properties: {
@@ -114,7 +114,7 @@ const extractionProfiles = {
       'extracted_text should be a concise transcription useful for later search, not an explanation.'
     ].join(' ')
   }
-} as const;
+};
 
 Deno.serve(async request => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -146,7 +146,7 @@ Deno.serve(async request => {
       .eq('id', documentId)
       .single();
     if (documentResult.error) throw documentResult.error;
-    const documentType = documentResult.data.document_type as keyof typeof extractionProfiles;
+    const documentType = documentResult.data.document_type;
     const profile = extractionProfiles[documentType];
     if (!profile) return json({ error: 'This document type is not supported by the secure reader.' }, 400);
 
@@ -163,7 +163,7 @@ Deno.serve(async request => {
       ai_processing_status: 'processing'
     }).eq('id', documentId);
 
-    const content: Array<Record<string, unknown>> = [{ type: 'input_text', text: profile.prompt }];
+    const content = [{ type: 'input_text', text: profile.prompt }];
     let totalBytes = 0;
     for (const file of filesResult.data) {
       const download = await client.storage.from(file.storage_bucket || 'hub-documents').download(file.storage_path);
