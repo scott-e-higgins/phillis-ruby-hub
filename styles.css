@@ -966,6 +966,22 @@ html.standalone-app body{
   max-height:var(--standalone-screen-height,100lvh);
 }
 
+/* v0.47.0 — keep the installed app shell intact after rotating an iPad */
+@media (orientation:landscape) and (max-height:900px){
+  html.standalone-app .topbar{
+    min-height:92px;
+    padding-top:max(calc(10px + env(safe-area-inset-top)),18px);
+    padding-bottom:10px;
+  }
+  html.standalone-app .bottom-nav{
+    height:70px;
+    flex-basis:70px;
+    padding-top:3px;
+    padding-bottom:max(4px,env(safe-area-inset-bottom));
+  }
+  html.standalone-app .bottom-nav span{font-size:18px}
+}
+
 .ruby-truck-icon{display:block;width:29px;height:21px}
 .ruby-truck-body{fill:#a93743;stroke:#e5a3aa;stroke-width:1}
 .ruby-truck-window{fill:#bcd1d9;stroke:#dce8eb;stroke-width:.7}

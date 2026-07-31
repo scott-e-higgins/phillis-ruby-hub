@@ -1,4 +1,4 @@
-const APP_VERSION='0.46.1';
+const APP_VERSION='0.47.0';
 const SEED={"tripSummaries":[],"campgrounds":[],"stays":[],"tripPlans":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"vehicleDetails":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const NO_TRIP_VALUE='__everyday_ruby__';
@@ -672,12 +672,14 @@ function matchingStays(t){
       const arrival=stay.arrival||'';
       const departure=stay.departure||arrival;
       return arrival<=end && departure>=start;
-    }).sort((a,b)=>(a.arrival||'').localeCompare(b.arrival||''));
+    }).sort((a,b)=>String(b.arrival||'').localeCompare(String(a.arrival||''))||String(b.departure||'').localeCompare(String(a.departure||'')));
   }
   return [];
 }
 function matchingFuel(t){
-  return db.fuel.filter(f=>(f._tripId&&t._cloudId&&f._tripId===t._cloudId)||f.trip===t.name||(f.date&&+f.date.slice(0,4)===+t.year&&f.trip?.toLowerCase().includes(t.name.toLowerCase())));
+  return db.fuel
+    .filter(f=>(f._tripId&&t._cloudId&&f._tripId===t._cloudId)||f.trip===t.name||(f.date&&+f.date.slice(0,4)===+t.year&&f.trip?.toLowerCase().includes(t.name.toLowerCase())))
+    .sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||Number(b.odometer||0)-Number(a.odometer||0));
 }
 function cumulativeTripDistance(rows){
   return rows.reduce((greatest,row)=>Math.max(greatest,Number(row.tripMiles)||0),0);
@@ -924,7 +926,7 @@ function plansForTrip(trip){
   if(!trip?._cloudId)return [];
   return (db.tripPlans||[])
     .filter(plan=>plan._tripId===trip._cloudId)
-    .sort((a,b)=>`${a.date||''}T${a.startTime||'23:59'}`.localeCompare(`${b.date||''}T${b.startTime||'23:59'}`)||(a.title||'').localeCompare(b.title||''));
+    .sort((a,b)=>`${b.date||''}T${b.startTime||'23:59'}`.localeCompare(`${a.date||''}T${a.startTime||'23:59'}`)||(a.title||'').localeCompare(b.title||''));
 }
 function planLocationHtml(plan,{full=false}={}){
   const mapAddress=[plan.address,plan.city,plan.state,plan.zip].filter(Boolean).join(', ');
@@ -1156,15 +1158,19 @@ function seasonDocumentTypeLabel(type){
   return type==='welcome_letter'?'Welcome letter':type==='registration_forms'?'Registration forms':'Seasonal document';
 }
 function seasonDocumentCards(season){
-  const documents=season.seasonDocuments||[];
+  const source=season.seasonDocuments||[];
+  const documents=source.slice().sort((a,b)=>
+    String(b.documentDate||b.documentUploadedAt||'').localeCompare(String(a.documentDate||a.documentUploadedAt||''))
+  );
   return documents.map((document,index)=>{
+    const sourceIndex=source.indexOf(document);
     const files=document.documentFiles||[];
     const image=files.find(file=>/^image\//i.test(file.mimeType||'')&&file.url);
     const hasPdf=files.some(file=>file.mimeType==='application/pdf'||/\.pdf$/i.test(file.originalFilename||''));
     const preview=image
       ?`<img src="${escapeHtml(image.url)}" alt="">`
       :`<span class="season-document-file-icon">${hasPdf?'PDF':'▤'}</span>`;
-    return `<button class="record-item record-link season-document-card" type="button" data-season-document-index="${index}"><span class="season-document-thumb">${preview}</span><div class="item-copy"><h3>${escapeHtml(document.documentTitle||seasonDocumentTypeLabel(document.documentType))}</h3><p>${seasonDocumentTypeLabel(document.documentType)} · ${files.length} ${files.length===1?'file':'files'}${document.documentDate?' · '+date(document.documentDate):''}</p></div><span class="record-chevron">›</span></button>`;
+    return `<button class="record-item record-link season-document-card" type="button" data-season-document-index="${sourceIndex}"><span class="season-document-thumb">${preview}</span><div class="item-copy"><h3>${escapeHtml(document.documentTitle||seasonDocumentTypeLabel(document.documentType))}</h3><p>${seasonDocumentTypeLabel(document.documentType)} · ${files.length} ${files.length===1?'file':'files'}${document.documentDate?' · '+date(document.documentDate):''}</p></div><span class="record-chevron">›</span></button>`;
   }).join('')||'<div class="empty">No seasonal documents saved yet.</div>';
 }
 function showSeasonDocument(seasonIndex,documentIndex){

@@ -12,16 +12,34 @@
   <meta name="apple-mobile-web-app-title" content="Travel Journal">
   <meta name="description" content="The private travel, maintenance and seasonal-site hub for Phillis & Ruby.">
   <title>Phillis & Ruby Travel Journal</title>
-  <link rel="manifest" href="manifest.webmanifest?v=0.46.1">
+  <link rel="manifest" href="manifest.webmanifest?v=0.47.0">
   <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
   <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
   <script>
-    if (window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches) {
+    (() => {
+      const standalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+      if (!standalone) return;
       document.documentElement.classList.add('standalone-app');
-      document.documentElement.style.setProperty('--standalone-screen-height', `${window.screen.height}px`);
-    }
+      const syncStandaloneHeight = () => {
+        const portrait = window.matchMedia('(orientation: portrait)').matches;
+        const screenShort = Math.min(window.screen.width, window.screen.height);
+        const screenLong = Math.max(window.screen.width, window.screen.height);
+        const orientedWidth = portrait ? screenShort : screenLong;
+        const orientedHeight = portrait ? screenLong : screenShort;
+        const fullScreen = window.innerWidth >= orientedWidth * .88;
+        const height = fullScreen ? orientedHeight : window.innerHeight;
+        document.documentElement.style.setProperty('--standalone-screen-height', `${Math.round(height)}px`);
+      };
+      syncStandaloneHeight();
+      window.addEventListener('resize', syncStandaloneHeight, { passive: true });
+      window.addEventListener('orientationchange', () => {
+        syncStandaloneHeight();
+        window.setTimeout(syncStandaloneHeight, 180);
+        window.setTimeout(syncStandaloneHeight, 600);
+      }, { passive: true });
+    })();
   </script>
-  <link rel="stylesheet" href="styles.css?v=0.46.1">
+  <link rel="stylesheet" href="styles.css?v=0.47.0">
 </head>
 <body>
 <div id="pullRefresh" class="pull-refresh" aria-live="polite">
@@ -229,9 +247,13 @@
     <article class="card updates-card">
       <div class="updates-heading">
         <div><small>WHAT'S NEW</small><h3>Recent updates</h3></div>
-        <span class="version-badge">v0.46.1</span>
+        <span class="version-badge">v0.47.0</span>
       </div>
       <div class="updates-list">
+        <div>
+          <b>v0.47.0</b>
+          <span>Fixes installed-iPad landscape navigation and consistently shows dated record histories newest first.</span>
+        </div>
         <div>
           <b>v0.46.1</b>
           <span>Lets every travel year remain closed instead of automatically reopening the newest year.</span>
@@ -329,7 +351,7 @@
           <span>Fixed the fuel editor’s delete action and removed its incorrect Notes label.</span>
         </div>
       </div>
-      <a class="secondary update-history-link" href="https://github.com/scott-e-higgins/phillis-ruby-hub#version-0442" target="_blank" rel="noopener">View complete update history</a>
+      <a class="secondary update-history-link" href="https://github.com/scott-e-higgins/phillis-ruby-hub#version-0470" target="_blank" rel="noopener">View complete update history</a>
     </article>
   </section>
 </main>
@@ -529,10 +551,10 @@
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
 <script src="supabase-config.js" defer></script>
-<script src="cloud.js?v=0.46.1" defer></script>
-<script src="cloud-store.js?v=0.46.1" defer></script>
-<script src="document-scanner.js?v=0.46.1" defer></script>
-<script src="hub-document-review.js?v=0.46.1" defer></script>
-<script src="app.js?v=0.46.1" defer></script>
+<script src="cloud.js?v=0.47.0" defer></script>
+<script src="cloud-store.js?v=0.47.0" defer></script>
+<script src="document-scanner.js?v=0.47.0" defer></script>
+<script src="hub-document-review.js?v=0.47.0" defer></script>
+<script src="app.js?v=0.47.0" defer></script>
 </body>
 </html>

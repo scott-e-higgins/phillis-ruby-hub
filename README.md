@@ -2,6 +2,14 @@
 
 Travel Journal is Scott and Kayla's private travel companion.
 
+## Version 0.47.0
+
+- Corrects the installed iPad layout after rotating into landscape so the app
+  shell and bottom navigation remain inside the visible screen.
+- Allows the installed Journal to use either portrait or landscape orientation.
+- Displays campground stays, fuel stops, plans and reservations, seasonal
+  documents, and other dated record histories newest first.
+
 ## Version 0.46.1
 
 - Lets every travel year remain collapsed at the same time.
