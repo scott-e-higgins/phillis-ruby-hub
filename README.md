@@ -2,6 +2,12 @@
 
 Travel Journal is Scott and Kayla's private travel companion.
 
+## Version 0.47.1
+
+- Keeps Mom's view-only account completely read-only during startup and refresh.
+- Prevents cached browser data or background migrations from attempting a cloud
+  save when private vehicle and seasonal-site records are intentionally hidden.
+
 ## Version 0.47.0
 
 - Corrects the installed iPad layout after rotating into landscape so the app

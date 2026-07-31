@@ -1,4 +1,4 @@
-const APP_VERSION='0.47.0';
+const APP_VERSION='0.47.1';
 const SEED={"tripSummaries":[],"campgrounds":[],"stays":[],"tripPlans":[],"fuel":[],"siteFees":[],"electric":[],"sharedNotes":[],"vehicleDetails":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const NO_TRIP_VALUE='__everyday_ruby__';
@@ -72,6 +72,10 @@ const save=()=>{
   localStorage.setItem(KEY,JSON.stringify(db));
   if(cloudLoaded&&window.ADVENTURE_HUB_STORE){
     const status=$('#cloudAccountStatus');
+    if(window.ADVENTURE_HUB_CLOUD?.role==='viewer'){
+      if(status)status.textContent=`Connected as ${window.ADVENTURE_HUB_CLOUD.user.email} · Higgins Hub · View only`;
+      return Promise.resolve(true);
+    }
     if(status)status.textContent='Saving shared changes…';
     return window.ADVENTURE_HUB_STORE.save(db).then(()=>{
       if(status&&window.ADVENTURE_HUB_CLOUD)status.textContent=`Connected as ${window.ADVENTURE_HUB_CLOUD.user.email} · Higgins Hub · All changes saved`;
@@ -2696,8 +2700,9 @@ async function loadCloudData(){
     const browserBackup=migrate(JSON.parse(localStorage.getItem(KEY)||'null'));
     db=migrate(await window.ADVENTURE_HUB_STORE.load());
     refreshTripFuelSummaries();
+    const canEditCloud=window.ADVENTURE_HUB_CLOUD?.role!=='viewer';
     let recoveredLocalChanges=false;
-    if(browserBackup){
+    if(browserBackup&&canEditCloud){
       const tripKey=trip=>`${String(trip.name||'').trim().toLowerCase()}|${trip.startDate||''}|${trip.endDate||''}`;
       const cloudTripKeys=new Set(db.tripSummaries.map(tripKey));
       browserBackup.tripSummaries
@@ -2717,7 +2722,7 @@ async function loadCloudData(){
     const shouldSaveTrailerAssignments=migratedTrailerAssignments;
     TODAY=new Date(); TODAY.setHours(0,0,0,0);
     cloudLoaded=true;
-    if(shouldSaveTrailerAssignments||recoveredLocalChanges)await save();
+    if(canEditCloud&&(shouldSaveTrailerAssignments||recoveredLocalChanges))await save();
     localStorage.setItem(KEY,JSON.stringify(db));
     renderHome();renderTrips();renderNotes();renderVehicleDetails();
     if($('#more')?.classList.contains('active'))renderJournalStats();
