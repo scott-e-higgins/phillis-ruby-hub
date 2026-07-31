@@ -2,6 +2,11 @@
 
 Travel Journal is Scott and Kayla's private travel companion.
 
+## Version 0.48.2
+
+- Polishes the faster fuel-receipt camera and photo-picker prompts.
+- Ensures installed copies fetch the final streamlined scanner files.
+
 ## Version 0.48.1
 
 - Moves **Take or add receipt** to the top of the fuel-stop form while keeping
