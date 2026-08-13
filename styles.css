@@ -499,6 +499,13 @@ button.plan-listing-card:hover{border-color:#78927f;background:linear-gradient(1
 .purchase-fields-heading small{color:var(--muted);text-align:right}
 .def-purchase-fields{border-color:rgba(93,166,191,.34);background:rgba(23,47,54,.56)}
 .def-purchase-fields .purchase-fields-heading b{color:#9bd6e7}
+.fuel-entry-basics{display:grid;gap:12px;margin-top:14px}
+.fuel-more-details{border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.025)}
+.fuel-more-details summary{cursor:pointer;padding:11px 13px;color:var(--mint);font-size:13px;font-weight:800;list-style-position:inside}
+.fuel-more-details[open] summary{border-bottom:1px solid var(--line)}
+.fuel-more-details>div{padding:12px}
+#tripMeterField small{display:block;margin-top:5px;color:var(--muted);font-size:11px;font-weight:600}
+#tripMeterField[hidden],#fuelCalculations[hidden]{display:none}
 .def-stats-card{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:0 0 16px}
 .def-stats-card>div{display:grid;gap:4px;padding:12px;border:1px solid rgba(143,199,211,.25);border-radius:8px;background:rgba(25,54,60,.5)}
 .def-stats-card small{color:var(--muted);font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase}

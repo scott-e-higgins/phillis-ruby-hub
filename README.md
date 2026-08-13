@@ -2,6 +2,13 @@
 
 Travel Journal is Scott and Kayla's private travel companion.
 
+## Version 0.49.1
+
+- Makes Everyday Ruby a true no-trip fuel entry with no trip or trip-meter requirement.
+- Keeps trip-meter and MPG fields only when an actual trip is selected.
+- Shortens the everyday fuel/DEF form and moves optional time and street-address fields under More receipt details.
+- Stops date changes from unexpectedly assigning an Everyday Ruby purchase to a trip.
+
 ## Version 0.49.0
 
 - Extends the existing fuel scanner and form to support Fuel, DEF, and Fuel + DEF purchases.

@@ -1,4 +1,4 @@
-const APP_VERSION='0.49.0';
+const APP_VERSION='0.49.1';
 const SEED={"tripSummaries":[],"campgrounds":[],"stays":[],"tripPlans":[],"fuel":[],"def":[],"siteFees":[],"electric":[],"sharedNotes":[],"vehicleDetails":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const NO_TRIP_VALUE='__everyday_ruby__';
@@ -1632,7 +1632,7 @@ function fields(type){
   if(type==='trip-plan') return `<label>Related trip<select id="planTripId" required><option value="">Choose a trip</option>${noteTripOptions()}</select></label><label>Plan or reservation name<input id="name" required maxlength="160" placeholder="Acadia sunrise, Dry Tortugas day trip…"></label><div class="two"><label>Type<select id="planType"><option value="activity">Activity</option><option value="tour">Tour</option><option value="reservation">Reservation</option><option value="dining">Dining</option><option value="transportation">Transportation</option><option value="other">Other</option></select></label><label>Status<select id="planStatus"><option value="planned">Planned</option><option value="reserved">Reserved</option><option value="paid">Paid</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></label></div><div class="three"><label>Date<input id="date" type="date" required></label><label>Start time<input id="planStartTime" type="time"></label><label>End time<input id="planEndTime" type="time"></label></div><label>Location name<input id="planLocationName" placeholder="Cadillac Mountain, ferry terminal…"></label><label>Address<input id="address"></label><div class="three"><label>City<input id="city" autocomplete="address-level2"></label><label>State<select id="state" autocomplete="address-level1">${stateOptions()}</select></label><label>ZIP code<input id="zip" inputmode="numeric" autocomplete="postal-code" maxlength="10"></label></div><div class="two"><label>Confirmation code<input id="planConfirmation"></label><label>Cost<input id="total" type="number" min="0" step=".01"></label></div><label>Website or ticket link<input id="planWebsite" inputmode="url" placeholder="https://…"></label>${tripPlanAttachmentFields()}`;
   if(type==='fuel'||type==='def'){
     const options=db.tripSummaries.slice().sort((a,b)=>tripStamp(b).localeCompare(tripStamp(a))).map(t=>`<option value="${escapeHtml(t.name)}">${escapeHtml(t.name)}</option>`).join('');
-    return `${fuelReceiptScannerFields()}<label>Purchase type<select id="purchaseType" required><option value="fuel">Fuel</option><option value="def">DEF</option><option value="fuel_def">Fuel + DEF</option></select></label><div class="three"><label>Date<input id="date" type="date" required></label><label>Time<input id="purchaseTime" type="time"></label><label>Trip<select id="tripName" required><option value="${NO_TRIP_VALUE}">${NO_TRIP_LABEL}</option>${options}</select></label></div><p class="field-help fuel-trip-help">Not traveling? Keep “Everyday Ruby.” DEF never changes trip MPG.</p><label>Station / store<input id="station" required></label><label>Street address<input id="address" autocomplete="street-address"></label><div class="two"><label>City<input id="city" autocomplete="address-level2"></label><label>State<select id="state" autocomplete="address-level1">${stateOptions()}</select></label></div><section class="purchase-fields fuel-purchase-fields" id="fuelPurchaseFields"><div class="purchase-fields-heading"><b>Fuel</b><small>These values continue to drive the existing MPG calculations.</small></div><div class="three"><label>Fuel gallons<input id="gallons" type="number" min=".001" step=".001"></label><label>Fuel price / gallon<input id="pricePerGallon" type="number" min="0" step=".001"></label><label>Fuel total<input id="total" type="number" min="0" step=".01"></label></div><label>Fuel type<select id="fuelType"><option value="diesel">Diesel</option><option value="gasoline">Gasoline</option></select></label><label>Trip meter<input id="tripMeter" type="number" min="0" step=".1"></label><div class="fuel-calculations" id="fuelCalculations"><span><span id="fuelMpgLabel">Trip MPG</span> <b>—</b></span><span>Tank miles <b>—</b></span></div></section><section class="purchase-fields def-purchase-fields" id="defPurchaseFields"><div class="purchase-fields-heading"><b>DEF</b><small>No trip-meter reading is needed.</small></div><div class="three"><label>DEF gallons<input id="defGallons" type="number" min=".001" step=".001"></label><label>DEF price / gallon<input id="defPricePerGallon" type="number" min="0" step=".001"></label><label>DEF total<input id="defTotal" type="number" min="0" step=".01"></label></div></section><label>Odometer<input id="odometer" type="number" min="0" step=".1"></label>`;
+    return `${fuelReceiptScannerFields()}<section class="fuel-entry-basics"><label>Purchase type<select id="purchaseType" required><option value="fuel">Fuel</option><option value="def">DEF</option><option value="fuel_def">Fuel + DEF</option></select></label><div class="two"><label>Date<input id="date" type="date" required></label><label>Trip<select id="tripName"><option value="${NO_TRIP_VALUE}">${NO_TRIP_LABEL}</option>${options}</select></label></div><p class="field-help fuel-trip-help">Everyday Ruby is a complete no-trip entry. Choose a trip only when this purchase belongs to one.</p><label>Station / store<input id="station" required></label><div class="two"><label>City<input id="city" autocomplete="address-level2"></label><label>State<select id="state" autocomplete="address-level1">${stateOptions()}</select></label></div><details class="fuel-more-details"><summary>More receipt details</summary><div class="two"><label>Time<input id="purchaseTime" type="time"></label><label>Street address<input id="address" autocomplete="street-address"></label></div></details></section><section class="purchase-fields fuel-purchase-fields" id="fuelPurchaseFields"><div class="purchase-fields-heading"><b>Fuel</b><small>Trip MPG is calculated only when this purchase belongs to a trip.</small></div><div class="three"><label>Fuel gallons<input id="gallons" type="number" min=".001" step=".001"></label><label>Fuel price / gallon<input id="pricePerGallon" type="number" min="0" step=".001"></label><label>Fuel total<input id="total" type="number" min="0" step=".01"></label></div><div class="two"><label>Fuel type<select id="fuelType"><option value="diesel">Diesel</option><option value="gasoline">Gasoline</option></select></label><label id="tripMeterField">Trip meter<input id="tripMeter" type="number" min="0" step=".1"><small>Needed only for trip MPG.</small></label></div><div class="fuel-calculations" id="fuelCalculations"><span><span id="fuelMpgLabel">Trip MPG</span> <b>—</b></span><span>Tank miles <b>—</b></span></div></section><section class="purchase-fields def-purchase-fields" id="defPurchaseFields"><div class="purchase-fields-heading"><b>DEF</b><small>No trip-meter reading is needed.</small></div><div class="three"><label>DEF gallons<input id="defGallons" type="number" min=".001" step=".001"></label><label>DEF price / gallon<input id="defPricePerGallon" type="number" min="0" step=".001"></label><label>DEF total<input id="defTotal" type="number" min="0" step=".01"></label></div></section><label>Odometer<input id="odometer" type="number" min="0" step=".1"></label>`;
   }
   if(type==='stay') return `<div class="two"><label>Arrival<input id="arrival" type="date" required></label><label>Departure<input id="departure" type="date"></label></div><div class="two"><label>Check-in time<input id="checkInTime" type="time" value="12:00"></label><label>Check-out time<input id="checkOutTime" type="time" value="12:00"></label></div><label>Campground<input id="name" required></label><label>Address<input id="address"></label><div class="three"><label>City<input id="city"></label><label>State<select id="state">${stateOptions()}</select></label><label>ZIP code<input id="zip" inputmode="numeric" autocomplete="postal-code" maxlength="10"></label></div><div class="two"><label>Site<input id="site"></label><label>Total cost<input id="total" type="number" step=".01"></label></div><div class="stay-type-options"><label><input id="harvestHost" type="checkbox"> Harvest Host</label><label><input id="moochdocking" type="checkbox"> Moochdocking</label><label><input id="boondocking" type="checkbox"> Boondocking</label></div><section class="stay-photo-editors"><div class="stay-photo-editors-heading"><b>Stay photos</b><p>Add these from Kayla’s photo library now or come back later.</p></div>${stayPhotoEditorSlot('site','Campsite','The campsite photo you take at nearly every stop.')}${stayPhotoEditorSlot('sign','Sign','The entrance, campground, winery, farm, or host sign.')}</section>`;
   if(type==='electric') return `<div class="two"><label>Reading date<input id="date" type="date" required></label><label>Paid date<input id="paid" type="date"></label></div><div class="three"><label>Previous meter<input id="previous" type="number" required></label><label>Current meter<input id="current" type="number" required></label><label>Rate / kWh<input id="rate" type="number" step=".001" value=".16"></label></div><div class="two"><label>Amount due<input id="amountDue" type="number" min="0" step=".01"></label><label>Check number<input id="check"></label></div>${documentScannerFields()}`;
@@ -2434,12 +2434,20 @@ function openEntry(type,index=null,returnTripIndex=null){
     const collection=type==='def'?db.def:db.fuel;
     const purchase=index===null?null:collection[index];
     const syncTripFuelType=()=>{
-      if($('#tripName').value===NO_TRIP_VALUE){
+      if(!$('#tripName').value||$('#tripName').value===NO_TRIP_VALUE){
         $('#fuelType').value='diesel';
         return;
       }
       const trip=db.tripSummaries.find(item=>item.name===$('#tripName').value);
       if(trip?.towFuelType)$('#fuelType').value=trip.towFuelType;
+    };
+    const syncTripMode=()=>{
+      const includesFuel=['fuel','fuel_def'].includes($('#purchaseType').value);
+      const everydayRuby=!$('#tripName').value||$('#tripName').value===NO_TRIP_VALUE;
+      const tripMeter=$('#tripMeter');
+      if(tripMeter)tripMeter.required=includesFuel&&!everydayRuby;
+      if($('#tripMeterField'))$('#tripMeterField').hidden=!includesFuel||everydayRuby;
+      if($('#fuelCalculations'))$('#fuelCalculations').hidden=!includesFuel||everydayRuby;
     };
     const syncPurchaseType=()=>{
       const purchaseType=$('#purchaseType').value;
@@ -2447,8 +2455,9 @@ function openEntry(type,index=null,returnTripIndex=null){
       const includesDef=purchaseType==='def'||purchaseType==='fuel_def';
       $('#fuelPurchaseFields').hidden=!includesFuel;
       $('#defPurchaseFields').hidden=!includesDef;
-      ['#gallons','#total','#fuelType','#tripMeter'].forEach(selector=>{const field=$(selector);if(field)field.required=includesFuel;});
+      ['#gallons','#total','#fuelType'].forEach(selector=>{const field=$(selector);if(field)field.required=includesFuel;});
       ['#defGallons','#defTotal'].forEach(selector=>{const field=$(selector);if(field)field.required=includesDef;});
+      syncTripMode();
     };
     const updatePreview=()=>{
       const gallons=Number($('#gallons').value),total=Number($('#total').value),tripMeter=Number($('#tripMeter').value);
@@ -2508,13 +2517,7 @@ function openEntry(type,index=null,returnTripIndex=null){
     }
     if(index===null){$('#purchaseType').value=type==='def'?'def':'fuel';syncTripFuelType();}
     $('#purchaseType').addEventListener('change',syncPurchaseType);
-    $('#tripName').addEventListener('change',()=>{syncTripFuelType();updatePreview()});
-    $('#date').addEventListener('change',()=>{
-      if($('#tripName').value!==NO_TRIP_VALUE)return;
-      const value=$('#date').value;
-      const matching=db.tripSummaries.find(trip=>{const [start,end]=tripDates(trip);return start<=value&&end>=value;});
-      if(matching){$('#tripName').value=matching.name;syncTripFuelType();}
-    });
+    $('#tripName').addEventListener('change',()=>{syncTripFuelType();syncTripMode();updatePreview()});
     ['#gallons','#total','#tripMeter','#pricePerGallon','#defGallons','#defTotal','#defPricePerGallon'].forEach(selector=>$(selector).addEventListener('input',updatePreview));
     syncPurchaseType();
     updatePreview();
@@ -2839,8 +2842,9 @@ $('#entryForm').onsubmit=async e=>{
     const purchaseType=$('#purchaseType').value;
     const includesFuel=purchaseType==='fuel'||purchaseType==='fuel_def';
     const includesDef=purchaseType==='def'||purchaseType==='fuel_def';
-    const everydayRuby=$('#tripName').value===NO_TRIP_VALUE;
-    const selectedTrip=everydayRuby?null:db.tripSummaries.find(trip=>trip.name===$('#tripName').value);
+    const selectedTripValue=$('#tripName').value||NO_TRIP_VALUE;
+    const everydayRuby=selectedTripValue===NO_TRIP_VALUE;
+    const selectedTrip=everydayRuby?null:db.tripSummaries.find(trip=>trip.name===selectedTripValue);
     if(!everydayRuby&&!selectedTrip){alert('Please choose a trip from the list.');$('#tripName').focus();return;}
     const city=$('#city').value.trim(),state=$('#state').value;
     const scannedDocument=fuelReceiptScannerState.document;
