@@ -249,3 +249,17 @@ the entry removes the unlinked draft.
 MPG never crosses trip boundaries. The first saved stop in a trip uses trip
 meter divided by gallons. Later stops use the difference between the current
 and immediately preceding trip-meter values from that same trip.
+
+## Version 0.49.0 DEF and combined receipts
+
+The same fuel-receipt capture, cleanup, private storage, and review workflow now
+supports Fuel, DEF, and Fuel + DEF purchases. A combined receipt creates one
+`hub_documents` row and links it to both the `fuel_stop` and `def_purchase`
+records. Removing either purchase removes only its link; the receipt survives
+for the other record.
+
+Fuel remains in `trip_fuel` and continues to be the only source for towing
+distance, gallons, and MPG. DEF is stored in `def_purchases`, where trip meter
+is intentionally absent. The DEF history can therefore report gallons, cost,
+weighted average price, and odometer gaps without contaminating fuel math or
+assuming that every purchase was recorded.

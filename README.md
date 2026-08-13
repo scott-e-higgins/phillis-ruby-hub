@@ -2,6 +2,15 @@
 
 Travel Journal is Scott and Kayla's private travel companion.
 
+## Version 0.49.0
+
+- Extends the existing fuel scanner and form to support Fuel, DEF, and Fuel + DEF purchases.
+- A combined receipt is scanned once and linked to separate fuel and DEF records.
+- DEF never enters fuel gallons, towing distance, or MPG calculations.
+- Adds DEF gallons, price, total, odometer, optional trip association, receipt history, and useful DEF totals.
+- Updates the secure reader so purchase type and separate DEF values can be reviewed and corrected before saving.
+- Requires `database-add-def-purchases.sql` and the updated `extract-document` Supabase Edge Function.
+
 ## Version 0.48.5
 
 - Gives electric-bill scans the same Cancel, Use document, and Read bill choices as fuel receipts.

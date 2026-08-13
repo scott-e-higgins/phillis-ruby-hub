@@ -40,18 +40,24 @@
     fuel_receipt: {
       noun: 'receipt',
       analyzeLabel: 'Read this receipt',
-      useLabel: 'Use these values in the fuel stop',
-      waitingText: 'AI can read the printed receipt plus handwritten TRIP and ODO values. You will review every field before the fuel stop is saved.',
+      useLabel: 'Use these values in the purchase',
+      waitingText: 'AI can separate fuel and DEF from the same receipt, plus read handwritten TRIP and ODO values. You will review every field before saving.',
       failedText: 'The last reading attempt did not finish. Your scanned receipt is still saved as a draft.',
       fields: [
+        { key: 'purchase_type', label: 'Purchase type', type: 'select', group: 'Receipt details', options: [['fuel', 'Fuel'], ['def', 'DEF'], ['fuel_def', 'Fuel + DEF']] },
         { key: 'station_name', label: 'Station name', type: 'text', group: 'Receipt details' },
         { key: 'receipt_date', label: 'Date', type: 'date', group: 'Receipt details' },
+        { key: 'receipt_time', label: 'Time', type: 'time', group: 'Receipt details' },
+        { key: 'address', label: 'Street address', type: 'text', group: 'Location' },
         { key: 'city', label: 'City', type: 'text', group: 'Location' },
         { key: 'state', label: 'State', type: 'text', group: 'Location' },
         { key: 'fuel_type', label: 'Fuel type', type: 'select', group: 'Fuel', options: [['', 'Not shown'], ['diesel', 'Diesel'], ['gasoline', 'Gasoline']] },
         { key: 'gallons', label: 'Gallons', type: 'number', step: '0.001', group: 'Fuel' },
         { key: 'price_per_gallon', label: 'Price / gallon', type: 'number', step: '0.001', group: 'Fuel' },
         { key: 'total_cost', label: 'Total cost', type: 'number', step: '0.01', group: 'Fuel' },
+        { key: 'def_gallons', label: 'DEF gallons', type: 'number', step: '0.001', group: 'DEF' },
+        { key: 'def_price_per_gallon', label: 'DEF price / gallon', type: 'number', step: '0.001', group: 'DEF' },
+        { key: 'def_total_cost', label: 'DEF total cost', type: 'number', step: '0.01', group: 'DEF' },
         { key: 'trip_meter', label: 'TRIP handwriting', type: 'number', step: '0.1', group: 'Handwritten labels' },
         { key: 'odometer', label: 'ODO handwriting', type: 'number', step: '0.1', group: 'Handwritten labels' }
       ]

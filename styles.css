@@ -492,6 +492,18 @@ button.plan-listing-card:hover{border-color:#78927f;background:linear-gradient(1
 .fuel-calculations{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:13px}
 .fuel-calculations span{display:flex;justify-content:space-between;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:#171f1b;color:var(--muted);font-size:13px}
 .fuel-calculations b{color:var(--ink);font-variant-numeric:tabular-nums}
+.purchase-fields{display:grid;gap:12px;margin-top:14px;padding:14px;border:1px solid var(--line);border-radius:8px;background:rgba(18,31,25,.62)}
+.purchase-fields[hidden]{display:none}
+.purchase-fields-heading{display:flex;align-items:baseline;justify-content:space-between;gap:14px}
+.purchase-fields-heading b{color:var(--gold);font-size:15px;letter-spacing:.06em;text-transform:uppercase}
+.purchase-fields-heading small{color:var(--muted);text-align:right}
+.def-purchase-fields{border-color:rgba(93,166,191,.34);background:rgba(23,47,54,.56)}
+.def-purchase-fields .purchase-fields-heading b{color:#9bd6e7}
+.def-stats-card{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:0 0 16px}
+.def-stats-card>div{display:grid;gap:4px;padding:12px;border:1px solid rgba(143,199,211,.25);border-radius:8px;background:rgba(25,54,60,.5)}
+.def-stats-card small{color:var(--muted);font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase}
+.def-stats-card b{color:#c8eef5;font-size:15px}
+.def-record-item .record-icon{background:linear-gradient(145deg,#24505a,#1d3f49);color:#c8eef5}
 .fuel-receipt-editor{margin-top:17px}
 .fuel-receipt-editor .stay-photo-editor{margin:0}
 .fuel-receipt-detail{margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
@@ -1431,6 +1443,9 @@ html.standalone-app body{
 .stay-log-complete{border-color:#527e68;background:#28483a;color:#ade0c5}
 
 @media(max-width:680px){
+  .def-stats-card{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .purchase-fields-heading{align-items:flex-start;flex-direction:column;gap:3px}
+  .purchase-fields-heading small{text-align:left}
   .campground-journal-dialog{width:calc(100vw - 10px);max-height:calc(100dvh - 10px)}
   .campground-journal-dialog>.dialog-head{padding:14px}
   #campgroundJournalBody{padding:11px}
@@ -1444,5 +1459,6 @@ html.standalone-app body{
 }
 
 @media(max-width:390px){
+  .def-stats-card{grid-template-columns:1fr 1fr}
   .campground-journal-checks,.campground-journal-checks.compact{grid-template-columns:1fr}
 }

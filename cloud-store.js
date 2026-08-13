@@ -861,10 +861,10 @@
     }
 
     async function createFuelReceiptDraft(file, metadata = {}) {
-      if (role === 'viewer') throw new Error('Family Viewer accounts cannot scan fuel receipts.');
-      if (!file) throw new Error('Take or choose a fuel receipt first.');
+      if (role === 'viewer') throw new Error('Family Viewer accounts cannot scan purchase receipts.');
+      if (!file) throw new Error('Take or choose a fuel or DEF receipt first.');
       const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '');
-      if (isPdf) throw new Error('Fuel receipts currently use a single photo. Please take or choose a picture.');
+      if (isPdf) throw new Error('Fuel and DEF receipts currently use a single photo. Please take or choose a picture.');
       if (file.size > 25 * 1024 * 1024) throw new Error('That receipt picture is larger than the 25 MB document limit.');
 
       const userId = user?.id;
@@ -886,7 +886,7 @@
           client.from('hub_documents').insert({
             id: documentId,
             household_id: householdId,
-            display_title: 'Fuel receipt · awaiting review',
+            display_title: 'Fuel / DEF receipt · awaiting review',
             document_type: 'fuel_receipt',
             source_app: 'travel-journal',
             processing_status: 'draft',
@@ -919,7 +919,7 @@
           width: Number(dimensions.width) || null,
           height: Number(dimensions.height) || null,
           cleanup_metadata: file?.higginsDocumentScan
-            ? { cleaned_locally: true, scanner_version: '0.48.0', ...dimensions }
+            ? { cleaned_locally: true, scanner_version: '0.49.0', ...dimensions }
             : { optimized_locally: true }
         });
         if (fileInsert.error) throw fileInsert.error;
@@ -1021,6 +1021,71 @@
       return record;
     }
 
+    async function linkDefReceiptDocument(record, document) {
+      if (role === 'viewer') throw new Error('Family Viewer accounts cannot change DEF receipts.');
+      if (!record?._cloudId) throw new Error('Save this DEF purchase before attaching its receipt.');
+      if (!document?.documentId) throw new Error('The scanned receipt could not be found.');
+      const userResult = await client.auth.getUser();
+      if (userResult.error) throw userResult.error;
+      const userId = userResult.data?.user?.id;
+      if (!userId) throw new Error('Please sign in again before saving this receipt.');
+
+      const existingLinks = assert(await client.from('hub_document_links')
+        .select('id, document_id')
+        .eq('source_app', 'travel-journal')
+        .eq('record_type', 'def_purchase')
+        .eq('record_id', String(record._cloudId))
+        .eq('link_role', 'receipt_scan'));
+      const replacedIds = existingLinks.map(link => link.document_id).filter(id => id !== document.documentId);
+      if (replacedIds.length) await removeLinkedDocumentsByIds(record, 'def_purchase', 'receipt_scan', replacedIds);
+      if (!existingLinks.some(link => link.document_id === document.documentId)) {
+        assert(await client.from('hub_document_links').insert({
+          document_id: document.documentId,
+          source_app: 'travel-journal',
+          record_type: 'def_purchase',
+          record_id: String(record._cloudId),
+          link_role: 'receipt_scan',
+          is_primary: true,
+          created_by: userId
+        }));
+      }
+      const titleDate = record.date
+        ? new Date(`${record.date}T12:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+        : 'Undated';
+      const documentUpdate = assert(await client.from('hub_documents').update({
+        display_title: `${record.station || 'DEF'} receipt · ${titleDate}`,
+        document_date: record.date || null,
+        processing_status: 'approved',
+        updated_at: new Date().toISOString()
+      }).eq('id', document.documentId).select('*').single());
+      Object.assign(record, hubDocumentFields(documentUpdate), {
+        documentFiles: [...(document.documentFiles || [])],
+        receiptPhotoPath: '',
+        receiptPhotoUrl: document.documentFiles?.find(file => /^image\//i.test(file.mimeType) && file.url)?.url || ''
+      });
+      return record;
+    }
+
+    async function linkPurchaseReceiptDocument(fuelRecord, defRecord, document) {
+      if (!fuelRecord && !defRecord) throw new Error('No purchase record was provided for this receipt.');
+      if (fuelRecord) await linkFuelReceiptDocument(fuelRecord, document);
+      if (defRecord) await linkDefReceiptDocument(defRecord, document);
+      if (fuelRecord && defRecord) {
+        const titleDate = fuelRecord.date
+          ? new Date(`${fuelRecord.date}T12:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+          : 'Undated';
+        const updated = assert(await client.from('hub_documents').update({
+          display_title: `${fuelRecord.station || defRecord.station || 'Fuel + DEF'} receipt · ${titleDate}`,
+          document_date: fuelRecord.date || defRecord.date || null,
+          processing_status: 'approved',
+          updated_at: new Date().toISOString()
+        }).eq('id', document.documentId).select('*').single());
+        Object.assign(fuelRecord, hubDocumentFields(updated));
+        Object.assign(defRecord, hubDocumentFields(updated));
+      }
+      return { fuelRecord, defRecord };
+    }
+
     async function deleteFuelReceiptDocument(record) {
       if (role === 'viewer') throw new Error('Family Viewer accounts cannot delete fuel receipts.');
       if (!record?._cloudId) return;
@@ -1030,6 +1095,16 @@
         if (removed.error) console.warn('The legacy fuel receipt image could not be removed.', removed.error);
       }
       await client.from('trip_fuel').update({ receipt_photo_path: null }).eq('id', record._cloudId);
+      record.documentId = '';
+      record.documentFiles = [];
+      record.receiptPhotoPath = '';
+      record.receiptPhotoUrl = '';
+    }
+
+    async function deleteDefReceiptDocument(record) {
+      if (role === 'viewer') throw new Error('Family Viewer accounts cannot delete DEF receipts.');
+      if (!record?._cloudId) return;
+      await detachLinkedDocuments(record, 'def_purchase', 'receipt_scan');
       record.documentId = '';
       record.documentFiles = [];
       record.receiptPhotoPath = '';
@@ -1337,6 +1412,7 @@
           stays,
           tripPlans,
           fuel: [],
+          def: [],
           siteFees: [],
           electric: [],
           phillisMaintenance: [],
@@ -1353,6 +1429,7 @@
         client.from('campgrounds').select('*').eq('household_id', householdId),
         client.from('campground_stays').select('*'),
         client.from('trip_fuel').select('*'),
+        client.from('def_purchases').select('*'),
         client.from('vehicles').select('*').eq('household_id', householdId),
         client.from('maintenance').select('*'),
         client.from('seasonal_sites').select('*').eq('household_id', householdId),
@@ -1366,12 +1443,13 @@
         client.from('hub_document_files').select('*'),
         client.from('hub_document_links').select('*').eq('source_app', 'travel-journal')
       ]);
-      const [trips, campgrounds, stays, fuel, vehicles, maintenance, sites, seasons, payments, electric, notes, plans, privateVehicleDetails, documents, documentFiles, documentLinks] = results.map(assert);
+      const [trips, campgrounds, stays, fuel, defPurchases, vehicles, maintenance, sites, seasons, payments, electric, notes, plans, privateVehicleDetails, documents, documentFiles, documentLinks] = results.map(assert);
       known = {
         trips: new Set(trips.map(x => x.id)),
         campgrounds: new Set(campgrounds.map(x => x.id)),
         campground_stays: new Set(stays.map(x => x.id)),
         trip_fuel: new Set(fuel.map(x => x.id)),
+        def_purchases: new Set(defPurchases.map(x => x.id)),
         maintenance: new Set(maintenance.map(x => x.id)),
         site_seasons: new Set(seasons.map(x => x.id)),
         seasonal_payments: new Set(payments.map(x => x.id)),
@@ -1400,6 +1478,12 @@
       const fuelDocumentLinkByRecordId = new Map(
         documentLinks
           .filter(link => link.record_type === 'fuel_stop' && link.link_role === 'receipt_scan')
+          .sort((a, b) => Number(Boolean(b.is_primary)) - Number(Boolean(a.is_primary)))
+          .map(link => [String(link.record_id), link])
+      );
+      const defDocumentLinkByRecordId = new Map(
+        documentLinks
+          .filter(link => link.record_type === 'def_purchase' && link.link_role === 'receipt_scan')
           .sort((a, b) => Number(Boolean(b.is_primary)) - Number(Boolean(a.is_primary)))
           .map(link => [String(link.record_id), link])
       );
@@ -1766,6 +1850,53 @@
       }));
       await hydrateReceiptUrls(localFuel.filter(record => !record.receiptPhotoUrl));
 
+      const localDef = defPurchases.map(row => {
+        const documentLink = defDocumentLinkByRecordId.get(String(row.id));
+        const document = documentLink ? documentById.get(documentLink.document_id) : null;
+        const linkedFiles = document ? (documentFilesById.get(document.id) || []) : [];
+        return {
+          _cloudId: row.id,
+          _tripId: row.trip_id || null,
+          _vehicleId: row.vehicle_id || null,
+          _fuelId: row.fuel_id || null,
+          trip: tripName(row.trip_id),
+          vehicle: vehicleById.get(row.vehicle_id)?.name || '',
+          date: row.purchase_date,
+          time: time(row.purchase_time),
+          station: row.station || '',
+          address: row.address || '',
+          city: row.city || '',
+          state: row.state || '',
+          location: [row.city,row.state].filter(Boolean).join(', '),
+          odometer: num(row.odometer),
+          gallons: num(row.gallons) || 0,
+          total: num(row.total_cost) || 0,
+          price: num(row.price_per_gallon) ?? (num(row.gallons) ? num(row.total_cost) / num(row.gallons) : 0),
+          ...hubDocumentFields(document),
+          documentFiles: linkedFiles.map(file => ({
+            id: file.id,
+            documentId: file.document_id,
+            pageNumber: Number(file.page_number) || 1,
+            originalFilename: file.original_filename || '',
+            mimeType: file.mime_type || '',
+            fileSizeBytes: Number(file.file_size_bytes) || 0,
+            storageBucket: file.storage_bucket || 'hub-documents',
+            storagePath: file.storage_path || '',
+            url: ''
+          })),
+          receiptPhotoPath: '',
+          receiptPhotoUrl: '',
+          notes: row.notes || ''
+        };
+      });
+      await Promise.all(localDef.map(async record => {
+        await Promise.all(record.documentFiles.map(async file => {
+          const bucket = file.storageBucket === 'hub-documents' ? hubDocumentBucket : client.storage.from(file.storageBucket);
+          file.url = await signedPhotoUrl(bucket, file.storagePath);
+        }));
+        record.receiptPhotoUrl = record.documentFiles.find(file => /^image\//i.test(file.mimeType) && file.url)?.url || '';
+      }));
+
       const aiUsage = documents.reduce((usage, document) => {
         const month = String(document.updated_at || document.created_at || '').slice(0, 7);
         if (!month || !Number(document.processing_cost_usd)) return usage;
@@ -1780,6 +1911,7 @@
         campgrounds: localCampgrounds,
         stays: localStays,
         fuel: localFuel,
+        def: localDef,
         siteFees,
         electric: localElectric,
         sharedNotes: localNotes,
@@ -1939,6 +2071,28 @@
       }));
       if (fuelRows.length) assert(await client.from('trip_fuel').upsert(fuelRows));
 
+      snapshot.def ||= [];
+      snapshot.def.forEach(x => { if (!x._cloudId) x._cloudId = uuid(); });
+      const defRows = snapshot.def.map(x => ({
+        id: x._cloudId,
+        household_id: householdId,
+        trip_id: x._tripId || tripFor(x.trip, x.date)?._cloudId || null,
+        vehicle_id: x._vehicleId || tripFor(x.trip, x.date)?._towVehicleId || ruby.id,
+        fuel_id: x._fuelId || null,
+        purchase_date: x.date,
+        purchase_time: x.time || null,
+        station: x.station || null,
+        address: x.address || null,
+        city: x.city || null,
+        state: x.state || null,
+        odometer: x.odometer,
+        gallons: x.gallons,
+        total_cost: x.total,
+        price_per_gallon: x.price || null,
+        notes: x.notes || null
+      }));
+      if (defRows.length) assert(await client.from('def_purchases').upsert(defRows));
+
       const maintSets = [
         ['phillisMaintenance', null, 'maintenance'], ['phillisUpgrades', null, 'upgrade'],
         ['rubyMaintenance', ruby.id, 'maintenance'], ['rubyUpgrades', ruby.id, 'upgrade']
@@ -2041,6 +2195,7 @@
 
       await removeMissing('campground_stays', new Set(ordinaryStays.map(x => x._cloudId)));
       await removeMissing('trip_fuel', new Set(snapshot.fuel.map(x => x._cloudId)));
+      await removeMissing('def_purchases', new Set(snapshot.def.map(x => x._cloudId)));
       await removeMissing('maintenance', new Set(maintRows.map(x => x.id)));
       await removeMissing('seasonal_payments', new Set(snapshot.siteFees.map(x => x._cloudId)));
       await removeMissing('electric_bills', new Set(snapshot.electric.map(x => x._cloudId)));
@@ -2052,6 +2207,7 @@
         const source = table === 'campgrounds' ? snapshot.campgrounds :
           table === 'campground_stays' ? ordinaryStays :
           table === 'trip_fuel' ? snapshot.fuel :
+          table === 'def_purchases' ? snapshot.def :
           table === 'maintenance' ? maintRows.map(x => ({ _cloudId: x.id })) :
           table === 'site_seasons' ? seasonEntries :
           table === 'seasonal_payments' ? snapshot.siteFees :
@@ -2080,7 +2236,10 @@
       createFuelReceiptDraft,
       discardHubDocumentDraft,
       linkFuelReceiptDocument,
+      linkDefReceiptDocument,
+      linkPurchaseReceiptDocument,
       deleteFuelReceiptDocument,
+      deleteDefReceiptDocument,
       extractHubDocument,
       approveHubDocument,
       setTripPlanPdfDocument,
