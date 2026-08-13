@@ -90,24 +90,34 @@ const extractionProfiles = {
   fuel_receipt: {
     schemaName: 'fuel_receipt_extraction',
     schema: buildExtractionSchema({
+      purchase_type: 'string',
       receipt_date: 'string',
+      receipt_time: 'string',
       station_name: 'string',
+      address: 'string',
       city: 'string',
       state: 'string',
       fuel_type: 'string',
       gallons: 'number',
       price_per_gallon: 'number',
       total_cost: 'number',
+      def_gallons: 'number',
+      def_price_per_gallon: 'number',
+      def_total_cost: 'number',
       trip_meter: 'number',
       odometer: 'number'
     }),
     prompt: [
-      'Read this fuel receipt and return only values that are visible.',
-      'Extract the printed transaction date, station name, city, state, fuel type, gallons, price per gallon, and total cost.',
+      'Read this fuel and/or DEF receipt and return only values that are visible.',
+      'Set purchase_type to fuel, def, or fuel_def. Use fuel_def when one receipt clearly contains both a fuel line and a diesel exhaust fluid or DEF line.',
+      'Extract the printed transaction date, time, station name, street address, city, and state.',
+      'Fuel fields are fuel_type, gallons, price_per_gallon, and total_cost. DEF must never be included in those fuel amounts.',
+      'DEF fields are def_gallons, def_price_per_gallon, and def_total_cost. Look for DEF, diesel exhaust fluid, BlueDEF, or clearly identified bulk DEF lines.',
       'Normalize fuel_type to diesel or gasoline when the receipt clearly identifies it; otherwise use null.',
-      'Use YYYY-MM-DD for receipt_date.',
+      'Use YYYY-MM-DD for receipt_date and HH:MM 24-hour format for receipt_time.',
       'For handwriting, inspect only values written beside the explicit labels TRIP and ODO.',
       'TRIP means trip_meter and ODO means odometer.',
+      'Trip meter is relevant only when purchase_type contains fuel; do not require or infer it for a DEF-only receipt.',
       'Ignore every other handwritten note, number, mark, or annotation.',
       'Do not infer missing printed or handwritten values.',
       'Use null when a field is absent or uncertain, and put every uncertain field name in review_fields.',
@@ -140,51 +150,65 @@ Deno.serve(async request => {
     documentId = String(body?.documentId || '');
     if (!documentId) return json({ error: 'A document ID is required.' }, 400);
 
-    const documentResult = await client
-      .from('hub_documents')
-      .select('*')
-      .eq('id', documentId)
-      .single();
+    const [documentResult, filesResult] = await Promise.all([
+      client
+        .from('hub_documents')
+        .select('*')
+        .eq('id', documentId)
+        .single(),
+      client
+        .from('hub_document_files')
+        .select('*')
+        .eq('document_id', documentId)
+        .order('page_number')
+    ]);
     if (documentResult.error) throw documentResult.error;
     const documentType = documentResult.data.document_type;
     const profile = extractionProfiles[documentType];
     if (!profile) return json({ error: 'This document type is not supported by the secure reader.' }, 400);
-
-    const filesResult = await client
-      .from('hub_document_files')
-      .select('*')
-      .eq('document_id', documentId)
-      .order('page_number');
     if (filesResult.error) throw filesResult.error;
     if (!filesResult.data?.length) return json({ error: 'This document has no saved files.' }, 400);
 
-    await client.from('hub_documents').update({
+    const processingUpdate = Promise.resolve(client.from('hub_documents').update({
       processing_status: 'processing',
       ai_processing_status: 'processing'
-    }).eq('id', documentId);
+    }).eq('id', documentId));
 
     const content = [{ type: 'input_text', text: profile.prompt }];
     let totalBytes = 0;
-    for (const file of filesResult.data) {
-      const download = await client.storage.from(file.storage_bucket || 'hub-documents').download(file.storage_path);
-      if (download.error) throw download.error;
-      totalBytes += download.data.size;
+    const fileContent = await Promise.all(filesResult.data.map(async file => {
+      const knownBytes = Number(file.file_size_bytes) || 0;
+      totalBytes += knownBytes;
       if (totalBytes > MAX_AI_INPUT_BYTES) {
         throw new Error('This document is too large for one AI reading. The saved files are unchanged.');
       }
-      const mimeType = file.mime_type || download.data.type || 'application/octet-stream';
-      const dataUrl = await toDataUrl(download.data, mimeType);
+      const mimeType = file.mime_type || 'application/octet-stream';
       if (mimeType === 'application/pdf') {
-        content.push({
+        const download = await client.storage.from(file.storage_bucket || 'hub-documents').download(file.storage_path);
+        if (download.error) throw download.error;
+        if (!knownBytes) totalBytes += download.data.size;
+        if (totalBytes > MAX_AI_INPUT_BYTES) {
+          throw new Error('This document is too large for one AI reading. The saved files are unchanged.');
+        }
+        const dataUrl = await toDataUrl(download.data, mimeType);
+        return {
           type: 'input_file',
           filename: file.original_filename || `document-${file.page_number}.pdf`,
           file_data: dataUrl,
           detail: 'high'
-        });
+        };
       } else if (mimeType.startsWith('image/')) {
-        content.push({ type: 'input_image', image_url: dataUrl, detail: 'high' });
+        const signed = await client.storage
+          .from(file.storage_bucket || 'hub-documents')
+          .createSignedUrl(file.storage_path, 10 * 60);
+        if (signed.error) throw signed.error;
+        return { type: 'input_image', image_url: signed.data.signedUrl, detail: 'high' };
       }
-    }
+      return null;
+    }));
+    const processingResult = await processingUpdate;
+    if (processingResult.error) throw processingResult.error;
+    content.push(...fileContent.filter(Boolean));
     if (content.length === 1) throw new Error('This document does not contain a supported image or PDF.');
 
     const openaiResponse = await fetch('https://api.openai.com/v1/responses', {
