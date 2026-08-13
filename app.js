@@ -1,4 +1,4 @@
-const APP_VERSION='0.49.1';
+const APP_VERSION='0.49.2';
 const SEED={"tripSummaries":[],"campgrounds":[],"stays":[],"tripPlans":[],"fuel":[],"def":[],"siteFees":[],"electric":[],"sharedNotes":[],"vehicleDetails":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const NO_TRIP_VALUE='__everyday_ruby__';
@@ -2460,20 +2460,20 @@ function openEntry(type,index=null,returnTripIndex=null){
       syncTripMode();
     };
     const updatePreview=()=>{
-      const gallons=Number($('#gallons').value),total=Number($('#total').value),tripMeter=Number($('#tripMeter').value);
+      const gallons=Number($('#gallons').value),total=Number($('#total').value),tripMeterValue=$('#tripMeter').value,tripMeter=Number(tripMeterValue),hasTripMeter=tripMeterValue!=='';
       const values=$$('#fuelCalculations b');
       const tripName=$('#tripName').value;
       const isEveryday=tripName===NO_TRIP_VALUE;
       const previous=isEveryday?null:db.fuel
         .filter((row,rowIndex)=>rowIndex!==index&&row.trip===tripName&&Number(row.tripMiles)<tripMeter)
         .sort((a,b)=>(Number(b.tripMiles)||0)-(Number(a.tripMiles)||0))[0];
-      const tankMiles=previous?tripMeter-Number(previous.tripMiles):tripMeter;
+      const tankMiles=hasTripMeter?(previous?tripMeter-Number(previous.tripMiles):tripMeter):null;
       $('#fuelMpgLabel').textContent=isEveryday?'Fill MPG':previous?'Tank MPG':'Trip MPG';
-      values[0].textContent=gallons>0&&tankMiles>=0?number(tankMiles/gallons,2):'—';
-      values[1].textContent=Number.isFinite(tankMiles)&&!isEveryday?number(tankMiles,1):'—';
-      if(!$('#pricePerGallon').value&&gallons>0&&total>=0)$('#pricePerGallon').value=(total/gallons).toFixed(3);
+      values[0].textContent=gallons>0&&hasTripMeter&&tankMiles>=0?number(tankMiles/gallons,2):'—';
+      values[1].textContent=hasTripMeter&&Number.isFinite(tankMiles)&&!isEveryday?number(tankMiles,1):'—';
+      if(!$('#pricePerGallon').value&&gallons>0&&total>0)$('#pricePerGallon').value=(total/gallons).toFixed(3);
       const defGallons=Number($('#defGallons').value),defTotal=Number($('#defTotal').value);
-      if(!$('#defPricePerGallon').value&&defGallons>0&&defTotal>=0)$('#defPricePerGallon').value=(defTotal/defGallons).toFixed(3);
+      if(!$('#defPricePerGallon').value&&defGallons>0&&defTotal>0)$('#defPricePerGallon').value=(defTotal/defGallons).toFixed(3);
     };
     if(index!==null){
       if(purchase){
