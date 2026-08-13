@@ -919,7 +919,7 @@
           width: Number(dimensions.width) || null,
           height: Number(dimensions.height) || null,
           cleanup_metadata: file?.higginsDocumentScan
-            ? { cleaned_locally: true, scanner_version: '0.49.2', ...dimensions }
+            ? { cleaned_locally: true, scanner_version: '0.49.3', ...dimensions }
             : { optimized_locally: true }
         });
         if (fileInsert.error) throw fileInsert.error;

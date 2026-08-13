@@ -317,7 +317,7 @@
   }
 
   function estimatePaperCorners(sourceCanvas) {
-    const scale = Math.min(1, 900 / Math.max(sourceCanvas.width, sourceCanvas.height));
+    const scale = Math.min(1, 760 / Math.max(sourceCanvas.width, sourceCanvas.height));
     const canvas = document.createElement('canvas');
     canvas.width = Math.max(1, Math.round(sourceCanvas.width * scale));
     canvas.height = Math.max(1, Math.round(sourceCanvas.height * scale));
@@ -331,29 +331,71 @@
       gray[pixel] = value;
       histogram[value] += 1;
     }
-    const threshold = Math.max(145, otsuThreshold(histogram, gray.length));
-    const corners = {
-      tl: { score: Infinity, x: 0, y: 0 },
-      tr: { score: -Infinity, x: canvas.width - 1, y: 0 },
-      br: { score: -Infinity, x: canvas.width - 1, y: canvas.height - 1 },
-      bl: { score: Infinity, x: 0, y: canvas.height - 1 }
-    };
-    let candidates = 0;
-    for (let y = 0; y < canvas.height; y += 2) {
-      for (let x = 0; x < canvas.width; x += 2) {
-        if (gray[y * canvas.width + x] < threshold) continue;
-        candidates += 1;
+    const threshold = Math.max(150, otsuThreshold(histogram, gray.length));
+    const paperMask = new Uint8Array(gray.length);
+    for (let index = 0; index < gray.length; index += 1) paperMask[index] = gray[index] >= threshold ? 1 : 0;
+
+    // Receipts are normally the largest connected light area in the photo.
+    // Looking at that area rather than every bright pixel keeps a reflection,
+    // table edge, or light object outside the receipt from becoming a corner.
+    const visited = new Uint8Array(gray.length);
+    const queue = new Int32Array(gray.length);
+    let best = null;
+    for (let start = 0; start < paperMask.length; start += 1) {
+      if (!paperMask[start] || visited[start]) continue;
+      let head = 0;
+      let tail = 0;
+      let count = 0;
+      const corners = {
+        tl: { score: Infinity, x: 0, y: 0 },
+        tr: { score: -Infinity, x: canvas.width - 1, y: 0 },
+        br: { score: -Infinity, x: canvas.width - 1, y: canvas.height - 1 },
+        bl: { score: Infinity, x: 0, y: canvas.height - 1 }
+      };
+      let minX = canvas.width;
+      let maxX = 0;
+      let minY = canvas.height;
+      let maxY = 0;
+      queue[tail++] = start;
+      visited[start] = 1;
+      while (head < tail) {
+        const index = queue[head++];
+        const x = index % canvas.width;
+        const y = Math.floor(index / canvas.width);
+        count += 1;
+        minX = Math.min(minX, x);
+        maxX = Math.max(maxX, x);
+        minY = Math.min(minY, y);
+        maxY = Math.max(maxY, y);
         const sum = x + y;
         const difference = x - y;
         if (sum < corners.tl.score) corners.tl = { score: sum, x, y };
         if (difference > corners.tr.score) corners.tr = { score: difference, x, y };
         if (sum > corners.br.score) corners.br = { score: sum, x, y };
         if (difference < corners.bl.score) corners.bl = { score: difference, x, y };
+        const neighbors = [index - 1, index + 1, index - canvas.width, index + canvas.width];
+        for (const neighbor of neighbors) {
+          if (neighbor < 0 || neighbor >= paperMask.length || visited[neighbor] || !paperMask[neighbor]) continue;
+          const neighborX = neighbor % canvas.width;
+          if (Math.abs(neighborX - x) > 1) continue;
+          visited[neighbor] = 1;
+          queue[tail++] = neighbor;
+        }
       }
+      const width = maxX - minX + 1;
+      const height = maxY - minY + 1;
+      const boundsRatio = width * height / gray.length;
+      if (boundsRatio < .12 || width < canvas.width * .22 || height < canvas.height * .22) continue;
+      const points = [corners.tl, corners.tr, corners.br, corners.bl];
+      const areaRatio = polygonArea(points) / gray.length;
+      const fillsFrame = minX <= 1 && minY <= 1 && maxX >= canvas.width - 2 && maxY >= canvas.height - 2;
+      if (fillsFrame && areaRatio > .965) continue;
+      const score = count * (fillsFrame ? .55 : 1);
+      if (!best || score > best.score) best = { points, count, score };
     }
-    const sampledPixels = Math.ceil(canvas.width / 2) * Math.ceil(canvas.height / 2);
-    const candidateRatio = candidates / sampledPixels;
-    const points = [corners.tl, corners.tr, corners.br, corners.bl];
+    if (!best) return null;
+    const candidateRatio = best.count / gray.length;
+    const points = best.points;
     const areaRatio = polygonArea(points) / (canvas.width * canvas.height);
     const shortestEdge = Math.min(
       distance(points[0], points[1]),
@@ -361,11 +403,11 @@
       distance(points[2], points[3]),
       distance(points[3], points[0])
     );
-    const plausible = candidateRatio > .08
-      && candidateRatio < .93
-      && areaRatio > .2
-      && areaRatio < .96
-      && shortestEdge > Math.min(canvas.width, canvas.height) * .28;
+    const plausible = candidateRatio > .055
+      && candidateRatio < .94
+      && areaRatio > .15
+      && areaRatio < .965
+      && shortestEdge > Math.min(canvas.width, canvas.height) * .22;
     if (!plausible) return null;
     const confidence = Math.min(.95, .52 + areaRatio * .25 + Math.min(.18, shortestEdge / Math.max(canvas.width, canvas.height) * .25));
     if (confidence < .62) return null;

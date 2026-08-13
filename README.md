@@ -2,6 +2,12 @@
 
 Travel Journal is Scott and Kayla's private travel companion.
 
+## Version 0.49.3
+
+- Restores automatic paper-edge detection and perspective cropping for fuel and DEF receipt photos.
+- Uses the largest connected light document area so nearby table surfaces and reflections are less likely to become receipt corners.
+- Keeps Adjust crop available whenever the automatic boundary needs a quick correction.
+
 ## Version 0.49.2
 
 - Makes Everyday Ruby a true no-trip fuel entry with no trip or trip-meter requirement.

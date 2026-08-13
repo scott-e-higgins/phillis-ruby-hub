@@ -1,4 +1,4 @@
-const APP_VERSION='0.49.2';
+const APP_VERSION='0.49.3';
 const SEED={"tripSummaries":[],"campgrounds":[],"stays":[],"tripPlans":[],"fuel":[],"def":[],"siteFees":[],"electric":[],"sharedNotes":[],"vehicleDetails":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const NO_TRIP_VALUE='__everyday_ruby__';
@@ -1915,7 +1915,7 @@ function bindFuelReceiptScanner(record={}){
       useLabel:'Read receipt',
       useOnlyLabel:'Use photo',
       allowPdfUse:false,
-      preferFullImage:true,
+      preferFullImage:false,
       maxDimension:1600,
       quality:.82,
       cameraLabel:'Take receipt photo',
