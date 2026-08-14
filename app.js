@@ -1983,7 +1983,7 @@ function bindFuelReceiptScanner(record={}){
 let electricDocumentEditorState={items:[],initialOrder:'',changed:false,readAfterSave:false,draftDocument:null,draftDocumentId:''};
 function clearElectricDocumentEditor({discardDraft=false}={}){
   const draftDocumentId=electricDocumentEditorState.draftDocumentId;
-  electricDocumentEditorState.items.filter(item=>item.kind==='pending').forEach(item=>item.url&&URL.revokeObjectURL(item.url));
+  electricDocumentEditorState.items.forEach(item=>item.url&&(/^blob:/i.test(item.url)||item.kind==='pending')&&URL.revokeObjectURL(item.url));
   electricDocumentEditorState={items:[],initialOrder:'',changed:false,readAfterSave:false,draftDocument:null,draftDocumentId:''};
   if(discardDraft&&draftDocumentId&&window.ADVENTURE_HUB_STORE?.discardHubDocumentDraft){
     window.ADVENTURE_HUB_STORE.discardHubDocumentDraft(draftDocumentId).catch(error=>console.warn('The unused electric-bill draft could not be removed.',error));
