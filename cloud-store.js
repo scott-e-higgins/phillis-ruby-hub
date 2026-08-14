@@ -641,6 +641,7 @@
       if (!userId) throw new Error('Please sign in again before saving this document.');
 
       const documentId = record.documentId || uuid();
+      const preserveAnalysis = ['review', 'complete'].includes(record.documentAiStatus || '');
       const titleDate = record.date
         ? new Date(`${record.date}T12:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
         : 'Undated';
@@ -671,11 +672,13 @@
             display_title: displayTitle,
             document_date: record.date || null,
             processing_status: 'approved',
-            ai_processing_status: 'not_requested',
-            extracted_text: null,
-            extracted_data: {},
-            user_corrections: {},
-            review_fields: [],
+            ...(preserveAnalysis ? {} : {
+              ai_processing_status: 'not_requested',
+              extracted_text: null,
+              extracted_data: {},
+              user_corrections: {},
+              review_fields: []
+            }),
             updated_at: new Date().toISOString()
           }).eq('id', documentId);
           if (documentUpdate.error) throw documentUpdate.error;
@@ -835,11 +838,13 @@
         record.documentId = documentId;
         record.documentTitle = displayTitle;
         record.documentStatus = 'approved';
-        record.documentAiStatus = 'not_requested';
-        record.documentExtractedText = '';
-        record.documentExtractedData = {};
-        record.documentUserCorrections = {};
-        record.documentReviewFields = [];
+        if (!preserveAnalysis) {
+          record.documentAiStatus = 'not_requested';
+          record.documentExtractedText = '';
+          record.documentExtractedData = {};
+          record.documentUserCorrections = {};
+          record.documentReviewFields = [];
+        }
         record.documentFiles = finalFiles;
         record.receiptPhotoPath = '';
         record.receiptPhotoUrl = finalFiles.find(file => /^image\//i.test(file.mimeType) && file.url)?.url || '';
@@ -919,8 +924,97 @@
           width: Number(dimensions.width) || null,
           height: Number(dimensions.height) || null,
           cleanup_metadata: file?.higginsDocumentScan
-            ? { cleaned_locally: true, scanner_version: '0.49.4', ...dimensions }
+            ? { cleaned_locally: true, scanner_version: '0.49.5', ...dimensions }
             : { optimized_locally: true }
+        });
+        if (fileInsert.error) throw fileInsert.error;
+
+        return {
+          ...hubDocumentFields(inserted.data),
+          documentFiles: [{
+            id: fileId,
+            documentId,
+            pageNumber: 1,
+            originalFilename,
+            mimeType: prepared.contentType,
+            fileSizeBytes: Number(prepared.blob.size) || 0,
+            storageBucket: 'hub-documents',
+            storagePath,
+            url: URL.createObjectURL(prepared.blob)
+          }]
+        };
+      } catch (error) {
+        if (uploaded) await hubDocumentBucket.remove([storagePath]);
+        if (documentCreated) await client.from('hub_documents').delete().eq('id', documentId);
+        throw error;
+      }
+    }
+
+    async function createElectricBillDraft(file, metadata = {}) {
+      if (role === 'viewer') throw new Error('Family Viewer accounts cannot scan electric bills.');
+      if (!file) throw new Error('Take or choose an electric bill first.');
+      const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '');
+      if (file.size > 25 * 1024 * 1024) throw new Error('That bill file is larger than the 25 MB document limit.');
+
+      const userId = user?.id;
+      if (!userId) throw new Error('Please sign in again before scanning this bill.');
+
+      const documentId = uuid();
+      const fileId = uuid();
+      const prepared = isPdf
+        ? { blob: file, extension: 'pdf', contentType: 'application/pdf' }
+        : file?.higginsDocumentScan
+          ? { blob: file, extension: 'jpg', contentType: 'image/jpeg' }
+          : await preparePhoto(file);
+      const originalFilename = file.name || `electric-bill-${Date.now()}.${prepared.extension}`;
+      const storagePath = `${householdId}/${documentId}/${fileId}.${prepared.extension}`;
+      const now = new Date().toISOString();
+      let documentCreated = false;
+      let uploaded = false;
+
+      try {
+        const [inserted, upload] = await Promise.all([
+          client.from('hub_documents').insert({
+            id: documentId,
+            household_id: householdId,
+            display_title: 'Lehigh Gorge electric bill · awaiting review',
+            document_type: 'electric_bill',
+            source_app: 'travel-journal',
+            processing_status: 'draft',
+            ai_processing_status: 'not_requested',
+            retention_status: 'keep',
+            created_by: userId,
+            uploaded_at: now
+          }).select('*').single(),
+          hubDocumentBucket.upload(storagePath, prepared.blob, {
+            cacheControl: '3600',
+            contentType: prepared.contentType,
+            upsert: false
+          })
+        ]);
+        if (!inserted.error) documentCreated = true;
+        if (!upload.error) uploaded = true;
+        if (inserted.error) throw inserted.error;
+        if (upload.error) throw upload.error;
+
+        const dimensions = { ...(file.higginsDocumentMetadata || {}), ...(metadata || {}) };
+        const fileInsert = await client.from('hub_document_files').insert({
+          id: fileId,
+          document_id: documentId,
+          page_number: 1,
+          original_filename: originalFilename,
+          mime_type: prepared.contentType,
+          file_size_bytes: Number(prepared.blob.size) || 0,
+          storage_bucket: 'hub-documents',
+          storage_path: storagePath,
+          width: Number(dimensions.width) || null,
+          height: Number(dimensions.height) || null,
+          has_selectable_text: isPdf ? (dimensions.hasSelectableText ?? null) : null,
+          cleanup_metadata: isPdf
+            ? { preserved_as_pdf: true }
+            : file?.higginsDocumentScan
+              ? { cleaned_locally: true, scanner_version: '0.49.5', ...dimensions }
+              : { optimized_locally: true }
         });
         if (fileInsert.error) throw fileInsert.error;
 
@@ -2234,6 +2328,7 @@
       setElectricBillDocument,
       setElectricBillDocuments,
       createFuelReceiptDraft,
+      createElectricBillDraft,
       discardHubDocumentDraft,
       linkFuelReceiptDocument,
       linkDefReceiptDocument,

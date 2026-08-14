@@ -2,6 +2,12 @@
 
 Travel Journal is Scott and Kayla's private travel companion.
 
+## Version 0.49.5
+
+- Makes **Read bill** immediately upload and open the secure reader for a brand-new electric bill too.
+- Keeps the new bill as a temporary private draft until the reviewed values are saved.
+- Removes an unused bill draft automatically when the entry is cancelled.
+
 ## Version 0.49.4
 
 - Makes **Read bill** immediately upload and open the secure reader when adding a scan to an existing electric bill.

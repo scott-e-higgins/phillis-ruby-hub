@@ -1,4 +1,4 @@
-const APP_VERSION='0.49.4';
+const APP_VERSION='0.49.5';
 const SEED={"tripSummaries":[],"campgrounds":[],"stays":[],"tripPlans":[],"fuel":[],"def":[],"siteFees":[],"electric":[],"sharedNotes":[],"vehicleDetails":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const NO_TRIP_VALUE='__everyday_ruby__';
@@ -1475,14 +1475,7 @@ function showSitePaymentRecord(index){
   $('#detailDialog').showModal();
 }
 let pendingElectricAiApproval=null;
-function useElectricDocumentSuggestions(record,index,result){
-  const fields=result?.fields||{};
-  pendingElectricAiApproval={
-    documentId:record.documentId,
-    corrections:{fields,reviewed_at:new Date().toISOString(),model:result?.model||''}
-  };
-  $('#detailDialog').close();
-  openEntry('electric',index);
+function applyElectricDocumentSuggestionFields(fields={}){
   if(fields.bill_date)$('#date').value=fields.bill_date;
   if(fields.previous_meter_reading!=null)$('#previous').value=fields.previous_meter_reading;
   if(fields.current_meter_reading!=null)$('#current').value=fields.current_meter_reading;
@@ -1492,6 +1485,43 @@ function useElectricDocumentSuggestions(record,index,result){
   if(fields.check_number)$('#check').value=fields.check_number;
   const status=$('#documentScannerAttachStatus');
   if(status)status.textContent='AI suggestions are loaded. Check the bill values, then tap Save bill to approve them.';
+}
+function useElectricDocumentSuggestions(record,index,result){
+  const fields=result?.fields||{};
+  pendingElectricAiApproval={
+    documentId:record.documentId,
+    corrections:{fields,reviewed_at:new Date().toISOString(),model:result?.model||''}
+  };
+  $('#detailDialog').close();
+  openEntry('electric',index);
+  applyElectricDocumentSuggestionFields(fields);
+}
+function openElectricDraftDocumentReview(document,autoAnalyze=false){
+  if(!window.HIGGINS_DOCUMENT_REVIEW){
+    alert('The document viewer is still loading. Please try again in a moment.');
+    return;
+  }
+  window.HIGGINS_DOCUMENT_REVIEW.open({
+    record:document,
+    autoAnalyze,
+    defaultFields:{
+      campground:'Lehigh Gorge Campground',
+      site_number:'39',
+      previous_meter_reading:$('#previous')?.value===''?null:Number($('#previous')?.value)
+    },
+    onExtracted:updated=>{
+      Object.assign(document,updated);
+      electricDocumentEditorState.draftDocument=document;
+    },
+    onUse:result=>{
+      const fields=result?.fields||{};
+      pendingElectricAiApproval={
+        documentId:document.documentId,
+        corrections:{fields,reviewed_at:new Date().toISOString(),model:result?.model||''}
+      };
+      applyElectricDocumentSuggestionFields(fields);
+    }
+  });
 }
 function openElectricDocumentReview(record,index,autoAnalyze=false){
   if(!window.HIGGINS_DOCUMENT_REVIEW){
@@ -1950,10 +1980,14 @@ function bindFuelReceiptScanner(record={}){
     }
   };
 }
-let electricDocumentEditorState={items:[],initialOrder:'',changed:false,readAfterSave:false};
-function clearElectricDocumentEditor(){
+let electricDocumentEditorState={items:[],initialOrder:'',changed:false,readAfterSave:false,draftDocument:null,draftDocumentId:''};
+function clearElectricDocumentEditor({discardDraft=false}={}){
+  const draftDocumentId=electricDocumentEditorState.draftDocumentId;
   electricDocumentEditorState.items.filter(item=>item.kind==='pending').forEach(item=>item.url&&URL.revokeObjectURL(item.url));
-  electricDocumentEditorState={items:[],initialOrder:'',changed:false,readAfterSave:false};
+  electricDocumentEditorState={items:[],initialOrder:'',changed:false,readAfterSave:false,draftDocument:null,draftDocumentId:''};
+  if(discardDraft&&draftDocumentId&&window.ADVENTURE_HUB_STORE?.discardHubDocumentDraft){
+    window.ADVENTURE_HUB_STORE.discardHubDocumentDraft(draftDocumentId).catch(error=>console.warn('The unused electric-bill draft could not be removed.',error));
+  }
 }
 function electricDocumentItemKey(item){
   return item.kind==='existing'?`existing:${item.fileId}`:item.kind==='legacy'?`legacy:${item.legacyPath}`:`pending:${item.token}`;
@@ -2006,7 +2040,7 @@ function addElectricDocumentFile(file,metadata={},readAfterSave=false){
   if(!file)return;
   const token=crypto.randomUUID?.()||`${Date.now()}-${Math.random()}`;
   try{Object.defineProperty(file,'higginsDocumentMetadata',{value:{...metadata},configurable:true});}catch{}
-  electricDocumentEditorState.items.push({
+  const item={
     kind:'pending',
     token,
     file,
@@ -2014,10 +2048,12 @@ function addElectricDocumentFile(file,metadata={},readAfterSave=false){
     originalFilename:file.name||'Electric bill document',
     mimeType:file.type||'application/octet-stream',
     fileSizeBytes:Number(file.size)||0
-  });
+  };
+  electricDocumentEditorState.items.push(item);
   electricDocumentEditorState.changed=true;
   electricDocumentEditorState.readAfterSave=Boolean(electricDocumentEditorState.readAfterSave||readAfterSave);
   renderElectricDocumentEditor();
+  return item;
 }
 function bindElectricDocumentEditor(record={}){
   clearElectricDocumentEditor();
@@ -2083,7 +2119,7 @@ function bindDocumentScannerLauncher(record={}){
       onUse:({file,metadata})=>addBillDocument(file,metadata,true)
     });
     async function addBillDocument(file,metadata,readAfterSave){
-        addElectricDocumentFile(file,metadata,readAfterSave);
+        const addedItem=addElectricDocumentFile(file,metadata,readAfterSave);
         if(readAfterSave&&record?._cloudId&&window.ADVENTURE_HUB_STORE){
           if(status)status.textContent='Uploading the bill and starting the reader…';
           launch.disabled=true;
@@ -2104,9 +2140,49 @@ function bindDocumentScannerLauncher(record={}){
             launch.disabled=false;
           }
         }
+        if(readAfterSave&&!record?._cloudId&&window.ADVENTURE_HUB_STORE?.createElectricBillDraft){
+          if(status)status.textContent='Uploading the bill and starting the reader…';
+          launch.disabled=true;
+          try{
+            if(electricDocumentEditorState.draftDocumentId){
+              await window.ADVENTURE_HUB_STORE.discardHubDocumentDraft(electricDocumentEditorState.draftDocumentId);
+            }
+            const document=await window.ADVENTURE_HUB_STORE.createElectricBillDraft(file,metadata);
+            const itemIndex=electricDocumentEditorState.items.findIndex(item=>item.token===addedItem?.token);
+            if(itemIndex>=0){
+              const prior=electricDocumentEditorState.items[itemIndex];
+              if(prior?.url)URL.revokeObjectURL(prior.url);
+              const savedFile=document.documentFiles?.[0];
+              electricDocumentEditorState.items[itemIndex]={
+                kind:'existing',
+                fileId:savedFile.id,
+                documentId:document.documentId,
+                originalFilename:savedFile.originalFilename,
+                mimeType:savedFile.mimeType,
+                fileSizeBytes:savedFile.fileSizeBytes,
+                storageBucket:savedFile.storageBucket,
+                storagePath:savedFile.storagePath,
+                url:savedFile.url
+              };
+            }
+            electricDocumentEditorState.draftDocument=document;
+            electricDocumentEditorState.draftDocumentId=document.documentId;
+            electricDocumentEditorState.changed=true;
+            renderElectricDocumentEditor();
+            if(status)status.textContent='Bill uploaded. The reader is opening now…';
+            setTimeout(()=>openElectricDraftDocumentReview(document,true),0);
+            return true;
+          }catch(error){
+            console.error(error);
+            if(status)status.textContent='The bill could not be uploaded. Nothing was removed; please try again.';
+            throw error;
+          }finally{
+            launch.disabled=false;
+          }
+        }
         if(status){
           const saved=Math.max(0,(metadata.originalBytes||0)-(metadata.optimizedBytes||0));
-          const nextStep=readAfterSave?'This is a new bill. Tap Save & read bill to upload it and start the reader.':'Add another file or save the electric record.';
+          const nextStep=readAfterSave?'Tap Save & read bill to upload it and start the reader.':'Add another file or save the electric record.';
           status.textContent=metadata.preservedOriginal
             ?`PDF added intact. ${nextStep}`
             :`Page prepared locally at ${metadata.width||'—'} × ${metadata.height||'—'}${saved?` · ${Math.round(saved/1024)} KB smaller`:''}. ${nextStep}`;
@@ -2714,8 +2790,8 @@ $('#campgroundJournalForm').onsubmit=async event=>{
   renderTrips();
   if($('#detailDialog').open)showStay(stayIndex,detailReturnTripIndex);
 };
-$$('dialog .close').forEach(b=>b.onclick=()=>{const dialog=b.closest('dialog');dialog.close();if(dialog.id==='entryDialog'){pendingElectricAiApproval=null;clearFuelReceiptScanner({discardDraft:true});clearStayPhotoPreviewUrls();clearNotePhotoEditor();clearMultiReceiptEditor();clearTripPlanPdfEditor();clearElectricDocumentEditor();}if(dialog.id==='seasonDocumentDialog')clearSeasonDocumentDraft();});
-$$('dialog').forEach(dialog=>dialog.addEventListener('mousedown',event=>{const box=dialog.getBoundingClientRect();const outside=event.clientX<box.left||event.clientX>box.right||event.clientY<box.top||event.clientY>box.bottom;if(outside){dialog.close();if(dialog.id==='entryDialog'){pendingElectricAiApproval=null;clearFuelReceiptScanner({discardDraft:true});clearStayPhotoPreviewUrls();clearNotePhotoEditor();clearMultiReceiptEditor();clearTripPlanPdfEditor();clearElectricDocumentEditor();}if(dialog.id==='seasonDocumentDialog')clearSeasonDocumentDraft();}}));
+$$('dialog .close').forEach(b=>b.onclick=()=>{const dialog=b.closest('dialog');dialog.close();if(dialog.id==='entryDialog'){pendingElectricAiApproval=null;clearFuelReceiptScanner({discardDraft:true});clearStayPhotoPreviewUrls();clearNotePhotoEditor();clearMultiReceiptEditor();clearTripPlanPdfEditor();clearElectricDocumentEditor({discardDraft:true});}if(dialog.id==='seasonDocumentDialog')clearSeasonDocumentDraft();});
+$$('dialog').forEach(dialog=>dialog.addEventListener('mousedown',event=>{const box=dialog.getBoundingClientRect();const outside=event.clientX<box.left||event.clientX>box.right||event.clientY<box.top||event.clientY>box.bottom;if(outside){dialog.close();if(dialog.id==='entryDialog'){pendingElectricAiApproval=null;clearFuelReceiptScanner({discardDraft:true});clearStayPhotoPreviewUrls();clearNotePhotoEditor();clearMultiReceiptEditor();clearTripPlanPdfEditor();clearElectricDocumentEditor({discardDraft:true});}if(dialog.id==='seasonDocumentDialog')clearSeasonDocumentDraft();}}));
 $('#detailDialog').addEventListener('close',()=>{
   if(suppressNextDetailReturn){
     suppressNextDetailReturn=false;
@@ -2914,7 +2990,32 @@ $('#entryForm').onsubmit=async e=>{
     savedStay=record;
   }
   else if(type==='sitepayment'){const index=$('#entryIndex').value===''?null:+$('#entryIndex').value,prior=index===null?{}:db.siteFees[index],record={...prior,year:+$('#year').value,date:$('#date').value,payment:+$('#payment').value||0,check:$('#check').value,receiptPhotoPaths:[...(prior.receiptPhotoPaths||[])],receiptPhotoUrls:[...(prior.receiptPhotoUrls||[])],notes};if(index===null)db.siteFees.push(record);else db.siteFees[index]=record;savedMultiReceiptRecord=record;savedMultiReceiptKind='seasonal-payment'}
-  else if(type==='electric'){const p=+$('#previous').value,c=+$('#current').value,r=+$('#rate').value||.16,u=c-p,index=$('#entryIndex').value===''?null:+$('#entryIndex').value,prior=index===null?{}:db.electric[index],enteredAmount=$('#amountDue').value===''?null:+$('#amountDue').value,record={...prior,date:$('#date').value,previous:p,current:c,usage:u,unitPrice:r,total:enteredAmount??u*r,paid:$('#paid').value,check:$('#check').value,receiptPhotoPath:prior.receiptPhotoPath||'',receiptPhotoUrl:prior.receiptPhotoUrl||'',documentId:prior.documentId||'',documentTitle:prior.documentTitle||'',documentStatus:prior.documentStatus||'',documentFiles:[...(prior.documentFiles||[])],notes};if(index===null)db.electric.push(record);else db.electric[index]=record;savedReceiptRecord=record;savedReceiptKind='electric'}
+  else if(type==='electric'){
+    const p=+$('#previous').value,c=+$('#current').value,r=+$('#rate').value||.16,u=c-p,index=$('#entryIndex').value===''?null:+$('#entryIndex').value;
+    const prior=index===null?{}:db.electric[index];
+    const document=electricDocumentEditorState.draftDocument||prior;
+    const enteredAmount=$('#amountDue').value===''?null:+$('#amountDue').value;
+    const record={
+      ...prior,
+      date:$('#date').value,previous:p,current:c,usage:u,unitPrice:r,total:enteredAmount??u*r,
+      paid:$('#paid').value,check:$('#check').value,
+      receiptPhotoPath:prior.receiptPhotoPath||'',
+      receiptPhotoUrl:document.receiptPhotoUrl||prior.receiptPhotoUrl||'',
+      documentId:document.documentId||prior.documentId||'',
+      documentTitle:document.documentTitle||prior.documentTitle||'',
+      documentType:document.documentType||prior.documentType||'electric_bill',
+      documentStatus:document.documentStatus||prior.documentStatus||'',
+      documentAiStatus:document.documentAiStatus||prior.documentAiStatus||'',
+      documentExtractedText:document.documentExtractedText||prior.documentExtractedText||'',
+      documentExtractedData:document.documentExtractedData||prior.documentExtractedData||{},
+      documentUserCorrections:document.documentUserCorrections||prior.documentUserCorrections||{},
+      documentReviewFields:document.documentReviewFields||prior.documentReviewFields||[],
+      documentFiles:[...(document.documentFiles||prior.documentFiles||[])],
+      notes
+    };
+    if(index===null)db.electric.push(record);else db.electric[index]=record;
+    savedReceiptRecord=record;savedReceiptKind='electric';
+  }
   else if(type==='sitefee'){const y=+$('#year').value,total=+$('#total').value||0,index=$('#entryIndex').value===''?null:+$('#entryIndex').value,record={...(index===null?{}:db.stays[index]),year:y,arrival:'Season',departure:'Season',nights:null,name:'Lehigh Gorge Campground',address:$('#address').value,city:$('#city').value,state:$('#state').value,zip:$('#zip').value,site:$('#site').value||'39',price:total,harvestHost:false,notes};if(index===null)db.stays.push(record);else db.stays[index]=record;const annual=(db.siteFees||[]).find(x=>+x.year===y&&x.yearTotal!=null);if(annual)annual.yearTotal=total}
   else {const key=type==='phillis-maint'?'phillisMaintenance':type==='phillis-upgrade'?'phillisUpgrades':type==='ruby-maint'?'rubyMaintenance':'rubyUpgrades',index=$('#entryIndex').value===''?null:+$('#entryIndex').value,prior=index===null?{}:db[key][index],obj={...prior,date:$('#date').value,description:$('#description').value,location:$('#location').value,price:+$('#total').value||0,receiptPhotoPaths:[...(prior.receiptPhotoPaths||[])],receiptPhotoUrls:[...(prior.receiptPhotoUrls||[])],notes,...(type.startsWith('phillis-')?{trailer:$('#trailer').value}:{})};if(index===null)db[key].push(obj);else db[key][index]=obj;savedMultiReceiptRecord=obj;savedMultiReceiptKind='maintenance'}
   const returnTripIndex=$('#entryStayIndex').value===''?null:+$('#entryStayIndex').value;
@@ -2987,6 +3088,7 @@ $('#entryForm').onsubmit=async e=>{
     try{
       submitButton.textContent='Uploading bill document…';
       await window.ADVENTURE_HUB_STORE.setElectricBillDocuments(savedReceiptRecord,pendingElectricDocumentChanges);
+      electricDocumentEditorState.draftDocumentId='';
       if(shouldReadElectricDocument&&savedReceiptRecord.documentId){
         electricDocumentToRead=savedReceiptRecord;
         electricDocumentToReadIndex=db.electric.indexOf(savedReceiptRecord);
