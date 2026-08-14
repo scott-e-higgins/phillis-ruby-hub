@@ -1449,6 +1449,16 @@ html.standalone-app body{
 }
 .stay-log-complete{border-color:#527e68;background:#28483a;color:#ade0c5}
 
+.attention-pulse{
+  box-shadow:0 0 0 0 rgba(214,173,85,.55);
+  animation:attention-pulse 1.25s ease-out 2;
+}
+@keyframes attention-pulse{
+  0%{box-shadow:0 0 0 0 rgba(214,173,85,.55)}
+  100%{box-shadow:0 0 0 12px rgba(214,173,85,0)}
+}
+@media(prefers-reduced-motion:reduce){.attention-pulse{animation:none}}
+
 @media(max-width:680px){
   .def-stats-card{grid-template-columns:repeat(2,minmax(0,1fr))}
   .purchase-fields-heading{align-items:flex-start;flex-direction:column;gap:3px}

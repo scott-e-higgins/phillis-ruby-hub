@@ -1,4 +1,4 @@
-const APP_VERSION='0.49.3';
+const APP_VERSION='0.49.4';
 const SEED={"tripSummaries":[],"campgrounds":[],"stays":[],"tripPlans":[],"fuel":[],"def":[],"siteFees":[],"electric":[],"sharedNotes":[],"vehicleDetails":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const NO_TRIP_VALUE='__everyday_ruby__';
@@ -2051,7 +2051,7 @@ function bindElectricDocumentEditor(record={}){
   if(status)status.textContent=files.length
     ?'Everything shown here is part of this bill document.'
     :'Add the first page, picture, or PDF for this bill.';
-  bindDocumentScannerLauncher();
+  bindDocumentScannerLauncher(record);
 }
 function electricDocumentChanges(){
   const order=electricDocumentEditorState.items.map(electricDocumentItemKey).join('|');
@@ -2064,7 +2064,7 @@ function electricDocumentChanges(){
         :{fileId:item.fileId})
   };
 }
-function bindDocumentScannerLauncher(){
+function bindDocumentScannerLauncher(record={}){
   const launch=$('#openDocumentScanner');
   const status=$('#documentScannerAttachStatus');
   if(!launch)return;
@@ -2078,17 +2078,47 @@ function bindDocumentScannerLauncher(){
       useLabel:'Read bill',
       useOnlyLabel:'Use document',
       allowPdfUse:true,
+      preferFullImage:true,
       onUseOnly:({file,metadata})=>addBillDocument(file,metadata,false),
       onUse:({file,metadata})=>addBillDocument(file,metadata,true)
     });
-    function addBillDocument(file,metadata,readAfterSave){
+    async function addBillDocument(file,metadata,readAfterSave){
         addElectricDocumentFile(file,metadata,readAfterSave);
+        if(readAfterSave&&record?._cloudId&&window.ADVENTURE_HUB_STORE){
+          if(status)status.textContent='Uploading the bill and starting the reader…';
+          launch.disabled=true;
+          try{
+            const changes=electricDocumentChanges();
+            await window.ADVENTURE_HUB_STORE.setElectricBillDocuments(record,changes);
+            localStorage.setItem(KEY,JSON.stringify(db));
+            const electricIndex=db.electric.indexOf(record);
+            bindElectricDocumentEditor(record);
+            if(status)status.textContent='Bill saved. The reader is opening now…';
+            if(electricIndex>=0)setTimeout(()=>openElectricDocumentReview(record,electricIndex,true),0);
+            return true;
+          }catch(error){
+            console.error(error);
+            if(status)status.textContent='The bill could not be uploaded. Nothing was removed; please try again.';
+            throw error;
+          }finally{
+            launch.disabled=false;
+          }
+        }
         if(status){
           const saved=Math.max(0,(metadata.originalBytes||0)-(metadata.optimizedBytes||0));
-          const nextStep=readAfterSave?'Tap Save bill to upload it and start the reader.':'Add another file or save the electric record.';
+          const nextStep=readAfterSave?'This is a new bill. Tap Save & read bill to upload it and start the reader.':'Add another file or save the electric record.';
           status.textContent=metadata.preservedOriginal
             ?`PDF added intact. ${nextStep}`
             :`Page prepared locally at ${metadata.width||'—'} × ${metadata.height||'—'}${saved?` · ${Math.round(saved/1024)} KB smaller`:''}. ${nextStep}`;
+        }
+        if(readAfterSave){
+          const saveButton=$('#entryForm')?.querySelector('.form-actions .primary');
+          if(saveButton){
+            saveButton.textContent='Save & read bill';
+            saveButton.classList.add('attention-pulse');
+            saveButton.scrollIntoView({behavior:'smooth',block:'center'});
+            setTimeout(()=>saveButton.focus({preventScroll:true}),350);
+          }
         }
         return true;
     }
@@ -2740,6 +2770,7 @@ $('#entryForm').onsubmit=async e=>{
   e.preventDefault(); const type=$('#entryType').value;
   const notes=type==='hub-note'&&$('#noteChecklist')?.checked?checklistBody(readChecklistEditor()):$('#entryNotes').value;
   const submitButton=$('#entryForm').querySelector('.form-actions .primary');
+  submitButton.classList.remove('attention-pulse');
   const originalButtonText=submitButton.textContent;
   let savedStay=null;
   let savedTrip=null;

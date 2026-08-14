@@ -2,6 +2,12 @@
 
 Travel Journal is Scott and Kayla's private travel companion.
 
+## Version 0.49.4
+
+- Makes **Read bill** immediately upload and open the secure reader when adding a scan to an existing electric bill.
+- Makes the queued next step explicit for a brand-new bill with a highlighted **Save & read bill** action.
+- Keeps the full electric-bill image by default so automatic perspective correction cannot twist the page; manual crop remains available.
+
 ## Version 0.49.3
 
 - Restores automatic paper-edge detection and perspective cropping for fuel and DEF receipt photos.
