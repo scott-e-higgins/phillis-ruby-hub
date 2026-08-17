@@ -123,6 +123,33 @@ const extractionProfiles = {
       'Use null when a field is absent or uncertain, and put every uncertain field name in review_fields.',
       'extracted_text should be a concise transcription useful for later search, not an explanation.'
     ].join(' ')
+  },
+  open_roads_settlement: {
+    schemaName: 'open_roads_settlement_extraction',
+    schema: buildExtractionSchema({
+      invoice_id: 'string',
+      transaction_date: 'string',
+      location: 'string',
+      product: 'string',
+      quantity: 'number',
+      unit_price: 'number',
+      subtotal: 'number',
+      discount: 'number',
+      program_fee: 'number',
+      fees: 'number',
+      you_saved: 'number',
+      total_paid: 'number'
+    }),
+    prompt: [
+      'Read this Open Roads Transaction Details screenshot and return only values that are visible.',
+      'This is the delayed settlement for an existing fuel stop, not a new fuel receipt.',
+      'Extract invoice ID, transaction date, location, product, quantity, unit price, subtotal, discount, program fee, other fees, You Saved, and Total Paid.',
+      'Use YYYY-MM-DD for transaction_date.',
+      'Treat Discount as the gross discount, Program Fee as the Open Roads program fee, Fees as other fees, You Saved as net savings, and Total Paid as the final actual fuel expense.',
+      'Do not combine, recompute, or infer monetary values that are not shown.',
+      'Use null when a field is absent or uncertain, and put every uncertain field name in review_fields.',
+      'extracted_text should be a concise transcription useful for later search, not an explanation.'
+    ].join(' ')
   }
 };
 
