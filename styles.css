@@ -1010,6 +1010,7 @@ html.standalone-app body{
 
 /* v0.39.0 — reusable Higgins Hub document capture and local preview */
 .document-scanner-entry{display:grid;gap:13px;margin-top:14px;padding:16px;border:1px solid #5a6d62;border-radius:8px;background:linear-gradient(145deg,#304038,#27342e);box-shadow:var(--shadow-sm)}
+.document-scanner-entry[hidden]{display:none}
 .document-scanner-entry-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
 .document-scanner-entry-heading>div{display:grid;gap:4px}
 .document-scanner-entry-heading small{color:var(--gold);font-size:9px;font-weight:900;letter-spacing:.13em}

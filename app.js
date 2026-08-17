@@ -1,4 +1,4 @@
-const APP_VERSION='0.50.0';
+const APP_VERSION='0.50.1';
 const SEED={"tripSummaries":[],"campgrounds":[],"stays":[],"tripPlans":[],"fuel":[],"def":[],"siteFees":[],"electric":[],"sharedNotes":[],"vehicleDetails":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const NO_TRIP_VALUE='__everyday_ruby__';

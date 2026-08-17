@@ -2,6 +2,10 @@
 
 Travel Journal is Scott and Kayla's private travel companion.
 
+## Version 0.50.1
+
+- Keeps Open Roads settlement controls hidden unless **Open Roads** is selected.
+
 ## Version 0.50.0
 
 - Adds an optional **Discount Program** choice to existing fuel entries; normal fuel remains the default and unchanged.
