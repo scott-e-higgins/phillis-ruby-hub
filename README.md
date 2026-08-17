@@ -2,6 +2,13 @@
 
 Travel Journal is Scott and Kayla's private travel companion.
 
+## Version 0.50.2
+
+- Treats a minus-signed Open Roads **Total Paid** charge as the positive amount spent.
+- Makes saved Open Roads pricing directly editable without uploading the screenshot again.
+- Separates **Edit pricing** from **Replace screenshot** so each action does exactly what it says.
+- Prevents the saved Open Roads screenshot card and helper text from crowding or covering nearby fields.
+
 ## Version 0.50.1
 
 - Keeps Open Roads settlement controls hidden unless **Open Roads** is selected.

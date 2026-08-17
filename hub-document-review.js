@@ -81,7 +81,12 @@
         { key: 'fees', label: 'Other fees', type: 'number', step: '0.01', group: 'Settlement' },
         { key: 'you_saved', label: 'You saved', type: 'number', step: '0.01', group: 'Settlement' },
         { key: 'total_paid', label: 'Final total paid', type: 'number', step: '0.01', group: 'Settlement' }
-      ]
+      ],
+      derive(data) {
+        const totalPaid = Number(data.total_paid);
+        if (Number.isFinite(totalPaid)) data.total_paid = Math.abs(totalPaid);
+        return data;
+      }
     }
   };
 

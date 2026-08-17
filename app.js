@@ -1,4 +1,4 @@
-const APP_VERSION='0.50.1';
+const APP_VERSION='0.50.2';
 const SEED={"tripSummaries":[],"campgrounds":[],"stays":[],"tripPlans":[],"fuel":[],"def":[],"siteFees":[],"electric":[],"sharedNotes":[],"vehicleDetails":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const NO_TRIP_VALUE='__everyday_ruby__';
@@ -11,6 +11,11 @@ function splitFuelLocation(value){
   if(!location)return {city:'',state:''};
   const match=location.match(/^(.*?),\s*([A-Za-z]{2})$/);
   return match?{city:match[1].trim(),state:match[2].toUpperCase()}:{city:location,state:''};
+}
+function positiveExpense(value){
+  if(value===null||value===''||value===undefined)return value;
+  const amount=Number(value);
+  return Number.isFinite(amount)?Math.abs(amount):value;
 }
 let migratedTrailerAssignments=false;
 function migrate(x){
@@ -41,6 +46,7 @@ function migrate(x){
     record.openRoadsStatus=record.discountProgram==='open_roads'
       ?(record.openRoadsStatus==='settled'&&record.openRoadsTotalPaid!==null&&record.openRoadsTotalPaid!==''&&Number.isFinite(Number(record.openRoadsTotalPaid))?'settled':'pending')
       :'';
+    record.openRoadsTotalPaid=positiveExpense(record.openRoadsTotalPaid);
     record.openRoadsDocumentFiles=Array.isArray(record.openRoadsDocumentFiles)?record.openRoadsDocumentFiles:[];
   });
   x.def.forEach(record=>{
@@ -709,7 +715,7 @@ function cumulativeTripDistance(rows){
 const fuelLocation=record=>[record.city,record.state].filter(Boolean).join(', ')||record.location||'';
 const isOpenRoads=record=>record?.discountProgram==='open_roads';
 const isOpenRoadsSettled=record=>isOpenRoads(record)&&record.openRoadsStatus==='settled'&&record.openRoadsTotalPaid!==null&&record.openRoadsTotalPaid!==''&&Number.isFinite(Number(record.openRoadsTotalPaid));
-const actualFuelCost=record=>isOpenRoadsSettled(record)?Number(record.openRoadsTotalPaid):Number(record?.total)||0;
+const actualFuelCost=record=>isOpenRoadsSettled(record)?Number(positiveExpense(record.openRoadsTotalPaid)):Number(record?.total)||0;
 const effectiveFuelPrice=record=>Number(record?.gallons)>0?actualFuelCost(record)/Number(record.gallons):null;
 const openRoadsStatusLabel=record=>isOpenRoadsSettled(record)?'Open Roads — Settled':'Open Roads — Pricing Pending';
 const campgroundHookupChoices=[
@@ -1212,13 +1218,13 @@ function showFuelRecord(index,returnTripIndex=null){
   const previous=record.trip?db.fuel.filter((row,rowIndex)=>rowIndex!==index&&row.trip===record.trip&&Number(row.tripMiles)<Number(record.tripMiles)).sort((a,b)=>(Number(b.tripMiles)||0)-(Number(a.tripMiles)||0))[0]:null;
   const tankMiles=previous?Number(record.tripMiles)-Number(previous.tripMiles):Number(record.tripMiles);
   const mpg=Number(record.gallons)>0&&Number.isFinite(tankMiles)?tankMiles/Number(record.gallons):null;
-  const settlement=isOpenRoads(record)?`<div class="detail-section open-roads-detail"><div class="detail-section-head"><div><small>DISCOUNT PROGRAM</small><h3>${escapeHtml(openRoadsStatusLabel(record))}</h3></div>${viewer?'':`<button class="secondary" id="updateOpenRoadsPricing" type="button">${record.openRoadsDocumentId?'Replace settlement':'Update Open Roads Pricing'}</button>`}</div>${isOpenRoadsSettled(record)?`<div class="detail-row"><span>Final total paid</span><span>${money(record.openRoadsTotalPaid)}</span></div><div class="detail-row"><span>Effective price / gallon</span><span>${money(effectiveFuelPrice(record))}</span></div>${record.openRoadsNetSavings!=null?`<div class="detail-row"><span>You saved</span><span>${money(record.openRoadsNetSavings)}</span></div>`:''}${record.openRoadsGrossDiscount!=null?`<div class="detail-row"><span>Gross discount</span><span>${money(record.openRoadsGrossDiscount)}</span></div>`:''}${record.openRoadsProgramFee!=null?`<div class="detail-row"><span>Program fee</span><span>${money(record.openRoadsProgramFee)}</span></div>`:''}${record.openRoadsOtherFees!=null?`<div class="detail-row"><span>Other fees</span><span>${money(record.openRoadsOtherFees)}</span></div>`:''}${record.openRoadsInvoiceId?`<div class="detail-row"><span>Invoice</span><span>${escapeHtml(record.openRoadsInvoiceId)}</span></div>`:''}`:'<p class="intro">The pump purchase is saved. Add the Open Roads Transaction Details screenshot when final pricing posts.</p>'}${settlementDocument}</div>`:'';
+  const settlement=isOpenRoads(record)?`<div class="detail-section open-roads-detail"><div class="detail-section-head"><div><small>DISCOUNT PROGRAM</small><h3>${escapeHtml(openRoadsStatusLabel(record))}</h3></div>${viewer?'':`<button class="secondary" id="updateOpenRoadsPricing" type="button">${record.openRoadsDocumentId?'Edit Open Roads pricing':'Add Open Roads pricing'}</button>`}</div>${isOpenRoadsSettled(record)?`<div class="detail-row"><span>Final total paid</span><span>${money(actualFuelCost(record))}</span></div><div class="detail-row"><span>Effective price / gallon</span><span>${money(effectiveFuelPrice(record))}</span></div>${record.openRoadsNetSavings!=null?`<div class="detail-row"><span>You saved</span><span>${money(record.openRoadsNetSavings)}</span></div>`:''}${record.openRoadsGrossDiscount!=null?`<div class="detail-row"><span>Gross discount</span><span>${money(record.openRoadsGrossDiscount)}</span></div>`:''}${record.openRoadsProgramFee!=null?`<div class="detail-row"><span>Program fee</span><span>${money(record.openRoadsProgramFee)}</span></div>`:''}${record.openRoadsOtherFees!=null?`<div class="detail-row"><span>Other fees</span><span>${money(record.openRoadsOtherFees)}</span></div>`:''}${record.openRoadsInvoiceId?`<div class="detail-row"><span>Invoice</span><span>${escapeHtml(record.openRoadsInvoiceId)}</span></div>`:''}`:'<p class="intro">The pump purchase is saved. Add the Open Roads Transaction Details screenshot when final pricing posts.</p>'}${settlementDocument}</div>`:'';
   $('#detailBody').innerHTML=`${actions}<div class="detail-section"><div class="detail-row"><span>Date</span><span>${date(record.date)}</span></div><div class="detail-row"><span>Trip</span><span>${escapeHtml(record.trip||NO_TRIP_LABEL)}</span></div>${record.vehicle?`<div class="detail-row"><span>Vehicle</span><span>${escapeHtml(record.vehicle)}</span></div>`:''}<div class="detail-row"><span>Fuel</span><span>${record.fuelType==='diesel'?'Diesel':'Gasoline'}</span></div>${record.city?`<div class="detail-row"><span>City</span><span>${escapeHtml(record.city)}</span></div>`:''}${record.state?`<div class="detail-row"><span>State</span><span>${escapeHtml(record.state)}</span></div>`:''}<div class="detail-row"><span>Gallons</span><span>${number(record.gallons,3)}</span></div><div class="detail-row"><span>${isOpenRoads(record)?'Pump total':'Total'}</span><span>${money(record.total||0)}</span></div><div class="detail-row"><span>Pump price per gallon</span><span>${money(record.price||((record.gallons&&record.total)?record.total/record.gallons:0))}</span></div>${record.tripMiles!=null?`<div class="detail-row"><span>Trip meter</span><span>${number(record.tripMiles,1)}</span></div>`:''}${previous?`<div class="detail-row"><span>Tank miles</span><span>${number(tankMiles,1)}</span></div>`:''}${mpg!=null?`<div class="detail-row"><span>${previous?'Tank MPG':'Trip MPG'}</span><span>${number(mpg,2)}</span></div>`:''}${record.odometer?`<div class="detail-row"><span>Odometer</span><span>${number(record.odometer,1)}</span></div>`:''}${record.notes?`<div class="record-notes"><small>NOTES</small><p>${escapeHtml(record.notes)}</p></div>`:''}${receipt}</div>${settlement}<div class="trip-delete-area"><button class="delete-link" id="deleteFuelRecord">Delete fuel stop</button></div>`;
   bindStayPhotoButtons($('#detailBody'));
   if($('#openFuelDocument'))$('#openFuelDocument').onclick=()=>openFuelReceiptDocumentReview(record,false,{index,returnTripIndex});
   if(returnTripIndex!==null)$('#backToTripButton').onclick=()=>$('#detailDialog').close();
   if(!viewer)$('#editFuelRecord').onclick=()=>{closeDetailForTransition();openEntry('fuel',index,returnTripIndex)};
-  if($('#updateOpenRoadsPricing'))$('#updateOpenRoadsPricing').onclick=()=>{closeDetailForTransition();openEntry('fuel',index,returnTripIndex);setTimeout(()=>$('#openOpenRoadsScanner')?.click(),0)};
+  if($('#updateOpenRoadsPricing'))$('#updateOpenRoadsPricing').onclick=()=>{closeDetailForTransition();openEntry('fuel',index,returnTripIndex);setTimeout(()=>$(record.openRoadsDocumentId?'#editOpenRoadsPricing':'#openOpenRoadsScanner')?.click(),0)};
   $('#deleteFuelRecord').onclick=async()=>{
     if(!confirm(`Delete this fuel stop at ${record.station||'this station'}?`))return;
     const button=$('#deleteFuelRecord');
@@ -1661,7 +1667,7 @@ function fuelReceiptScannerFields(){
   return `<section class="document-scanner-entry fuel-receipt-scanner-entry"><div class="document-scanner-entry-heading"><div><small>HIGGINS HUB SCANNER</small><b>Fuel / DEF receipt</b><p>Scan one receipt—even when it contains both fuel and DEF. Review the suggested values before saving.</p></div><button class="primary" id="openFuelReceiptScanner" type="button">Take or add receipt</button></div><div id="fuelReceiptDocumentPreview" class="fuel-receipt-document-preview"><div class="note-photo-empty">No receipt attached yet.</div></div><div class="electric-document-editor-footer"><p id="fuelReceiptScannerStatus">Nothing is uploaded until you add a receipt.</p><small>Low-confidence fields will be highlighted for review.</small></div></section>`;
 }
 function openRoadsSettlementFields(){
-  return `<section class="document-scanner-entry open-roads-settlement-entry" id="openRoadsSettlementSection" hidden><div class="document-scanner-entry-heading"><div><small>OPEN ROADS</small><b id="openRoadsSettlementHeading">Pricing pending</b><p id="openRoadsSettlementHelp">Add the Transaction Details screenshot when Open Roads posts the final discounted price.</p></div><button class="secondary" id="openOpenRoadsScanner" type="button">Update Open Roads Pricing</button></div><div id="openRoadsDocumentPreview" class="fuel-receipt-document-preview"><div class="note-photo-empty">No settlement screenshot yet.</div></div><div class="electric-document-editor-footer"><p id="openRoadsScannerStatus">The original pump receipt and values will stay unchanged.</p><small>The final Total Paid becomes the actual fuel expense after confirmation.</small></div></section>`;
+  return `<section class="document-scanner-entry open-roads-settlement-entry" id="openRoadsSettlementSection" hidden><div class="document-scanner-entry-heading"><div><small>OPEN ROADS</small><b id="openRoadsSettlementHeading">Pricing pending</b><p id="openRoadsSettlementHelp">Add the Transaction Details screenshot when Open Roads posts the final discounted price.</p></div><div class="open-roads-settlement-actions"><button class="primary" id="editOpenRoadsPricing" type="button" hidden>Edit pricing</button><button class="secondary" id="openOpenRoadsScanner" type="button">Add pricing screenshot</button></div></div><div id="openRoadsDocumentPreview" class="fuel-receipt-document-preview"><div class="note-photo-empty">No settlement screenshot yet.</div></div><div class="electric-document-editor-footer"><p id="openRoadsScannerStatus">The original pump receipt and values will stay unchanged.</p><small>The final amount paid is stored as a positive fuel expense.</small></div></section>`;
 }
 function multiReceiptFields(help){
   return `<section class="note-photo-editor seasonal-receipt-editor"><div class="note-photo-editor-heading"><div><b>Receipts and documents</b><p>${help}</p></div><div class="stay-photo-actions"><label class="secondary photo-picker">Take photo<input id="multiReceiptCameraFile" type="file" accept="image/*" capture="environment" hidden></label><label class="secondary photo-picker">Choose pictures<input id="multiReceiptFiles" type="file" accept="image/*" multiple hidden></label></div></div><div id="multiReceiptGrid" class="note-photo-editor-grid"></div><small id="multiReceiptCount">0 of 6 pictures</small></section>`;
@@ -2003,18 +2009,37 @@ function bindFuelReceiptScanner(record={}){
   };
 }
 let openRoadsScannerState={document:null,draftDocumentId:'',fields:null,approval:null};
+function openRoadsFieldsFromRecord(record={}){
+  const fields={
+    invoice_id:record.openRoadsInvoiceId??'',
+    transaction_date:record.openRoadsTransactionDate??'',
+    location:record.openRoadsLocation??'',
+    product:record.openRoadsProduct??'',
+    quantity:record.openRoadsQuantity??null,
+    unit_price:record.openRoadsUnitPrice??null,
+    subtotal:record.openRoadsSubtotal??null,
+    discount:record.openRoadsGrossDiscount??null,
+    program_fee:record.openRoadsProgramFee??null,
+    fees:record.openRoadsOtherFees??null,
+    you_saved:record.openRoadsNetSavings??null,
+    total_paid:positiveExpense(record.openRoadsTotalPaid)
+  };
+  return Object.fromEntries(Object.entries(fields).filter(([,value])=>value!==null&&value!==''&&value!==undefined));
+}
 function openRoadsDocumentFromRecord(record={}){
   if(!record.openRoadsDocumentId||!(record.openRoadsDocumentFiles||[]).length)return null;
+  const savedFields=openRoadsFieldsFromRecord(record);
+  const corrections=record.openRoadsDocumentUserCorrections&&typeof record.openRoadsDocumentUserCorrections==='object'?record.openRoadsDocumentUserCorrections:{};
   return {
     documentId:record.openRoadsDocumentId,
     documentTitle:record.openRoadsDocumentTitle||'Open Roads Transaction Details',
     documentType:'open_roads_settlement',
     documentDate:record.openRoadsDocumentDate||'',
     documentStatus:record.openRoadsDocumentStatus||'',
-    documentAiStatus:record.openRoadsDocumentAiStatus||'not_requested',
+    documentAiStatus:record.openRoadsDocumentAiStatus||(Object.keys(savedFields).length?'complete':'not_requested'),
     documentExtractedText:record.openRoadsDocumentExtractedText||'',
     documentExtractedData:record.openRoadsDocumentExtractedData||{},
-    documentUserCorrections:record.openRoadsDocumentUserCorrections||{},
+    documentUserCorrections:Object.keys(corrections.fields||{}).length?corrections:{...corrections,fields:savedFields},
     documentReviewFields:record.openRoadsDocumentReviewFields||[],
     documentFiles:[...(record.openRoadsDocumentFiles||[])]
   };
@@ -2042,16 +2067,25 @@ function renderOpenRoadsScanner(){
   const host=$('#openRoadsDocumentPreview');
   const status=$('#openRoadsScannerStatus');
   const heading=$('#openRoadsSettlementHeading');
-  if(heading)heading.textContent=openRoadsScannerState.fields?'Pricing ready to save':'Pricing pending';
+  const help=$('#openRoadsSettlementHelp');
+  const editButton=$('#editOpenRoadsPricing');
+  const replaceButton=$('#openOpenRoadsScanner');
+  const savedPricing=Boolean(openRoadsScannerState.fields)&&!openRoadsScannerState.draftDocumentId;
+  if(heading)heading.textContent=openRoadsScannerState.fields?(savedPricing?'Pricing saved':'Pricing ready to save'):'Pricing pending';
+  if(help)help.textContent=openRoadsScannerState.fields?'Review or correct the saved pricing without uploading the screenshot again.':'Add the Transaction Details screenshot when Open Roads posts the final discounted price.';
   if(!file?.url){
     host.innerHTML='<div class="note-photo-empty">No settlement screenshot yet.</div>';
     status.textContent='The original pump receipt and values will stay unchanged.';
+    if(editButton)editButton.hidden=true;
+    if(replaceButton)replaceButton.textContent='Add pricing screenshot';
     return;
   }
   host.innerHTML=`<button class="fuel-receipt-document-card" id="openOpenRoadsReview" type="button"><img src="${escapeHtml(file.url)}" alt="Open Roads transaction details"><span><b>${escapeHtml(document.documentTitle||'Open Roads Transaction Details')}</b><small>${openRoadsScannerState.fields?'Settlement values ready':openRoadsScannerState.draftDocumentId?'Screenshot saved as a draft':'Saved settlement screenshot'}</small></span><span class="record-chevron">›</span></button>`;
   status.textContent=openRoadsScannerState.fields
-    ?'Check the settlement values, then tap Save Open Roads pricing.'
+    ?'Open Edit pricing to review or correct the saved values.'
     :'The screenshot is attached. Open it to read or review the settlement.';
+  if(editButton){editButton.hidden=!openRoadsScannerState.fields;editButton.onclick=()=>openOpenRoadsDocumentReview(document,false);}
+  if(replaceButton)replaceButton.textContent='Replace screenshot';
   $('#openOpenRoadsReview').onclick=()=>openOpenRoadsDocumentReview(document,false);
 }
 function openRoadsMismatchWarnings(fields={}){
@@ -2067,7 +2101,7 @@ function openRoadsMismatchWarnings(fields={}){
   return warnings;
 }
 function applyOpenRoadsSuggestions(document,result){
-  const fields=result?.fields||{};
+  const fields={...(result?.fields||{}),total_paid:positiveExpense(result?.fields?.total_paid)};
   const warnings=openRoadsMismatchWarnings(fields);
   if(warnings.length&&!confirm(`This Open Roads settlement may not match this fuel stop:\n\n• ${warnings.join('\n• ')}\n\nAttach it anyway?`))return;
   openRoadsScannerState.document=document;
@@ -2082,6 +2116,7 @@ function openOpenRoadsDocumentReview(document,autoAnalyze=false){
   window.HIGGINS_DOCUMENT_REVIEW.open({
     profile:'open_roads_settlement',
     record:document,
+    defaultFields:openRoadsScannerState.fields||{},
     autoAnalyze,
     onExtracted:updated=>{Object.assign(document,updated);openRoadsScannerState.document=document;renderOpenRoadsScanner();},
     onUse:result=>applyOpenRoadsSuggestions(document,result)
@@ -2090,6 +2125,7 @@ function openOpenRoadsDocumentReview(document,autoAnalyze=false){
 function bindOpenRoadsScanner(record={}){
   clearOpenRoadsScanner();
   openRoadsScannerState.document=openRoadsDocumentFromRecord(record);
+  openRoadsScannerState.fields=isOpenRoadsSettled(record)?openRoadsFieldsFromRecord(record):null;
   renderOpenRoadsScanner();
   const launch=$('#openOpenRoadsScanner');
   if(!launch)return;
@@ -3143,7 +3179,7 @@ $('#entryForm').onsubmit=async e=>{
         openRoadsProgramFee:settlementFields.program_fee??prior.openRoadsProgramFee??null,
         openRoadsOtherFees:settlementFields.fees??prior.openRoadsOtherFees??null,
         openRoadsNetSavings:settlementFields.you_saved??prior.openRoadsNetSavings??null,
-        openRoadsTotalPaid:settlementFields.total_paid??prior.openRoadsTotalPaid??null,
+        openRoadsTotalPaid:positiveExpense(settlementFields.total_paid??prior.openRoadsTotalPaid??null),
         openRoadsDocumentId:settlementDocument.documentId||prior.openRoadsDocumentId||'',
         openRoadsDocumentTitle:settlementDocument.documentTitle||prior.openRoadsDocumentTitle||'',
         openRoadsDocumentDate:settlementDocument.documentDate||prior.openRoadsDocumentDate||'',

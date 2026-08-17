@@ -2081,7 +2081,7 @@
           openRoadsProgramFee: num(row.open_roads_program_fee),
           openRoadsOtherFees: num(row.open_roads_other_fees),
           openRoadsNetSavings: num(row.open_roads_net_savings),
-          openRoadsTotalPaid: num(row.open_roads_total_paid),
+          openRoadsTotalPaid: row.open_roads_total_paid == null ? null : Math.abs(num(row.open_roads_total_paid)),
           ...hubDocumentFields(document),
           documentFiles: linkedFiles.map(file => ({
             id: file.id,
@@ -2353,7 +2353,7 @@
         open_roads_program_fee: x.openRoadsProgramFee ?? null,
         open_roads_other_fees: x.openRoadsOtherFees ?? null,
         open_roads_net_savings: x.openRoadsNetSavings ?? null,
-        open_roads_total_paid: x.openRoadsTotalPaid ?? null,
+        open_roads_total_paid: x.openRoadsTotalPaid == null || x.openRoadsTotalPaid === '' ? null : Math.abs(Number(x.openRoadsTotalPaid)),
         receipt_photo_path: x.receiptPhotoPath || null,
         notes: x.notes || null
       }));
