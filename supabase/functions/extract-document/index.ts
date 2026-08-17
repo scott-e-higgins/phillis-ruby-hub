@@ -146,6 +146,7 @@ const extractionProfiles = {
       'Extract invoice ID, transaction date, location, product, quantity, unit price, subtotal, discount, program fee, other fees, You Saved, and Total Paid.',
       'Use YYYY-MM-DD for transaction_date.',
       'Treat Discount as the gross discount, Program Fee as the Open Roads program fee, Fees as other fees, You Saved as net savings, and Total Paid as the final actual fuel expense.',
+      'Open Roads may display Total Paid with a leading minus sign because it is a charge. Return total_paid as the positive amount paid.',
       'Do not combine, recompute, or infer monetary values that are not shown.',
       'Use null when a field is absent or uncertain, and put every uncertain field name in review_fields.',
       'extracted_text should be a concise transcription useful for later search, not an explanation.'
