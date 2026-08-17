@@ -2,6 +2,15 @@
 
 Travel Journal is Scott and Kayla's private travel companion.
 
+## Version 0.50.0
+
+- Adds an optional **Discount Program** choice to existing fuel entries; normal fuel remains the default and unchanged.
+- Marks Open Roads pump purchases as **Pricing Pending** until the later Transaction Details screenshot is reviewed.
+- Stores the original pump receipt and the Open Roads settlement separately on the same fuel stop.
+- Uses confirmed Open Roads **Total Paid** for fuel costs while preserving pump price, pump total, gallons, TRIP, ODO, trip linking, and MPG calculations.
+- Warns before attaching a settlement when its date, gallons, unit price, or subtotal does not match the open fuel stop.
+- Requires `database-add-open-roads.sql` and the updated `extract-document` Supabase Edge Function.
+
 ## Version 0.49.5
 
 - Makes **Read bill** immediately upload and open the secure reader for a brand-new electric bill too.

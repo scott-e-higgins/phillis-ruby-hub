@@ -1,4 +1,4 @@
-const APP_VERSION='0.49.5';
+const APP_VERSION='0.50.0';
 const SEED={"tripSummaries":[],"campgrounds":[],"stays":[],"tripPlans":[],"fuel":[],"def":[],"siteFees":[],"electric":[],"sharedNotes":[],"vehicleDetails":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const NO_TRIP_VALUE='__everyday_ruby__';
@@ -37,6 +37,11 @@ function migrate(x){
     if(!record.city)record.city=legacy.city;
     if(!record.state)record.state=legacy.state;
     record.location=[record.city,record.state].filter(Boolean).join(', ');
+    record.discountProgram=record.discountProgram==='open_roads'?'open_roads':'none';
+    record.openRoadsStatus=record.discountProgram==='open_roads'
+      ?(record.openRoadsStatus==='settled'&&record.openRoadsTotalPaid!==null&&record.openRoadsTotalPaid!==''&&Number.isFinite(Number(record.openRoadsTotalPaid))?'settled':'pending')
+      :'';
+    record.openRoadsDocumentFiles=Array.isArray(record.openRoadsDocumentFiles)?record.openRoadsDocumentFiles:[];
   });
   x.def.forEach(record=>{
     const legacy=splitFuelLocation(record.location);
@@ -495,7 +500,7 @@ function renderHome(){
   $('#recentNotes').innerHTML=recentNotes.map(note=>noteCardHtml(note,true)).join('')||'<div class="empty">New notes will appear here.</div>';
   bindNoteCards($('#recentNotes'));
   const recent=[];
-  db.fuel.forEach((x,index)=>recent.push({type:'Fuel',kind:'fuel',index,icon:'⛽',title:x.station||'Fuel stop',sub:`${date(x.date)} · ${money(x.total)}`,stamp:x.date||''}));
+  db.fuel.forEach((x,index)=>recent.push({type:'Fuel',kind:'fuel',index,icon:'⛽',title:x.station||'Fuel stop',sub:`${date(x.date)} · ${money(actualFuelCost(x))}${isOpenRoads(x)?` · ${openRoadsStatusLabel(x)}`:''}`,stamp:x.date||''}));
   db.def.forEach((x,index)=>recent.push({type:'DEF',kind:'def',index,icon:'💧',title:x.station||'DEF purchase',sub:`${date(x.date)} · ${number(x.gallons,2)} gal · ${money(x.total)}`,stamp:x.date||''}));
   db.phillisMaintenance.forEach((x,index)=>recent.push({type:'Phillis',kind:'phillis',index,icon:'🔧',title:x.description||'Maintenance',sub:`${date(x.date)} · ${escapeHtml(x.trailer||'Phillis')} · ${money(x.price)}`,stamp:x.date||''}));
   db.rubyMaintenance.forEach((x,index)=>recent.push({type:'Ruby',kind:'ruby',index,icon:'🛻',title:x.description||'Maintenance',sub:`${date(x.date)} · ${money(x.price)}`,stamp:x.date||''}));
@@ -702,6 +707,11 @@ function cumulativeTripDistance(rows){
   return rows.reduce((greatest,row)=>Math.max(greatest,Number(row.tripMiles)||0),0);
 }
 const fuelLocation=record=>[record.city,record.state].filter(Boolean).join(', ')||record.location||'';
+const isOpenRoads=record=>record?.discountProgram==='open_roads';
+const isOpenRoadsSettled=record=>isOpenRoads(record)&&record.openRoadsStatus==='settled'&&record.openRoadsTotalPaid!==null&&record.openRoadsTotalPaid!==''&&Number.isFinite(Number(record.openRoadsTotalPaid));
+const actualFuelCost=record=>isOpenRoadsSettled(record)?Number(record.openRoadsTotalPaid):Number(record?.total)||0;
+const effectiveFuelPrice=record=>Number(record?.gallons)>0?actualFuelCost(record)/Number(record.gallons):null;
+const openRoadsStatusLabel=record=>isOpenRoadsSettled(record)?'Open Roads — Settled':'Open Roads — Pricing Pending';
 const campgroundHookupChoices=[
   ['full_all','Full hookups · all sites'],
   ['full_some','Full hookups · some sites'],
@@ -917,7 +927,7 @@ function refreshTripFuelSummaries(){
     const rows=matchingFuel(trip);
     const distance=cumulativeTripDistance(rows);
     const gallons=rows.reduce((sum,row)=>sum+(Number(row.gallons)||0),0);
-    const cost=rows.reduce((sum,row)=>sum+(Number(row.total)||0),0);
+    const cost=rows.reduce((sum,row)=>sum+actualFuelCost(row),0);
     trip.distance=distance||null;
     trip.gallons=gallons;
     trip.cost=cost;
@@ -980,7 +990,7 @@ function tripPurchaseRows(trip,fuelRows,defRows){
     const isDef=kind==='def';
     const label=isDef?'DEF':record.fuelType==='diesel'?'Diesel':'Gasoline';
     const data=isDef?`data-trip-def-record-index="${index}"`:`data-trip-fuel-record-index="${index}"`;
-    return `<button class="detail-row editable-detail-row trip-fuel-record record-link" type="button" ${data}><span><b>${escapeHtml(record.station||(isDef?'DEF purchase':'Fuel stop'))}</b><br><small>${date(record.date)}${fuelLocation(record)?` · ${escapeHtml(fuelLocation(record))}`:''} · ${escapeHtml(record.vehicle||trip.towVehicle||'')} · ${label} · ${number(record.gallons,2)} gal</small></span><span class="trip-fuel-record-end"><b>${money(record.total)}</b><span class="record-chevron">›</span></span></button>`;
+    return `<button class="detail-row editable-detail-row trip-fuel-record record-link" type="button" ${data}><span><b>${escapeHtml(record.station||(isDef?'DEF purchase':'Fuel stop'))}</b><br><small>${date(record.date)}${fuelLocation(record)?` · ${escapeHtml(fuelLocation(record))}`:''} · ${escapeHtml(record.vehicle||trip.towVehicle||'')} · ${label} · ${number(record.gallons,2)} gal${!isDef&&isOpenRoads(record)?` · ${escapeHtml(openRoadsStatusLabel(record))}`:''}</small></span><span class="trip-fuel-record-end"><b>${money(isDef?record.total:actualFuelCost(record))}</b><span class="record-chevron">›</span></span></button>`;
   }).join('')||'<p class="intro">No fuel or DEF purchases linked yet.</p>';
 }
 function showTrip(index){
@@ -988,7 +998,7 @@ function showTrip(index){
   detailReturnTripIndex=null;
   const [s,e]=tripDates(t), stays=matchingStays(t), plans=plansForTrip(t), fuel=matchingFuel(t), def=matchingDef(t), linkedNotes=notesForTrip(t);
   const stayCost=stays.reduce((total,stay)=>total+(Number(stay.price)||0),0);
-  const fuelCost=fuel.length?fuel.reduce((total,stop)=>total+(Number(stop.total)||0),0):Number(t.cost)||0;
+  const fuelCost=fuel.length?fuel.reduce((total,stop)=>total+actualFuelCost(stop),0):Number(t.cost)||0;
   const headerMeta=`<p class="detail-header-dates">${tripHasDates(t)?`${date(s)} – ${date(e)}`:t.year}</p>${rigLineHtml(t)}`;
   setDetailHeader('TRIP',t.name,t,headerMeta);
   if(window.ADVENTURE_HUB_CLOUD?.role==='viewer'){
@@ -1115,6 +1125,11 @@ function fuelDocumentDetailHtml(record){
   const status=record.documentAiStatus==='review'?'Values ready to review':record.documentAiStatus==='complete'?'Values reviewed':'Saved privately';
   return `<div class="electric-document-detail"><small>HIGGINS DOCUMENTS</small><button class="electric-document-summary" id="openFuelDocument" type="button"><span class="electric-document-summary-previews">${preview}</span><span class="electric-document-summary-copy"><b>${escapeHtml(record.documentTitle||(isDef?'DEF receipt':'Fuel receipt'))}</b><small>${escapeHtml(status)}</small></span><span class="record-chevron">›</span></button></div>`;
 }
+function openRoadsDocumentDetailHtml(record){
+  const files=(record?.openRoadsDocumentFiles||[]).filter(file=>file.url);
+  if(!files.length)return '';
+  return `<div class="fuel-receipt-detail"><small>OPEN ROADS SCREENSHOT</small><div class="stay-photo-strip">${files.map((file,index)=>`<button class="stay-photo-thumb fuel-receipt-thumb" type="button" data-photo-url="${escapeHtml(file.url)}" data-photo-label="Open Roads Transaction Details" aria-label="Open Open Roads screenshot"><img src="${escapeHtml(file.url)}" alt="Open Roads Transaction Details" loading="lazy"><span>${index?'Page '+(index+1):'Settlement'}</span></button>`).join('')}</div></div>`;
+}
 function multiReceiptDetailHtml(record,label='Receipt',heading='RECEIPTS'){
   const urls=Array.isArray(record?.receiptPhotoUrls)?record.receiptPhotoUrls.filter(Boolean):[];
   if(!urls.length)return '';
@@ -1131,7 +1146,7 @@ function tripPlanAttachmentsDetailHtml(record){
   if(!pictures.length&&!pdfs.length)return '';
   return `<div class="plan-attachments-detail"><small>PICTURES &amp; PDFS</small>${pictures.length?`<div class="stay-photo-strip">${pictures.map((url,index)=>`<button class="stay-photo-thumb fuel-receipt-thumb" type="button" data-photo-url="${escapeHtml(url)}" data-photo-label="${escapeHtml(`${record.title||'Reservation'} picture ${index+1}`)}" aria-label="Open picture ${index+1}"><img src="${escapeHtml(url)}" alt="${escapeHtml(`${record.title||'Reservation'} picture ${index+1}`)}" loading="lazy"><span>Picture ${index+1}</span></button>`).join('')}</div>`:''}${pdfs.map(file=>`<a class="plan-pdf-link" href="${escapeHtml(file.url)}" target="_blank" rel="noopener"><span class="plan-pdf-icon">PDF</span><span><b>${escapeHtml(file.originalFilename||'Reservation document.pdf')}</b><small>${file.fileSizeBytes?`${number(file.fileSizeBytes/1024,0)} KB · `:''}Open document</small></span><span aria-hidden="true">↗</span></a>`).join('')}</div>`;
 }
-const hasReceiptPhotos=record=>Boolean(record?.documentId||(record?.documentFiles||[]).length||record?.receiptPhotoPath||(record?.receiptPhotoPaths||[]).length);
+const hasReceiptPhotos=record=>Boolean(record?.documentId||(record?.documentFiles||[]).length||record?.openRoadsDocumentId||(record?.openRoadsDocumentFiles||[]).length||record?.receiptPhotoPath||(record?.receiptPhotoPaths||[]).length);
 const hasLinkedDocuments=record=>Boolean((record?.documentAttachments||[]).length);
 function showRubyRecord(key,index,type,page){
   const record=db[key]?.[index]; if(!record)return;
@@ -1156,7 +1171,7 @@ function showPhillisRecord(key,index,type,page){
 }
 
 function fuelRecordList(items){
-  return items.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(x=>`<button class="record-item record-link" type="button" data-fuel-record-index="${items.indexOf(x)}"><span class="record-icon">⛽</span><div class="item-copy"><h3>${x.station||'Fuel stop'}</h3><p>${date(x.date)}${fuelLocation(x)?` · ${escapeHtml(fuelLocation(x))}`:''} · ${x.trip?escapeHtml(x.vehicle||'Truck'):'Everyday Ruby'} · ${x.fuelType==='diesel'?'Diesel':'Gasoline'} · ${number(x.gallons,2)} gal · ${money(x.total)}</p></div><span class="record-chevron">›</span></button>`).join('')||'<div class="empty">No fuel records yet.</div>'
+  return items.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(x=>`<button class="record-item record-link" type="button" data-fuel-record-index="${items.indexOf(x)}"><span class="record-icon">⛽</span><div class="item-copy"><h3>${x.station||'Fuel stop'}</h3><p>${date(x.date)}${fuelLocation(x)?` · ${escapeHtml(fuelLocation(x))}`:''} · ${x.trip?escapeHtml(x.vehicle||'Truck'):'Everyday Ruby'} · ${x.fuelType==='diesel'?'Diesel':'Gasoline'} · ${number(x.gallons,2)} gal · ${money(actualFuelCost(x))}${isOpenRoads(x)?` · ${escapeHtml(openRoadsStatusLabel(x))}`:''}</p></div><span class="record-chevron">›</span></button>`).join('')||'<div class="empty">No fuel records yet.</div>'
 }
 function defStats(){
   const rows=(db.def||[]).filter(record=>Number(record.gallons)>0);
@@ -1183,23 +1198,27 @@ function fuelAndDefHistory(){
 function fuelAndDefRecordList(){
   return fuelAndDefHistory().map(({kind,record,index})=>{
     const isDef=kind==='def';
-    return `<button class="record-item record-link ${isDef?'def-record-item':''}" type="button" ${isDef?`data-def-record-index="${index}"`:`data-fuel-record-index="${index}"`}><span class="record-icon">${isDef?'💧':'⛽'}</span><div class="item-copy"><span class="record-asset">${isDef?'DEF':'FUEL'}</span><h3>${escapeHtml(record.station||(isDef?'DEF purchase':'Fuel stop'))}</h3><p>${date(record.date)}${fuelLocation(record)?` · ${escapeHtml(fuelLocation(record))}`:''} · ${record.trip?escapeHtml(record.vehicle||'Truck'):'Everyday Ruby'} · ${isDef?'Diesel exhaust fluid':record.fuelType==='diesel'?'Diesel':'Gasoline'} · ${number(record.gallons,2)} gal · ${money(record.total)}</p></div><span class="record-chevron">›</span></button>`;
+    return `<button class="record-item record-link ${isDef?'def-record-item':''}" type="button" ${isDef?`data-def-record-index="${index}"`:`data-fuel-record-index="${index}"`}><span class="record-icon">${isDef?'💧':'⛽'}</span><div class="item-copy"><span class="record-asset">${isDef?'DEF':isOpenRoads(record)?'FUEL · OPEN ROADS':'FUEL'}</span><h3>${escapeHtml(record.station||(isDef?'DEF purchase':'Fuel stop'))}</h3><p>${date(record.date)}${fuelLocation(record)?` · ${escapeHtml(fuelLocation(record))}`:''} · ${record.trip?escapeHtml(record.vehicle||'Truck'):'Everyday Ruby'} · ${isDef?'Diesel exhaust fluid':record.fuelType==='diesel'?'Diesel':'Gasoline'} · ${number(record.gallons,2)} gal · ${money(isDef?record.total:actualFuelCost(record))}${!isDef&&isOpenRoads(record)?` · ${escapeHtml(openRoadsStatusLabel(record))}`:''}</p></div><span class="record-chevron">›</span></button>`;
   }).join('')||'<div class="empty">No fuel or DEF records yet.</div>';
 }
 function showFuelRecord(index,returnTripIndex=null){
   const record=db.fuel?.[index]; if(!record)return;
   detailReturnTripIndex=returnTripIndex;
   setDetailHeader(`${record.vehicle||'TRIP'} FUEL STOP`.toUpperCase(),record.station||'Fuel stop');
-  const actions=`<div class="record-detail-actions stay-detail-actions">${returnTripIndex!==null?'<button class="text-button" id="backToTripButton">← Back to trip</button>':''}<button class="primary" id="editFuelRecord">Edit fuel stop</button></div>`;
+  const viewer=window.ADVENTURE_HUB_CLOUD?.role==='viewer';
+  const actions=`<div class="record-detail-actions stay-detail-actions">${returnTripIndex!==null?'<button class="text-button" id="backToTripButton">← Back to trip</button>':''}${viewer?'':'<button class="primary" id="editFuelRecord">Edit fuel stop</button>'}</div>`;
   const receipt=fuelDocumentDetailHtml(record);
+  const settlementDocument=openRoadsDocumentDetailHtml(record);
   const previous=record.trip?db.fuel.filter((row,rowIndex)=>rowIndex!==index&&row.trip===record.trip&&Number(row.tripMiles)<Number(record.tripMiles)).sort((a,b)=>(Number(b.tripMiles)||0)-(Number(a.tripMiles)||0))[0]:null;
   const tankMiles=previous?Number(record.tripMiles)-Number(previous.tripMiles):Number(record.tripMiles);
   const mpg=Number(record.gallons)>0&&Number.isFinite(tankMiles)?tankMiles/Number(record.gallons):null;
-  $('#detailBody').innerHTML=`${actions}<div class="detail-section"><div class="detail-row"><span>Date</span><span>${date(record.date)}</span></div><div class="detail-row"><span>Trip</span><span>${escapeHtml(record.trip||NO_TRIP_LABEL)}</span></div>${record.vehicle?`<div class="detail-row"><span>Vehicle</span><span>${escapeHtml(record.vehicle)}</span></div>`:''}<div class="detail-row"><span>Fuel</span><span>${record.fuelType==='diesel'?'Diesel':'Gasoline'}</span></div>${record.city?`<div class="detail-row"><span>City</span><span>${escapeHtml(record.city)}</span></div>`:''}${record.state?`<div class="detail-row"><span>State</span><span>${escapeHtml(record.state)}</span></div>`:''}<div class="detail-row"><span>Gallons</span><span>${number(record.gallons,3)}</span></div><div class="detail-row"><span>Total</span><span>${money(record.total||0)}</span></div><div class="detail-row"><span>Price per gallon</span><span>${money(record.price||((record.gallons&&record.total)?record.total/record.gallons:0))}</span></div>${record.tripMiles!=null?`<div class="detail-row"><span>Trip meter</span><span>${number(record.tripMiles,1)}</span></div>`:''}${previous?`<div class="detail-row"><span>Tank miles</span><span>${number(tankMiles,1)}</span></div>`:''}${mpg!=null?`<div class="detail-row"><span>${previous?'Tank MPG':'Trip MPG'}</span><span>${number(mpg,2)}</span></div>`:''}${record.odometer?`<div class="detail-row"><span>Odometer</span><span>${number(record.odometer,1)}</span></div>`:''}${record.notes?`<div class="record-notes"><small>NOTES</small><p>${escapeHtml(record.notes)}</p></div>`:''}${receipt}</div><div class="trip-delete-area"><button class="delete-link" id="deleteFuelRecord">Delete fuel stop</button></div>`;
+  const settlement=isOpenRoads(record)?`<div class="detail-section open-roads-detail"><div class="detail-section-head"><div><small>DISCOUNT PROGRAM</small><h3>${escapeHtml(openRoadsStatusLabel(record))}</h3></div>${viewer?'':`<button class="secondary" id="updateOpenRoadsPricing" type="button">${record.openRoadsDocumentId?'Replace settlement':'Update Open Roads Pricing'}</button>`}</div>${isOpenRoadsSettled(record)?`<div class="detail-row"><span>Final total paid</span><span>${money(record.openRoadsTotalPaid)}</span></div><div class="detail-row"><span>Effective price / gallon</span><span>${money(effectiveFuelPrice(record))}</span></div>${record.openRoadsNetSavings!=null?`<div class="detail-row"><span>You saved</span><span>${money(record.openRoadsNetSavings)}</span></div>`:''}${record.openRoadsGrossDiscount!=null?`<div class="detail-row"><span>Gross discount</span><span>${money(record.openRoadsGrossDiscount)}</span></div>`:''}${record.openRoadsProgramFee!=null?`<div class="detail-row"><span>Program fee</span><span>${money(record.openRoadsProgramFee)}</span></div>`:''}${record.openRoadsOtherFees!=null?`<div class="detail-row"><span>Other fees</span><span>${money(record.openRoadsOtherFees)}</span></div>`:''}${record.openRoadsInvoiceId?`<div class="detail-row"><span>Invoice</span><span>${escapeHtml(record.openRoadsInvoiceId)}</span></div>`:''}`:'<p class="intro">The pump purchase is saved. Add the Open Roads Transaction Details screenshot when final pricing posts.</p>'}${settlementDocument}</div>`:'';
+  $('#detailBody').innerHTML=`${actions}<div class="detail-section"><div class="detail-row"><span>Date</span><span>${date(record.date)}</span></div><div class="detail-row"><span>Trip</span><span>${escapeHtml(record.trip||NO_TRIP_LABEL)}</span></div>${record.vehicle?`<div class="detail-row"><span>Vehicle</span><span>${escapeHtml(record.vehicle)}</span></div>`:''}<div class="detail-row"><span>Fuel</span><span>${record.fuelType==='diesel'?'Diesel':'Gasoline'}</span></div>${record.city?`<div class="detail-row"><span>City</span><span>${escapeHtml(record.city)}</span></div>`:''}${record.state?`<div class="detail-row"><span>State</span><span>${escapeHtml(record.state)}</span></div>`:''}<div class="detail-row"><span>Gallons</span><span>${number(record.gallons,3)}</span></div><div class="detail-row"><span>${isOpenRoads(record)?'Pump total':'Total'}</span><span>${money(record.total||0)}</span></div><div class="detail-row"><span>Pump price per gallon</span><span>${money(record.price||((record.gallons&&record.total)?record.total/record.gallons:0))}</span></div>${record.tripMiles!=null?`<div class="detail-row"><span>Trip meter</span><span>${number(record.tripMiles,1)}</span></div>`:''}${previous?`<div class="detail-row"><span>Tank miles</span><span>${number(tankMiles,1)}</span></div>`:''}${mpg!=null?`<div class="detail-row"><span>${previous?'Tank MPG':'Trip MPG'}</span><span>${number(mpg,2)}</span></div>`:''}${record.odometer?`<div class="detail-row"><span>Odometer</span><span>${number(record.odometer,1)}</span></div>`:''}${record.notes?`<div class="record-notes"><small>NOTES</small><p>${escapeHtml(record.notes)}</p></div>`:''}${receipt}</div>${settlement}<div class="trip-delete-area"><button class="delete-link" id="deleteFuelRecord">Delete fuel stop</button></div>`;
   bindStayPhotoButtons($('#detailBody'));
   if($('#openFuelDocument'))$('#openFuelDocument').onclick=()=>openFuelReceiptDocumentReview(record,false,{index,returnTripIndex});
   if(returnTripIndex!==null)$('#backToTripButton').onclick=()=>$('#detailDialog').close();
-  $('#editFuelRecord').onclick=()=>{closeDetailForTransition();openEntry('fuel',index,returnTripIndex)};
+  if(!viewer)$('#editFuelRecord').onclick=()=>{closeDetailForTransition();openEntry('fuel',index,returnTripIndex)};
+  if($('#updateOpenRoadsPricing'))$('#updateOpenRoadsPricing').onclick=()=>{closeDetailForTransition();openEntry('fuel',index,returnTripIndex);setTimeout(()=>$('#openOpenRoadsScanner')?.click(),0)};
   $('#deleteFuelRecord').onclick=async()=>{
     if(!confirm(`Delete this fuel stop at ${record.station||'this station'}?`))return;
     const button=$('#deleteFuelRecord');
@@ -1214,7 +1233,7 @@ function showFuelRecord(index,returnTripIndex=null){
       return;
     }
     if(window.ADVENTURE_HUB_STORE&&hasReceiptPhotos(removed)){
-      try{removed.documentId?await window.ADVENTURE_HUB_STORE.deleteFuelReceiptDocument(removed):await window.ADVENTURE_HUB_STORE.deleteRecordReceipt(removed);}
+      try{removed.documentId||removed.openRoadsDocumentId?await window.ADVENTURE_HUB_STORE.deleteFuelReceiptDocument(removed):await window.ADVENTURE_HUB_STORE.deleteRecordReceipt(removed);}
       catch(error){console.warn('The deleted fuel stop receipt could not be removed.',error);}
     }
     closeDetailForTransition();
@@ -1641,6 +1660,9 @@ function documentScannerFields(){
 function fuelReceiptScannerFields(){
   return `<section class="document-scanner-entry fuel-receipt-scanner-entry"><div class="document-scanner-entry-heading"><div><small>HIGGINS HUB SCANNER</small><b>Fuel / DEF receipt</b><p>Scan one receipt—even when it contains both fuel and DEF. Review the suggested values before saving.</p></div><button class="primary" id="openFuelReceiptScanner" type="button">Take or add receipt</button></div><div id="fuelReceiptDocumentPreview" class="fuel-receipt-document-preview"><div class="note-photo-empty">No receipt attached yet.</div></div><div class="electric-document-editor-footer"><p id="fuelReceiptScannerStatus">Nothing is uploaded until you add a receipt.</p><small>Low-confidence fields will be highlighted for review.</small></div></section>`;
 }
+function openRoadsSettlementFields(){
+  return `<section class="document-scanner-entry open-roads-settlement-entry" id="openRoadsSettlementSection" hidden><div class="document-scanner-entry-heading"><div><small>OPEN ROADS</small><b id="openRoadsSettlementHeading">Pricing pending</b><p id="openRoadsSettlementHelp">Add the Transaction Details screenshot when Open Roads posts the final discounted price.</p></div><button class="secondary" id="openOpenRoadsScanner" type="button">Update Open Roads Pricing</button></div><div id="openRoadsDocumentPreview" class="fuel-receipt-document-preview"><div class="note-photo-empty">No settlement screenshot yet.</div></div><div class="electric-document-editor-footer"><p id="openRoadsScannerStatus">The original pump receipt and values will stay unchanged.</p><small>The final Total Paid becomes the actual fuel expense after confirmation.</small></div></section>`;
+}
 function multiReceiptFields(help){
   return `<section class="note-photo-editor seasonal-receipt-editor"><div class="note-photo-editor-heading"><div><b>Receipts and documents</b><p>${help}</p></div><div class="stay-photo-actions"><label class="secondary photo-picker">Take photo<input id="multiReceiptCameraFile" type="file" accept="image/*" capture="environment" hidden></label><label class="secondary photo-picker">Choose pictures<input id="multiReceiptFiles" type="file" accept="image/*" multiple hidden></label></div></div><div id="multiReceiptGrid" class="note-photo-editor-grid"></div><small id="multiReceiptCount">0 of 6 pictures</small></section>`;
 }
@@ -1662,7 +1684,7 @@ function fields(type){
   if(type==='trip-plan') return `<label>Related trip<select id="planTripId" required><option value="">Choose a trip</option>${noteTripOptions()}</select></label><label>Plan or reservation name<input id="name" required maxlength="160" placeholder="Acadia sunrise, Dry Tortugas day trip…"></label><div class="two"><label>Type<select id="planType"><option value="activity">Activity</option><option value="tour">Tour</option><option value="reservation">Reservation</option><option value="dining">Dining</option><option value="transportation">Transportation</option><option value="other">Other</option></select></label><label>Status<select id="planStatus"><option value="planned">Planned</option><option value="reserved">Reserved</option><option value="paid">Paid</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></label></div><div class="three"><label>Date<input id="date" type="date" required></label><label>Start time<input id="planStartTime" type="time"></label><label>End time<input id="planEndTime" type="time"></label></div><label>Location name<input id="planLocationName" placeholder="Cadillac Mountain, ferry terminal…"></label><label>Address<input id="address"></label><div class="three"><label>City<input id="city" autocomplete="address-level2"></label><label>State<select id="state" autocomplete="address-level1">${stateOptions()}</select></label><label>ZIP code<input id="zip" inputmode="numeric" autocomplete="postal-code" maxlength="10"></label></div><div class="two"><label>Confirmation code<input id="planConfirmation"></label><label>Cost<input id="total" type="number" min="0" step=".01"></label></div><label>Website or ticket link<input id="planWebsite" inputmode="url" placeholder="https://…"></label>${tripPlanAttachmentFields()}`;
   if(type==='fuel'||type==='def'){
     const options=db.tripSummaries.slice().sort((a,b)=>tripStamp(b).localeCompare(tripStamp(a))).map(t=>`<option value="${escapeHtml(t.name)}">${escapeHtml(t.name)}</option>`).join('');
-    return `${fuelReceiptScannerFields()}<section class="fuel-entry-basics"><label>Purchase type<select id="purchaseType" required><option value="fuel">Fuel</option><option value="def">DEF</option><option value="fuel_def">Fuel + DEF</option></select></label><div class="two"><label>Date<input id="date" type="date" required></label><label>Trip<select id="tripName"><option value="${NO_TRIP_VALUE}">${NO_TRIP_LABEL}</option>${options}</select></label></div><p class="field-help fuel-trip-help">Everyday Ruby is a complete no-trip entry. Choose a trip only when this purchase belongs to one.</p><label>Station / store<input id="station" required></label><div class="two"><label>City<input id="city" autocomplete="address-level2"></label><label>State<select id="state" autocomplete="address-level1">${stateOptions()}</select></label></div><details class="fuel-more-details"><summary>More receipt details</summary><div class="two"><label>Time<input id="purchaseTime" type="time"></label><label>Street address<input id="address" autocomplete="street-address"></label></div></details></section><section class="purchase-fields fuel-purchase-fields" id="fuelPurchaseFields"><div class="purchase-fields-heading"><b>Fuel</b><small>Trip MPG is calculated only when this purchase belongs to a trip.</small></div><div class="three"><label>Fuel gallons<input id="gallons" type="number" min=".001" step=".001"></label><label>Fuel price / gallon<input id="pricePerGallon" type="number" min="0" step=".001"></label><label>Fuel total<input id="total" type="number" min="0" step=".01"></label></div><div class="two"><label>Fuel type<select id="fuelType"><option value="diesel">Diesel</option><option value="gasoline">Gasoline</option></select></label><label id="tripMeterField">Trip meter<input id="tripMeter" type="number" min="0" step=".1"><small>Needed only for trip MPG.</small></label></div><div class="fuel-calculations" id="fuelCalculations"><span><span id="fuelMpgLabel">Trip MPG</span> <b>—</b></span><span>Tank miles <b>—</b></span></div></section><section class="purchase-fields def-purchase-fields" id="defPurchaseFields"><div class="purchase-fields-heading"><b>DEF</b><small>No trip-meter reading is needed.</small></div><div class="three"><label>DEF gallons<input id="defGallons" type="number" min=".001" step=".001"></label><label>DEF price / gallon<input id="defPricePerGallon" type="number" min="0" step=".001"></label><label>DEF total<input id="defTotal" type="number" min="0" step=".01"></label></div></section><label>Odometer<input id="odometer" type="number" min="0" step=".1"></label>`;
+    return `${fuelReceiptScannerFields()}<section class="fuel-entry-basics"><label>Purchase type<select id="purchaseType" required><option value="fuel">Fuel</option><option value="def">DEF</option><option value="fuel_def">Fuel + DEF</option></select></label><div class="two"><label>Date<input id="date" type="date" required></label><label>Trip<select id="tripName"><option value="${NO_TRIP_VALUE}">${NO_TRIP_LABEL}</option>${options}</select></label></div><p class="field-help fuel-trip-help">Everyday Ruby is a complete no-trip entry. Choose a trip only when this purchase belongs to one.</p><label>Station / store<input id="station" required></label><div class="two"><label>City<input id="city" autocomplete="address-level2"></label><label>State<select id="state" autocomplete="address-level1">${stateOptions()}</select></label></div><details class="fuel-more-details"><summary>More receipt details</summary><div class="two"><label>Time<input id="purchaseTime" type="time"></label><label>Street address<input id="address" autocomplete="street-address"></label></div></details></section><section class="purchase-fields fuel-purchase-fields" id="fuelPurchaseFields"><div class="purchase-fields-heading"><b>Fuel</b><small>Trip MPG is calculated only when this purchase belongs to a trip.</small></div><div class="three"><label>Fuel gallons<input id="gallons" type="number" min=".001" step=".001"></label><label>Fuel price / gallon<input id="pricePerGallon" type="number" min="0" step=".001"></label><label>Fuel total<input id="total" type="number" min="0" step=".01"></label></div><div class="two"><label>Fuel type<select id="fuelType"><option value="diesel">Diesel</option><option value="gasoline">Gasoline</option></select></label><label id="tripMeterField">Trip meter<input id="tripMeter" type="number" min="0" step=".1"><small>Needed only for trip MPG.</small></label></div><label>Discount Program<select id="discountProgram"><option value="none">None</option><option value="open_roads">Open Roads</option></select></label><div class="fuel-calculations" id="fuelCalculations"><span><span id="fuelMpgLabel">Trip MPG</span> <b>—</b></span><span>Tank miles <b>—</b></span></div></section>${openRoadsSettlementFields()}<section class="purchase-fields def-purchase-fields" id="defPurchaseFields"><div class="purchase-fields-heading"><b>DEF</b><small>No trip-meter reading is needed.</small></div><div class="three"><label>DEF gallons<input id="defGallons" type="number" min=".001" step=".001"></label><label>DEF price / gallon<input id="defPricePerGallon" type="number" min="0" step=".001"></label><label>DEF total<input id="defTotal" type="number" min="0" step=".01"></label></div></section><label>Odometer<input id="odometer" type="number" min="0" step=".1"></label>`;
   }
   if(type==='stay') return `<div class="two"><label>Arrival<input id="arrival" type="date" required></label><label>Departure<input id="departure" type="date"></label></div><div class="two"><label>Check-in time<input id="checkInTime" type="time" value="12:00"></label><label>Check-out time<input id="checkOutTime" type="time" value="12:00"></label></div><label>Campground<input id="name" required></label><label>Address<input id="address"></label><div class="three"><label>City<input id="city"></label><label>State<select id="state">${stateOptions()}</select></label><label>ZIP code<input id="zip" inputmode="numeric" autocomplete="postal-code" maxlength="10"></label></div><div class="two"><label>Site<input id="site"></label><label>Total cost<input id="total" type="number" step=".01"></label></div><div class="stay-type-options"><label><input id="harvestHost" type="checkbox"> Harvest Host</label><label><input id="moochdocking" type="checkbox"> Moochdocking</label><label><input id="boondocking" type="checkbox"> Boondocking</label></div><section class="stay-photo-editors"><div class="stay-photo-editors-heading"><b>Stay photos</b><p>Add these from Kayla’s photo library now or come back later.</p></div>${stayPhotoEditorSlot('site','Campsite','The campsite photo you take at nearly every stop.')}${stayPhotoEditorSlot('sign','Sign','The entrance, campground, winery, farm, or host sign.')}</section>`;
   if(type==='electric') return `<div class="two"><label>Reading date<input id="date" type="date" required></label><label>Paid date<input id="paid" type="date"></label></div><div class="three"><label>Previous meter<input id="previous" type="number" required></label><label>Current meter<input id="current" type="number" required></label><label>Rate / kWh<input id="rate" type="number" step=".001" value=".16"></label></div><div class="two"><label>Amount due<input id="amountDue" type="number" min="0" step=".01"></label><label>Check number<input id="check"></label></div>${documentScannerFields()}`;
@@ -1979,6 +2001,135 @@ function bindFuelReceiptScanner(record={}){
         }finally{launch.disabled=false;}
     }
   };
+}
+let openRoadsScannerState={document:null,draftDocumentId:'',fields:null,approval:null};
+function openRoadsDocumentFromRecord(record={}){
+  if(!record.openRoadsDocumentId||!(record.openRoadsDocumentFiles||[]).length)return null;
+  return {
+    documentId:record.openRoadsDocumentId,
+    documentTitle:record.openRoadsDocumentTitle||'Open Roads Transaction Details',
+    documentType:'open_roads_settlement',
+    documentDate:record.openRoadsDocumentDate||'',
+    documentStatus:record.openRoadsDocumentStatus||'',
+    documentAiStatus:record.openRoadsDocumentAiStatus||'not_requested',
+    documentExtractedText:record.openRoadsDocumentExtractedText||'',
+    documentExtractedData:record.openRoadsDocumentExtractedData||{},
+    documentUserCorrections:record.openRoadsDocumentUserCorrections||{},
+    documentReviewFields:record.openRoadsDocumentReviewFields||[],
+    documentFiles:[...(record.openRoadsDocumentFiles||[])]
+  };
+}
+function discardPendingOpenRoadsDraft(){
+  const documentId=openRoadsScannerState.draftDocumentId;
+  openRoadsScannerState.draftDocumentId='';
+  if(documentId&&window.ADVENTURE_HUB_STORE?.discardHubDocumentDraft){
+    window.ADVENTURE_HUB_STORE.discardHubDocumentDraft(documentId).catch(error=>console.warn('The unused Open Roads draft could not be removed.',error));
+  }
+}
+function clearOpenRoadsScanner({discardDraft=false}={}){
+  if(discardDraft)discardPendingOpenRoadsDraft();
+  openRoadsScannerState={document:null,draftDocumentId:'',fields:null,approval:null};
+}
+function renderOpenRoadsScanner(){
+  const section=$('#openRoadsSettlementSection');
+  if(!section)return;
+  const selected=$('#purchaseType')?.value;
+  const enabled=['fuel','fuel_def'].includes(selected)&&$('#discountProgram')?.value==='open_roads';
+  section.hidden=!enabled;
+  if(!enabled)return;
+  const document=openRoadsScannerState.document;
+  const file=document?.documentFiles?.find(item=>/^image\//i.test(item.mimeType||''))||document?.documentFiles?.[0];
+  const host=$('#openRoadsDocumentPreview');
+  const status=$('#openRoadsScannerStatus');
+  const heading=$('#openRoadsSettlementHeading');
+  if(heading)heading.textContent=openRoadsScannerState.fields?'Pricing ready to save':'Pricing pending';
+  if(!file?.url){
+    host.innerHTML='<div class="note-photo-empty">No settlement screenshot yet.</div>';
+    status.textContent='The original pump receipt and values will stay unchanged.';
+    return;
+  }
+  host.innerHTML=`<button class="fuel-receipt-document-card" id="openOpenRoadsReview" type="button"><img src="${escapeHtml(file.url)}" alt="Open Roads transaction details"><span><b>${escapeHtml(document.documentTitle||'Open Roads Transaction Details')}</b><small>${openRoadsScannerState.fields?'Settlement values ready':openRoadsScannerState.draftDocumentId?'Screenshot saved as a draft':'Saved settlement screenshot'}</small></span><span class="record-chevron">›</span></button>`;
+  status.textContent=openRoadsScannerState.fields
+    ?'Check the settlement values, then tap Save Open Roads pricing.'
+    :'The screenshot is attached. Open it to read or review the settlement.';
+  $('#openOpenRoadsReview').onclick=()=>openOpenRoadsDocumentReview(document,false);
+}
+function openRoadsMismatchWarnings(fields={}){
+  const warnings=[];
+  const pumpDate=$('#date')?.value;
+  const pumpGallons=Number($('#gallons')?.value);
+  const pumpPrice=Number($('#pricePerGallon')?.value);
+  const pumpTotal=Number($('#total')?.value);
+  if(fields.transaction_date&&pumpDate&&fields.transaction_date!==pumpDate)warnings.push(`date ${fields.transaction_date} does not match ${pumpDate}`);
+  if(Number.isFinite(Number(fields.quantity))&&pumpGallons>0&&Math.abs(Number(fields.quantity)-pumpGallons)>Math.max(.05,pumpGallons*.005))warnings.push(`quantity ${fields.quantity} does not match ${pumpGallons} gallons`);
+  if(Number.isFinite(Number(fields.unit_price))&&pumpPrice>0&&Math.abs(Number(fields.unit_price)-pumpPrice)>.02)warnings.push(`unit price ${money(fields.unit_price)} does not match ${money(pumpPrice)}`);
+  if(Number.isFinite(Number(fields.subtotal))&&pumpTotal>0&&Math.abs(Number(fields.subtotal)-pumpTotal)>Math.max(.75,pumpTotal*.01))warnings.push(`subtotal ${money(fields.subtotal)} does not match pump total ${money(pumpTotal)}`);
+  return warnings;
+}
+function applyOpenRoadsSuggestions(document,result){
+  const fields=result?.fields||{};
+  const warnings=openRoadsMismatchWarnings(fields);
+  if(warnings.length&&!confirm(`This Open Roads settlement may not match this fuel stop:\n\n• ${warnings.join('\n• ')}\n\nAttach it anyway?`))return;
+  openRoadsScannerState.document=document;
+  openRoadsScannerState.fields=fields;
+  openRoadsScannerState.approval={documentId:document.documentId,corrections:{fields,reviewed_at:new Date().toISOString(),model:result?.model||''}};
+  const saveButton=$('#entryForm')?.querySelector('.form-actions .primary');
+  if(saveButton){saveButton.textContent='Save Open Roads pricing';saveButton.classList.add('attention-pulse');}
+  renderOpenRoadsScanner();
+}
+function openOpenRoadsDocumentReview(document,autoAnalyze=false){
+  if(!window.HIGGINS_DOCUMENT_REVIEW){alert('The document viewer is still loading. Please try again in a moment.');return;}
+  window.HIGGINS_DOCUMENT_REVIEW.open({
+    profile:'open_roads_settlement',
+    record:document,
+    autoAnalyze,
+    onExtracted:updated=>{Object.assign(document,updated);openRoadsScannerState.document=document;renderOpenRoadsScanner();},
+    onUse:result=>applyOpenRoadsSuggestions(document,result)
+  });
+}
+function bindOpenRoadsScanner(record={}){
+  clearOpenRoadsScanner();
+  openRoadsScannerState.document=openRoadsDocumentFromRecord(record);
+  renderOpenRoadsScanner();
+  const launch=$('#openOpenRoadsScanner');
+  if(!launch)return;
+  launch.onclick=()=>{
+    if(!window.HIGGINS_DOCUMENT_SCANNER){alert('The scanner is still loading. Please try again in a moment.');return;}
+    window.HIGGINS_DOCUMENT_SCANNER.open({
+      title:'Open Roads Transaction Details',
+      useLabel:'Read settlement',
+      useOnlyLabel:'Use screenshot',
+      allowPdfUse:false,
+      preferFullImage:true,
+      maxDimension:1800,
+      quality:.84,
+      cameraLabel:'Take screenshot photo',
+      fileLabel:'Choose screenshot',
+      emptyPrompt:'Choose the Open Roads Transaction Details screenshot.',
+      onUseOnly:({file,metadata})=>saveOpenRoadsDraft(file,metadata,false),
+      onUse:({file,metadata})=>saveOpenRoadsDraft(file,metadata,true)
+    });
+  };
+  async function saveOpenRoadsDraft(file,metadata,readSettlement){
+    const status=$('#openRoadsScannerStatus');
+    launch.disabled=true;
+    if(status)status.textContent='Securely saving the Open Roads screenshot…';
+    try{
+      discardPendingOpenRoadsDraft();
+      const document=await window.ADVENTURE_HUB_STORE.createOpenRoadsSettlementDraft(file,metadata);
+      openRoadsScannerState.document=document;
+      openRoadsScannerState.draftDocumentId=document.documentId;
+      openRoadsScannerState.fields=null;
+      openRoadsScannerState.approval=null;
+      renderOpenRoadsScanner();
+      if(readSettlement)setTimeout(()=>openOpenRoadsDocumentReview(document,true),0);
+      return true;
+    }catch(error){
+      console.error(error);
+      if(status)status.textContent='The Open Roads screenshot was not uploaded.';
+      throw error;
+    }finally{launch.disabled=false;}
+  }
 }
 let electricDocumentEditorState={items:[],initialOrder:'',changed:false,readAfterSave:false,draftDocument:null,draftDocumentId:''};
 function clearElectricDocumentEditor({discardDraft=false}={}){
@@ -2564,6 +2715,7 @@ function openEntry(type,index=null,returnTripIndex=null){
       ['#gallons','#total','#fuelType'].forEach(selector=>{const field=$(selector);if(field)field.required=includesFuel;});
       ['#defGallons','#defTotal'].forEach(selector=>{const field=$(selector);if(field)field.required=includesDef;});
       syncTripMode();
+      renderOpenRoadsScanner();
     };
     const updatePreview=()=>{
       const gallons=Number($('#gallons').value),total=Number($('#total').value),tripMeterValue=$('#tripMeter').value,tripMeter=Number(tripMeterValue),hasTripMeter=tripMeterValue!=='';
@@ -2586,7 +2738,7 @@ function openEntry(type,index=null,returnTripIndex=null){
         const pairedDef=type==='fuel'?db.def.find(record=>(purchase._cloudId&&record._fuelId===purchase._cloudId)||(purchase.documentId&&record.documentId===purchase.documentId)):null;
         $('#purchaseType').value=type==='def'?'def':pairedDef?'fuel_def':'fuel';
         $('#date').value=purchase.date||today; $('#purchaseTime').value=String(purchase.time||'').slice(0,5); $('#tripName').value=purchase.trip||NO_TRIP_VALUE; $('#station').value=purchase.station||''; $('#address').value=purchase.address||''; $('#city').value=purchase.city||splitFuelLocation(purchase.location).city; $('#state').value=purchase.state||splitFuelLocation(purchase.location).state;
-        if(type==='fuel'){$('#gallons').value=purchase.gallons??''; $('#pricePerGallon').value=purchase.price??''; $('#total').value=purchase.total??''; $('#fuelType').value=purchase.fuelType||(+String(purchase.date||'').slice(0,4)>=2025?'diesel':'gasoline'); $('#tripMeter').value=purchase.tripMiles??'';}
+        if(type==='fuel'){$('#gallons').value=purchase.gallons??''; $('#pricePerGallon').value=purchase.price??''; $('#total').value=purchase.total??''; $('#fuelType').value=purchase.fuelType||(+String(purchase.date||'').slice(0,4)>=2025?'diesel':'gasoline'); $('#tripMeter').value=purchase.tripMiles??''; $('#discountProgram').value=purchase.discountProgram||'none';}
         else{$('#defGallons').value=purchase.gallons??'';$('#defPricePerGallon').value=purchase.price??'';$('#defTotal').value=purchase.total??'';}
         if(pairedDef){$('#defGallons').value=pairedDef.gallons??'';$('#defPricePerGallon').value=pairedDef.price??'';$('#defTotal').value=pairedDef.total??'';}
         $('#odometer').value=purchase.odometer??''; $('#entryNotes').value=purchase.notes||'';
@@ -2605,7 +2757,7 @@ function openEntry(type,index=null,returnTripIndex=null){
             return;
           }
           if(window.ADVENTURE_HUB_STORE&&hasReceiptPhotos(removed)){
-            try{removed.documentId?await window.ADVENTURE_HUB_STORE[type==='def'?'deleteDefReceiptDocument':'deleteFuelReceiptDocument'](removed):await window.ADVENTURE_HUB_STORE.deleteRecordReceipt(removed);}
+            try{removed.documentId||removed.openRoadsDocumentId?await window.ADVENTURE_HUB_STORE[type==='def'?'deleteDefReceiptDocument':'deleteFuelReceiptDocument'](removed):await window.ADVENTURE_HUB_STORE.deleteRecordReceipt(removed);}
             catch(error){console.warn('The deleted purchase receipt could not be removed.',error);}
           }
           closeEntryForTransition();
@@ -2621,8 +2773,9 @@ function openEntry(type,index=null,returnTripIndex=null){
       const currentTrip=db.tripSummaries.find(trip=>tripStatus(trip)==='current');
       $('#tripName').value=currentTrip?.name||NO_TRIP_VALUE;
     }
-    if(index===null){$('#purchaseType').value=type==='def'?'def':'fuel';syncTripFuelType();}
+    if(index===null){$('#purchaseType').value=type==='def'?'def':'fuel';$('#discountProgram').value='none';syncTripFuelType();}
     $('#purchaseType').addEventListener('change',syncPurchaseType);
+    $('#discountProgram').addEventListener('change',renderOpenRoadsScanner);
     $('#tripName').addEventListener('change',()=>{syncTripFuelType();syncTripMode();updatePreview()});
     ['#gallons','#total','#tripMeter','#pricePerGallon','#defGallons','#defTotal','#defPricePerGallon'].forEach(selector=>$(selector).addEventListener('input',updatePreview));
     syncPurchaseType();
@@ -2670,7 +2823,12 @@ function openEntry(type,index=null,returnTripIndex=null){
     bindTripPhotoEditor(index===null?{}:db.tripSummaries[index]);
     $('#addTripStay').onclick=()=>openTripStayEditor();
   }
-  if(type==='fuel'||type==='def')bindFuelReceiptScanner(index===null?{}:((type==='def'?db.def:db.fuel)?.[index]||{}));
+  if(type==='fuel'||type==='def'){
+    const purchase=index===null?{}:((type==='def'?db.def:db.fuel)?.[index]||{});
+    bindFuelReceiptScanner(purchase);
+    bindOpenRoadsScanner(type==='fuel'?purchase:{});
+    renderOpenRoadsScanner();
+  }
   if(type==='electric')bindElectricDocumentEditor(index===null?{}:(db.electric?.[index]||{}));
   if(['phillis-maint','phillis-upgrade','ruby-maint','ruby-upgrade','sitepayment','trip-plan'].includes(type)){
     const key=type==='phillis-maint'?'phillisMaintenance':type==='phillis-upgrade'?'phillisUpgrades':type==='ruby-maint'?'rubyMaintenance':type==='ruby-upgrade'?'rubyUpgrades':type==='trip-plan'?'tripPlans':'siteFees';
@@ -2790,8 +2948,8 @@ $('#campgroundJournalForm').onsubmit=async event=>{
   renderTrips();
   if($('#detailDialog').open)showStay(stayIndex,detailReturnTripIndex);
 };
-$$('dialog .close').forEach(b=>b.onclick=()=>{const dialog=b.closest('dialog');dialog.close();if(dialog.id==='entryDialog'){pendingElectricAiApproval=null;clearFuelReceiptScanner({discardDraft:true});clearStayPhotoPreviewUrls();clearNotePhotoEditor();clearMultiReceiptEditor();clearTripPlanPdfEditor();clearElectricDocumentEditor({discardDraft:true});}if(dialog.id==='seasonDocumentDialog')clearSeasonDocumentDraft();});
-$$('dialog').forEach(dialog=>dialog.addEventListener('mousedown',event=>{const box=dialog.getBoundingClientRect();const outside=event.clientX<box.left||event.clientX>box.right||event.clientY<box.top||event.clientY>box.bottom;if(outside){dialog.close();if(dialog.id==='entryDialog'){pendingElectricAiApproval=null;clearFuelReceiptScanner({discardDraft:true});clearStayPhotoPreviewUrls();clearNotePhotoEditor();clearMultiReceiptEditor();clearTripPlanPdfEditor();clearElectricDocumentEditor({discardDraft:true});}if(dialog.id==='seasonDocumentDialog')clearSeasonDocumentDraft();}}));
+$$('dialog .close').forEach(b=>b.onclick=()=>{const dialog=b.closest('dialog');dialog.close();if(dialog.id==='entryDialog'){pendingElectricAiApproval=null;clearFuelReceiptScanner({discardDraft:true});clearOpenRoadsScanner({discardDraft:true});clearStayPhotoPreviewUrls();clearNotePhotoEditor();clearMultiReceiptEditor();clearTripPlanPdfEditor();clearElectricDocumentEditor({discardDraft:true});}if(dialog.id==='seasonDocumentDialog')clearSeasonDocumentDraft();});
+$$('dialog').forEach(dialog=>dialog.addEventListener('mousedown',event=>{const box=dialog.getBoundingClientRect();const outside=event.clientX<box.left||event.clientX>box.right||event.clientY<box.top||event.clientY>box.bottom;if(outside){dialog.close();if(dialog.id==='entryDialog'){pendingElectricAiApproval=null;clearFuelReceiptScanner({discardDraft:true});clearOpenRoadsScanner({discardDraft:true});clearStayPhotoPreviewUrls();clearNotePhotoEditor();clearMultiReceiptEditor();clearTripPlanPdfEditor();clearElectricDocumentEditor({discardDraft:true});}if(dialog.id==='seasonDocumentDialog')clearSeasonDocumentDraft();}}));
 $('#detailDialog').addEventListener('close',()=>{
   if(suppressNextDetailReturn){
     suppressNextDetailReturn=false;
@@ -2865,6 +3023,7 @@ $('#entryForm').onsubmit=async e=>{
   const pendingElectricDocumentChanges=type==='electric'?electricDocumentChanges():null;
   const shouldReadElectricDocument=type==='electric'&&Boolean(electricDocumentEditorState.readAfterSave)&&Boolean(pendingElectricDocumentChanges?.items?.some(item=>item.file));
   const pendingFuelReceiptDocument=(type==='fuel'||type==='def')&&fuelReceiptScannerState.draftDocumentId?fuelReceiptScannerState.document:null;
+  const pendingOpenRoadsDocument=type==='fuel'&&openRoadsScannerState.draftDocumentId?openRoadsScannerState.document:null;
   const stayPhotoChanges=type==='stay'?[
     {kind:'site',file:$('#sitePhotoFile')?.files?.[0]||null,remove:$('#sitePhotoFile')?.dataset.remove==='true'},
     {kind:'sign',file:$('#signPhotoFile')?.files?.[0]||null,remove:$('#signPhotoFile')?.dataset.remove==='true'}
@@ -2962,7 +3121,41 @@ $('#entryForm').onsubmit=async e=>{
       const fuelIndex=type==='fuel'?index:null;
       const prior=fuelIndex===null?{}:db.fuel[fuelIndex];
       const g=+$('#gallons').value||0,total=+$('#total').value||0;
-      fuelRecord={...prior,...shared,_cloudId:prior._cloudId||crypto.randomUUID(),_vehicleId:everydayRuby?(prior._vehicleId||null):(selectedTrip._towVehicleId||null),gallons:g,total,price:$('#pricePerGallon').value===''?(g?total/g:0):+$('#pricePerGallon').value,fuelType:$('#fuelType').value,tripMiles:+$('#tripMeter').value,...documentFields(prior)};
+      const discountProgram=$('#discountProgram').value==='open_roads'?'open_roads':'none';
+      const settlementFields=openRoadsScannerState.fields||{};
+      const settlementDocument=openRoadsScannerState.document||openRoadsDocumentFromRecord(prior)||{};
+      fuelRecord={
+        ...prior,...shared,
+        _cloudId:prior._cloudId||crypto.randomUUID(),
+        _vehicleId:everydayRuby?(prior._vehicleId||null):(selectedTrip._towVehicleId||null),
+        gallons:g,total,price:$('#pricePerGallon').value===''?(g?total/g:0):+$('#pricePerGallon').value,
+        fuelType:$('#fuelType').value,tripMiles:+$('#tripMeter').value,
+        discountProgram,
+        openRoadsStatus:discountProgram==='open_roads'?(settlementFields.total_paid!=null?'settled':(prior.openRoadsStatus==='settled'?'settled':'pending')):'',
+        openRoadsInvoiceId:settlementFields.invoice_id??prior.openRoadsInvoiceId??'',
+        openRoadsTransactionDate:settlementFields.transaction_date??prior.openRoadsTransactionDate??'',
+        openRoadsLocation:settlementFields.location??prior.openRoadsLocation??'',
+        openRoadsProduct:settlementFields.product??prior.openRoadsProduct??'',
+        openRoadsQuantity:settlementFields.quantity??prior.openRoadsQuantity??null,
+        openRoadsUnitPrice:settlementFields.unit_price??prior.openRoadsUnitPrice??null,
+        openRoadsSubtotal:settlementFields.subtotal??prior.openRoadsSubtotal??null,
+        openRoadsGrossDiscount:settlementFields.discount??prior.openRoadsGrossDiscount??null,
+        openRoadsProgramFee:settlementFields.program_fee??prior.openRoadsProgramFee??null,
+        openRoadsOtherFees:settlementFields.fees??prior.openRoadsOtherFees??null,
+        openRoadsNetSavings:settlementFields.you_saved??prior.openRoadsNetSavings??null,
+        openRoadsTotalPaid:settlementFields.total_paid??prior.openRoadsTotalPaid??null,
+        openRoadsDocumentId:settlementDocument.documentId||prior.openRoadsDocumentId||'',
+        openRoadsDocumentTitle:settlementDocument.documentTitle||prior.openRoadsDocumentTitle||'',
+        openRoadsDocumentDate:settlementDocument.documentDate||prior.openRoadsDocumentDate||'',
+        openRoadsDocumentStatus:settlementDocument.documentStatus||prior.openRoadsDocumentStatus||'',
+        openRoadsDocumentAiStatus:settlementDocument.documentAiStatus||prior.openRoadsDocumentAiStatus||'',
+        openRoadsDocumentExtractedText:settlementDocument.documentExtractedText||prior.openRoadsDocumentExtractedText||'',
+        openRoadsDocumentExtractedData:settlementDocument.documentExtractedData||prior.openRoadsDocumentExtractedData||{},
+        openRoadsDocumentUserCorrections:settlementDocument.documentUserCorrections||prior.openRoadsDocumentUserCorrections||{},
+        openRoadsDocumentReviewFields:settlementDocument.documentReviewFields||prior.openRoadsDocumentReviewFields||[],
+        openRoadsDocumentFiles:[...(settlementDocument.documentFiles||prior.openRoadsDocumentFiles||[])],
+        ...documentFields(prior)
+      };
       if(fuelIndex===null)db.fuel.push(fuelRecord);else db.fuel[fuelIndex]=fuelRecord;
       savedReceiptRecord=fuelRecord;
       savedReceiptKind='fuel';
@@ -3084,6 +3277,30 @@ $('#entryForm').onsubmit=async e=>{
       alert(`The purchase values were saved, but the receipt review could not be marked complete.\n\n${error.message}`);
     }
   }
+  if(savedReceiptRecord&&savedReceiptKind==='fuel'&&pendingOpenRoadsDocument&&cloudSaved&&window.ADVENTURE_HUB_STORE){
+    try{
+      submitButton.textContent='Linking Open Roads pricing…';
+      await window.ADVENTURE_HUB_STORE.linkOpenRoadsSettlementDocument(savedReceiptRecord,pendingOpenRoadsDocument);
+      openRoadsScannerState.draftDocumentId='';
+      localStorage.setItem(KEY,JSON.stringify(db));
+    }catch(error){
+      console.error(error);
+      alert(`The fuel stop was saved, but the Open Roads screenshot could not be linked.\n\n${error.message}`);
+    }
+  }
+  if(savedReceiptRecord&&savedReceiptKind==='fuel'&&openRoadsScannerState.approval&&cloudSaved&&window.ADVENTURE_HUB_STORE){
+    try{
+      submitButton.textContent='Approving Open Roads pricing…';
+      const approved=await window.ADVENTURE_HUB_STORE.approveHubDocument(openRoadsScannerState.approval.documentId,openRoadsScannerState.approval.corrections);
+      savedReceiptRecord.openRoadsDocumentAiStatus=approved.documentAiStatus;
+      savedReceiptRecord.openRoadsDocumentUserCorrections=approved.documentUserCorrections;
+      savedReceiptRecord.openRoadsDocumentReviewFields=approved.documentReviewFields;
+      localStorage.setItem(KEY,JSON.stringify(db));
+    }catch(error){
+      console.error(error);
+      alert(`The Open Roads values were saved, but the screenshot review could not be marked complete.\n\n${error.message}`);
+    }
+  }
   if(savedReceiptRecord&&savedReceiptKind==='electric'&&pendingElectricDocumentChanges&&cloudSaved&&window.ADVENTURE_HUB_STORE){
     try{
       submitButton.textContent='Uploading bill document…';
@@ -3151,6 +3368,7 @@ $('#entryForm').onsubmit=async e=>{
   clearTripPlanPdfEditor();
   clearElectricDocumentEditor();
   clearFuelReceiptScanner();
+  clearOpenRoadsScanner();
   pendingElectricAiApproval=null;
   closeEntryForTransition(); renderHome(); renderTrips(); renderNotes();
   if((type==='fuel'||type==='def') && returnTripIndex===null) showPanel('fuel-history');

@@ -1022,6 +1022,10 @@ html.standalone-app body{
 .fuel-receipt-document-card>span:nth-child(2){display:grid;gap:4px;min-width:0}
 .fuel-receipt-document-card b,.fuel-receipt-document-card small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .fuel-receipt-document-card small{color:var(--muted)}
+.open-roads-settlement-entry{border-color:#8d763e;background:linear-gradient(145deg,#3c3b2d,#2b342e)}
+.open-roads-settlement-entry .fuel-receipt-document-card{border-color:rgba(226,190,102,.42)}
+.open-roads-detail{border-left:4px solid var(--gold)}
+.open-roads-detail>.intro{margin:12px 0;color:var(--muted)}
 .document-scanner-current{display:grid;grid-template-columns:104px 1fr;align-items:center;gap:13px;padding-top:12px;border-top:1px solid #46564d}
 .document-scanner-current .stay-photo-preview{width:104px;min-height:92px}
 .document-scanner-current>div:last-child{display:grid;align-content:center;gap:6px}

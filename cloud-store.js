@@ -21,6 +21,12 @@
     documentProcessingCost: num(row?.processing_cost_usd) || 0,
     documentUploadedAt: row?.uploaded_at || row?.created_at || ''
   });
+  const openRoadsDocumentFields = row => Object.fromEntries(
+    Object.entries(hubDocumentFields(row)).map(([key, value]) => [
+      `openRoads${key.charAt(0).toUpperCase()}${key.slice(1)}`,
+      value
+    ])
+  );
 
   function createStore(cloud) {
     const { client, householdId, role, user } = cloud;
@@ -924,7 +930,92 @@
           width: Number(dimensions.width) || null,
           height: Number(dimensions.height) || null,
           cleanup_metadata: file?.higginsDocumentScan
-            ? { cleaned_locally: true, scanner_version: '0.49.5', ...dimensions }
+            ? { cleaned_locally: true, scanner_version: '0.50.0', ...dimensions }
+            : { optimized_locally: true }
+        });
+        if (fileInsert.error) throw fileInsert.error;
+
+        return {
+          ...hubDocumentFields(inserted.data),
+          documentFiles: [{
+            id: fileId,
+            documentId,
+            pageNumber: 1,
+            originalFilename,
+            mimeType: prepared.contentType,
+            fileSizeBytes: Number(prepared.blob.size) || 0,
+            storageBucket: 'hub-documents',
+            storagePath,
+            url: URL.createObjectURL(prepared.blob)
+          }]
+        };
+      } catch (error) {
+        if (uploaded) await hubDocumentBucket.remove([storagePath]);
+        if (documentCreated) await client.from('hub_documents').delete().eq('id', documentId);
+        throw error;
+      }
+    }
+
+    async function createOpenRoadsSettlementDraft(file, metadata = {}) {
+      if (role === 'viewer') throw new Error('Family Viewer accounts cannot scan Open Roads settlements.');
+      if (!file) throw new Error('Take or choose the Open Roads Transaction Details screenshot first.');
+      const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '');
+      if (isPdf) throw new Error('Open Roads Transaction Details currently use a single screenshot or photo.');
+      if (file.size > 25 * 1024 * 1024) throw new Error('That screenshot is larger than the 25 MB document limit.');
+
+      const userId = user?.id;
+      if (!userId) throw new Error('Please sign in again before scanning this settlement.');
+
+      const documentId = uuid();
+      const fileId = uuid();
+      const prepared = file?.higginsDocumentScan
+        ? { blob: file, extension: 'jpg', contentType: 'image/jpeg' }
+        : await preparePhoto(file);
+      const originalFilename = file.name || `open-roads-settlement-${Date.now()}.${prepared.extension}`;
+      const storagePath = `${householdId}/${documentId}/${fileId}.${prepared.extension}`;
+      const now = new Date().toISOString();
+      let documentCreated = false;
+      let uploaded = false;
+
+      try {
+        const [inserted, upload] = await Promise.all([
+          client.from('hub_documents').insert({
+            id: documentId,
+            household_id: householdId,
+            display_title: 'Open Roads Transaction Details · awaiting review',
+            document_type: 'open_roads_settlement',
+            source_app: 'travel-journal',
+            processing_status: 'draft',
+            ai_processing_status: 'not_requested',
+            retention_status: 'keep',
+            created_by: userId,
+            uploaded_at: now
+          }).select('*').single(),
+          hubDocumentBucket.upload(storagePath, prepared.blob, {
+            cacheControl: '3600',
+            contentType: prepared.contentType,
+            upsert: false
+          })
+        ]);
+        if (!inserted.error) documentCreated = true;
+        if (!upload.error) uploaded = true;
+        if (inserted.error) throw inserted.error;
+        if (upload.error) throw upload.error;
+
+        const dimensions = { ...(file.higginsDocumentMetadata || {}), ...(metadata || {}) };
+        const fileInsert = await client.from('hub_document_files').insert({
+          id: fileId,
+          document_id: documentId,
+          page_number: 1,
+          original_filename: originalFilename,
+          mime_type: prepared.contentType,
+          file_size_bytes: Number(prepared.blob.size) || 0,
+          storage_bucket: 'hub-documents',
+          storage_path: storagePath,
+          width: Number(dimensions.width) || null,
+          height: Number(dimensions.height) || null,
+          cleanup_metadata: file?.higginsDocumentScan
+            ? { cleaned_locally: true, scanner_version: '0.50.0', ...dimensions }
             : { optimized_locally: true }
         });
         if (fileInsert.error) throw fileInsert.error;
@@ -1013,7 +1104,7 @@
           cleanup_metadata: isPdf
             ? { preserved_as_pdf: true }
             : file?.higginsDocumentScan
-              ? { cleaned_locally: true, scanner_version: '0.49.5', ...dimensions }
+              ? { cleaned_locally: true, scanner_version: '0.50.0', ...dimensions }
               : { optimized_locally: true }
         });
         if (fileInsert.error) throw fileInsert.error;
@@ -1115,6 +1206,56 @@
       return record;
     }
 
+    async function linkOpenRoadsSettlementDocument(record, document) {
+      if (role === 'viewer') throw new Error('Family Viewer accounts cannot change Open Roads pricing.');
+      if (!record?._cloudId) throw new Error('Save this fuel stop before attaching its Open Roads settlement.');
+      if (!document?.documentId) throw new Error('The Open Roads screenshot could not be found.');
+
+      const userResult = await client.auth.getUser();
+      if (userResult.error) throw userResult.error;
+      const userId = userResult.data?.user?.id;
+      if (!userId) throw new Error('Please sign in again before saving this settlement.');
+
+      const existingLinks = assert(await client.from('hub_document_links')
+        .select('id, document_id')
+        .eq('source_app', 'travel-journal')
+        .eq('record_type', 'fuel_stop')
+        .eq('record_id', String(record._cloudId))
+        .eq('link_role', 'open_roads_settlement'));
+      const replacedIds = existingLinks.map(link => link.document_id).filter(id => id !== document.documentId);
+      if (replacedIds.length) {
+        await removeLinkedDocumentsByIds(record, 'fuel_stop', 'open_roads_settlement', replacedIds);
+      }
+
+      if (!existingLinks.some(link => link.document_id === document.documentId)) {
+        assert(await client.from('hub_document_links').insert({
+          document_id: document.documentId,
+          source_app: 'travel-journal',
+          record_type: 'fuel_stop',
+          record_id: String(record._cloudId),
+          link_role: 'open_roads_settlement',
+          is_primary: false,
+          created_by: userId
+        }));
+      }
+
+      const titleDate = record.openRoadsTransactionDate || record.date;
+      const formattedDate = titleDate
+        ? new Date(`${titleDate}T12:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+        : 'Undated';
+      const documentUpdate = assert(await client.from('hub_documents').update({
+        display_title: `Open Roads Transaction Details · ${formattedDate}`,
+        document_date: titleDate || null,
+        processing_status: 'approved',
+        updated_at: new Date().toISOString()
+      }).eq('id', document.documentId).select('*').single());
+
+      Object.assign(record, openRoadsDocumentFields(documentUpdate), {
+        openRoadsDocumentFiles: [...(document.documentFiles || [])]
+      });
+      return record;
+    }
+
     async function linkDefReceiptDocument(record, document) {
       if (role === 'viewer') throw new Error('Family Viewer accounts cannot change DEF receipts.');
       if (!record?._cloudId) throw new Error('Save this DEF purchase before attaching its receipt.');
@@ -1184,6 +1325,7 @@
       if (role === 'viewer') throw new Error('Family Viewer accounts cannot delete fuel receipts.');
       if (!record?._cloudId) return;
       await detachLinkedDocuments(record, 'fuel_stop', 'receipt_scan');
+      await detachLinkedDocuments(record, 'fuel_stop', 'open_roads_settlement');
       if (record.receiptPhotoPath) {
         const removed = await receiptBucket.remove([record.receiptPhotoPath]);
         if (removed.error) console.warn('The legacy fuel receipt image could not be removed.', removed.error);
@@ -1193,6 +1335,8 @@
       record.documentFiles = [];
       record.receiptPhotoPath = '';
       record.receiptPhotoUrl = '';
+      record.openRoadsDocumentId = '';
+      record.openRoadsDocumentFiles = [];
     }
 
     async function deleteDefReceiptDocument(record) {
@@ -1575,6 +1719,12 @@
           .sort((a, b) => Number(Boolean(b.is_primary)) - Number(Boolean(a.is_primary)))
           .map(link => [String(link.record_id), link])
       );
+      const openRoadsDocumentLinkByRecordId = new Map(
+        documentLinks
+          .filter(link => link.record_type === 'fuel_stop' && link.link_role === 'open_roads_settlement')
+          .sort((a, b) => Number(Boolean(b.is_primary)) - Number(Boolean(a.is_primary)))
+          .map(link => [String(link.record_id), link])
+      );
       const defDocumentLinkByRecordId = new Map(
         documentLinks
           .filter(link => link.record_type === 'def_purchase' && link.link_role === 'receipt_scan')
@@ -1895,6 +2045,9 @@
         const documentLink = fuelDocumentLinkByRecordId.get(String(row.id));
         const document = documentLink ? documentById.get(documentLink.document_id) : null;
         const linkedFiles = document ? (documentFilesById.get(document.id) || []) : [];
+        const openRoadsDocumentLink = openRoadsDocumentLinkByRecordId.get(String(row.id));
+        const openRoadsDocument = openRoadsDocumentLink ? documentById.get(openRoadsDocumentLink.document_id) : null;
+        const openRoadsLinkedFiles = openRoadsDocument ? (documentFilesById.get(openRoadsDocument.id) || []) : [];
         return {
           _cloudId: row.id,
           _tripId: row.trip_id,
@@ -1915,8 +2068,34 @@
           price: num(row.price_per_gallon) ?? (num(row.gallons) ? num(row.total_cost) / num(row.gallons) : 0),
           fuelType: row.fuel_type || '',
           receiptNumber: row.receipt_number || '',
+          discountProgram: row.discount_program === 'open_roads' ? 'open_roads' : 'none',
+          openRoadsStatus: row.open_roads_status || (row.discount_program === 'open_roads' ? 'pending' : ''),
+          openRoadsInvoiceId: row.open_roads_invoice_id || '',
+          openRoadsTransactionDate: row.open_roads_transaction_date || '',
+          openRoadsLocation: row.open_roads_location || '',
+          openRoadsProduct: row.open_roads_product || '',
+          openRoadsQuantity: num(row.open_roads_quantity),
+          openRoadsUnitPrice: num(row.open_roads_unit_price),
+          openRoadsSubtotal: num(row.open_roads_subtotal),
+          openRoadsGrossDiscount: num(row.open_roads_gross_discount),
+          openRoadsProgramFee: num(row.open_roads_program_fee),
+          openRoadsOtherFees: num(row.open_roads_other_fees),
+          openRoadsNetSavings: num(row.open_roads_net_savings),
+          openRoadsTotalPaid: num(row.open_roads_total_paid),
           ...hubDocumentFields(document),
           documentFiles: linkedFiles.map(file => ({
+            id: file.id,
+            documentId: file.document_id,
+            pageNumber: Number(file.page_number) || 1,
+            originalFilename: file.original_filename || '',
+            mimeType: file.mime_type || '',
+            fileSizeBytes: Number(file.file_size_bytes) || 0,
+            storageBucket: file.storage_bucket || 'hub-documents',
+            storagePath: file.storage_path || '',
+            url: ''
+          })),
+          ...openRoadsDocumentFields(openRoadsDocument),
+          openRoadsDocumentFiles: openRoadsLinkedFiles.map(file => ({
             id: file.id,
             documentId: file.document_id,
             pageNumber: Number(file.page_number) || 1,
@@ -1933,8 +2112,9 @@
         };
       });
       await Promise.all(localFuel.map(async record => {
-        if (!record.documentFiles.length) return;
-        await Promise.all(record.documentFiles.map(async file => {
+        const allDocumentFiles = [...record.documentFiles, ...(record.openRoadsDocumentFiles || [])];
+        if (!allDocumentFiles.length) return;
+        await Promise.all(allDocumentFiles.map(async file => {
           const bucket = file.storageBucket === 'record-receipts' ? receiptBucket :
             file.storageBucket === 'hub-documents' ? hubDocumentBucket :
             client.storage.from(file.storageBucket);
@@ -2160,6 +2340,20 @@
         total_cost: x.total, price_per_gallon: x.price || null,
         fuel_type: x.fuelType || (Number(String(x.date).slice(0, 4)) >= 2025 ? 'diesel' : 'gasoline'),
         receipt_number: x.receiptNumber || null,
+        discount_program: x.discountProgram === 'open_roads' ? 'open_roads' : 'none',
+        open_roads_status: x.discountProgram === 'open_roads' ? (x.openRoadsStatus || 'pending') : null,
+        open_roads_invoice_id: x.openRoadsInvoiceId || null,
+        open_roads_transaction_date: x.openRoadsTransactionDate || null,
+        open_roads_location: x.openRoadsLocation || null,
+        open_roads_product: x.openRoadsProduct || null,
+        open_roads_quantity: x.openRoadsQuantity ?? null,
+        open_roads_unit_price: x.openRoadsUnitPrice ?? null,
+        open_roads_subtotal: x.openRoadsSubtotal ?? null,
+        open_roads_gross_discount: x.openRoadsGrossDiscount ?? null,
+        open_roads_program_fee: x.openRoadsProgramFee ?? null,
+        open_roads_other_fees: x.openRoadsOtherFees ?? null,
+        open_roads_net_savings: x.openRoadsNetSavings ?? null,
+        open_roads_total_paid: x.openRoadsTotalPaid ?? null,
         receipt_photo_path: x.receiptPhotoPath || null,
         notes: x.notes || null
       }));
@@ -2328,9 +2522,11 @@
       setElectricBillDocument,
       setElectricBillDocuments,
       createFuelReceiptDraft,
+      createOpenRoadsSettlementDraft,
       createElectricBillDraft,
       discardHubDocumentDraft,
       linkFuelReceiptDocument,
+      linkOpenRoadsSettlementDocument,
       linkDefReceiptDocument,
       linkPurchaseReceiptDocument,
       deleteFuelReceiptDocument,

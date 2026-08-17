@@ -61,6 +61,27 @@
         { key: 'trip_meter', label: 'TRIP handwriting', type: 'number', step: '0.1', group: 'Handwritten labels' },
         { key: 'odometer', label: 'ODO handwriting', type: 'number', step: '0.1', group: 'Handwritten labels' }
       ]
+    },
+    open_roads_settlement: {
+      noun: 'settlement',
+      analyzeLabel: 'Read this settlement',
+      useLabel: 'Use this Open Roads pricing',
+      waitingText: 'AI can suggest the Open Roads transaction values. You will review them before they are attached to the fuel stop.',
+      failedText: 'The last reading attempt did not finish. The screenshot is still saved as a private draft.',
+      fields: [
+        { key: 'invoice_id', label: 'Invoice ID', type: 'text', group: 'Transaction' },
+        { key: 'transaction_date', label: 'Transaction date', type: 'date', group: 'Transaction' },
+        { key: 'location', label: 'Location', type: 'text', group: 'Transaction' },
+        { key: 'product', label: 'Product', type: 'text', group: 'Fuel' },
+        { key: 'quantity', label: 'Quantity (gallons)', type: 'number', step: '0.001', group: 'Fuel' },
+        { key: 'unit_price', label: 'Pump unit price', type: 'number', step: '0.001', group: 'Fuel' },
+        { key: 'subtotal', label: 'Pump subtotal', type: 'number', step: '0.01', group: 'Fuel' },
+        { key: 'discount', label: 'Gross discount', type: 'number', step: '0.01', group: 'Settlement' },
+        { key: 'program_fee', label: 'Program fee', type: 'number', step: '0.001', group: 'Settlement' },
+        { key: 'fees', label: 'Other fees', type: 'number', step: '0.01', group: 'Settlement' },
+        { key: 'you_saved', label: 'You saved', type: 'number', step: '0.01', group: 'Settlement' },
+        { key: 'total_paid', label: 'Final total paid', type: 'number', step: '0.01', group: 'Settlement' }
+      ]
     }
   };
 
