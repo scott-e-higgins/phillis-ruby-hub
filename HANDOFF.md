@@ -7,7 +7,9 @@ Prepared July 24, 2026.
 Adventure Hub is a working, private, mobile-first progressive web app for Scott and Kayla’s RV travel records. It is live, connected to Supabase, installable on their iPhones, and syncing shared data between approved accounts.
 
 - Current app version: `0.19.1`
-- Production URL: `https://scott-e-higgins.github.io/phillis-ruby-hub/`
+- Production URL: `https://travel.higgshome.com/`
+- Previous custom domain: `https://phillisandruby.com/` (permanently redirects to the production URL)
+- GitHub Pages fallback: `https://scott-e-higgins.github.io/phillis-ruby-hub/` (redirects to the production URL)
 - GitHub repository: `https://github.com/scott-e-higgins/phillis-ruby-hub`
 - Production branch: `main`
 - Hosting: GitHub Pages
@@ -47,9 +49,11 @@ The current UI only offers Sign In. It says, “Accounts are created privately b
 ### Authentication and URL configuration
 
 - Email/password authentication is working.
-- GitHub Pages is the current production origin.
-- The intended Site URL/redirect URL is:
-  `https://scott-e-higgins.github.io/phillis-ruby-hub/`
+- GitHub Pages remains the production host behind the custom domain.
+- The Supabase Site URL is:
+  `https://travel.higgshome.com/`
+- Allowed authentication redirects retain the GitHub Pages fallback, the previous custom domain,
+  and `https://travel.higgshome.com/**`.
 - Users can change their own password from the app.
 - Password recovery handling exists in `cloud.js`.
 - Authenticated users without a `household_members` record are stopped at an “awaiting access approval” screen.
