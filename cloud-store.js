@@ -2509,7 +2509,11 @@
     return {
       load,
       save(snapshot) {
-        syncing = syncing.then(() => write(snapshot));
+        syncing = syncing
+          .catch(error => {
+            console.warn('The previous cloud save did not finish. Retrying with the latest safe browser copy.', error);
+          })
+          .then(() => write(snapshot));
         return syncing;
       },
       setStayPhoto,

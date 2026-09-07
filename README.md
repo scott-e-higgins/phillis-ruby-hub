@@ -2,6 +2,13 @@
 
 Travel Journal is Scott and Kayla's private travel companion.
 
+## Version 1.1.0
+
+- Keeps Trip Detail open at the same section and scroll position after nested edits.
+- Adds current-trip shortcuts for stays, activities, fuel/DEF, and notes.
+- Adds a direct trip-aware stay form with sensible date and time defaults.
+- Makes cloud saves recover after a temporary mobile-network failure and offers a visible retry.
+
 ## Version 0.50.2
 
 - Treats a minus-signed Open Roads **Total Paid** charge as the positive amount spent.

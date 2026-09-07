@@ -1489,3 +1489,45 @@ html.standalone-app body{
   .def-stats-card{grid-template-columns:1fr 1fr}
   .campground-journal-checks,.campground-journal-checks.compact{grid-template-columns:1fr}
 }
+
+/* v1.1 trip-context and cloud-save feedback */
+.cloud-save-status{
+  position:fixed;
+  z-index:95;
+  left:50%;
+  bottom:calc(86px + env(safe-area-inset-bottom));
+  max-width:calc(100vw - 28px);
+  min-height:34px;
+  padding:7px 12px;
+  transform:translateX(-50%);
+  border:1px solid #4f6359;
+  border-radius:8px;
+  background:rgba(27,38,33,.97);
+  color:#dfe9e4;
+  box-shadow:0 8px 24px rgba(0,0,0,.38);
+  font-size:11px;
+  font-weight:800;
+  white-space:nowrap;
+}
+.cloud-save-status[data-state="saved"]{border-color:#5c8c74;color:#bce9d2}
+.cloud-save-status[data-state="failed"]{border-color:#a57b54;background:rgba(61,43,31,.98);color:#f1d5a4;text-decoration:underline;text-underline-offset:2px}
+.cloud-save-status:disabled{text-decoration:none;cursor:default}
+.trip-context-actions{
+  margin:2px 0 14px;
+  padding:12px;
+  border:1px solid #4b5d54;
+  border-radius:8px;
+  background:linear-gradient(145deg,#26372f,#222f29);
+  box-shadow:var(--shadow-sm);
+}
+.trip-context-actions>small{display:block;margin:0 2px 9px;color:var(--gold);font-size:9px;font-weight:900;letter-spacing:.13em}
+.trip-context-actions>div{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
+.trip-context-actions button{min-width:0;padding:9px 5px;border:1px solid #4c6257;border-radius:7px;background:#2b3d35;color:#e8f0ec;font-size:10px;font-weight:800}
+.trip-context-actions button:active{transform:scale(.98)}
+.trip-context-actions button span{display:block;margin-bottom:2px;color:#a8dac2;font-size:16px;line-height:1}
+.trip-description-section{border-left:3px solid #678d7b}
+@media(max-width:390px){
+  .trip-context-actions{padding:10px 8px}
+  .trip-context-actions>div{gap:5px}
+  .trip-context-actions button{padding:8px 3px;font-size:9px}
+}
