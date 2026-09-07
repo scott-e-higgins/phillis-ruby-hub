@@ -1,4 +1,4 @@
-const APP_VERSION='0.50.2';
+const APP_VERSION='1.1.0';
 const SEED={"tripSummaries":[],"campgrounds":[],"stays":[],"tripPlans":[],"fuel":[],"def":[],"siteFees":[],"electric":[],"sharedNotes":[],"vehicleDetails":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const NO_TRIP_VALUE='__everyday_ruby__';
@@ -70,6 +70,58 @@ let detailReturnTripIndex=null;
 let entryReturnTripIndex=null;
 let suppressNextDetailReturn=false;
 let suppressNextEntryReturn=false;
+let tripReturnState=null;
+let cloudStatusRetry=null;
+let cloudStatusHideTimer=null;
+
+function rememberTripDetail(index,section=''){
+  const dialog=$('#detailDialog');
+  if(index===null||index===undefined||!dialog?.open)return;
+  const sectionElement=section?dialog.querySelector(`[data-trip-section="${section}"]`):null;
+  tripReturnState={
+    index,
+    section,
+    scrollTop:dialog.scrollTop,
+    sectionOffset:sectionElement?dialog.scrollTop-sectionElement.offsetTop:null
+  };
+}
+function restoreTripDetail(index){
+  if(!tripReturnState||tripReturnState.index!==index)return;
+  const state=tripReturnState;
+  tripReturnState=null;
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    const dialog=$('#detailDialog');
+    if(!dialog?.open)return;
+    const section=state.section?dialog.querySelector(`[data-trip-section="${state.section}"]`):null;
+    dialog.scrollTop=section&&state.sectionOffset!==null
+      ?Math.max(0,section.offsetTop+state.sectionOffset)
+      :state.scrollTop;
+  }));
+}
+function isTemporaryNetworkError(error){
+  const message=String(error?.message||error||'').toLowerCase();
+  return error instanceof TypeError||/load failed|failed to fetch|network|offline|timeout|timed out|connection/.test(message);
+}
+const waitForRetry=delay=>new Promise(resolve=>setTimeout(resolve,delay));
+async function retryTemporaryNetworkFailure(operation){
+  try{return await operation()}
+  catch(error){
+    if(!isTemporaryNetworkError(error))throw error;
+    await waitForRetry(450);
+    return operation();
+  }
+}
+function setCloudStatus(state,message,retry=null){
+  const indicator=$('#cloudSaveStatus');
+  if(!indicator)return;
+  clearTimeout(cloudStatusHideTimer);
+  cloudStatusRetry=retry;
+  indicator.dataset.state=state;
+  indicator.textContent=message;
+  indicator.hidden=false;
+  indicator.disabled=state==='saving'||!retry;
+  if(state==='saved')cloudStatusHideTimer=setTimeout(()=>{indicator.hidden=true},1800);
+}
 function closeDetailForTransition(){
   detailReturnTripIndex=null;
   if($('#detailDialog')?.open){
@@ -85,27 +137,36 @@ function closeEntryForTransition(){
     $('#entryDialog').close();
   }
 }
-const save=()=>{
+const save=async()=>{
   localStorage.setItem(KEY,JSON.stringify(db));
   if(cloudLoaded&&window.ADVENTURE_HUB_STORE){
     const status=$('#cloudAccountStatus');
     if(window.ADVENTURE_HUB_CLOUD?.role==='viewer'){
       if(status)status.textContent=`Connected as ${window.ADVENTURE_HUB_CLOUD.user.email} · Higgins Hub · View only`;
-      return Promise.resolve(true);
+      return true;
     }
     if(status)status.textContent='Saving shared changes…';
-    return window.ADVENTURE_HUB_STORE.save(db).then(()=>{
+    setCloudStatus('saving','Saving to cloud…');
+    try{
+      await retryTemporaryNetworkFailure(()=>window.ADVENTURE_HUB_STORE.save(db));
       if(status&&window.ADVENTURE_HUB_CLOUD)status.textContent=`Connected as ${window.ADVENTURE_HUB_CLOUD.user.email} · Higgins Hub · All changes saved`;
+      setCloudStatus('saved','✓ Saved to cloud');
       return true;
-    }).catch(error=>{
-      console.error(error);
+    }catch(error){
+      console.error('Travel Journal cloud save failed.',{
+        version:APP_VERSION,
+        online:navigator.onLine,
+        name:error?.name||'Error',
+        message:error?.message||String(error)
+      },error);
       if(status)status.textContent='Cloud save needs attention. Your browser backup is still safe.';
-      alert(`The change is saved on this device, but cloud syncing failed.\n\n${error.message}`);
+      setCloudStatus('failed','Saved here · Retry cloud sync',()=>save());
       return false;
-    });
+    }
   }
-  return Promise.resolve(true);
+  return true;
 };
+$('#cloudSaveStatus')?.addEventListener('click',()=>cloudStatusRetry?.());
 function applyDataMigrations(){
   db.meta=db.meta||{};
   db.meta.migrations=db.meta.migrations||[];
@@ -192,7 +253,10 @@ function bindStayMapLinks(root=document){
 }
 function bindStayCards(root=document,tripIndex=null){
   $$('[data-stay-detail]',root).forEach(card=>{
-    const open=()=>showStay(+card.dataset.stayDetail,tripIndex);
+    const open=()=>{
+      if(tripIndex!==null)rememberTripDetail(tripIndex,'stays');
+      showStay(+card.dataset.stayDetail,tripIndex);
+    };
     card.onclick=event=>{
       if(event.target.closest('a,button,input,label'))return;
       open();
@@ -453,7 +517,7 @@ function noteCardHtml(note,compact=false){
 }
 function bindNoteCards(host,returnTripIndex=null){
   $$('[data-note-index]',host).forEach(button=>button.onclick=()=>{
-    if(returnTripIndex!==null)closeDetailForTransition();
+    if(returnTripIndex!==null){rememberTripDetail(returnTripIndex,'notes');closeDetailForTransition();}
     openEntry('hub-note',+button.dataset.noteIndex,returnTripIndex);
   });
 }
@@ -982,6 +1046,7 @@ function planCardHtml(plan,{viewer=false}={}){
 }
 function bindPlanCards(root,returnTripIndex){
   $$('[data-trip-plan-index]',root).forEach(button=>button.onclick=()=>{
+    rememberTripDetail(returnTripIndex,'plans');
     closeDetailForTransition();
     showPlanRecord(+button.dataset.tripPlanIndex,returnTripIndex);
   });
@@ -1005,23 +1070,32 @@ function showTrip(index){
   const [s,e]=tripDates(t), stays=matchingStays(t), plans=plansForTrip(t), fuel=matchingFuel(t), def=matchingDef(t), linkedNotes=notesForTrip(t);
   const stayCost=stays.reduce((total,stay)=>total+(Number(stay.price)||0),0);
   const fuelCost=fuel.length?fuel.reduce((total,stop)=>total+actualFuelCost(stop),0):Number(t.cost)||0;
+  const status=tripStatus(t);
   const headerMeta=`<p class="detail-header-dates">${tripHasDates(t)?`${date(s)} – ${date(e)}`:t.year}</p>${rigLineHtml(t)}`;
   setDetailHeader('TRIP',t.name,t,headerMeta);
   if(window.ADVENTURE_HUB_CLOUD?.role==='viewer'){
-    $('#detailBody').innerHTML=`${t.destination?`<div class="detail-section"><h3>Destination</h3><p>${escapeHtml(t.destination)}</p></div>`:''}<div class="detail-section"><h3>Campgrounds & hosts</h3><div class="stay-listing-stack">${stays.map(x=>stayListing(x,{viewer:true})).join('')||'<p class="intro">No campground details have been added yet.</p>'}</div></div><div class="detail-section"><h3>Plans & reservations</h3><div class="trip-plan-list">${plans.map(plan=>planCardHtml(plan,{viewer:true})).join('')||'<p class="intro">No activity plans have been added yet.</p>'}</div></div>`;
+    $('#detailBody').innerHTML=`${t.destination?`<div class="detail-section" data-trip-section="identity"><h3>Destination</h3><p>${escapeHtml(t.destination)}</p></div>`:''}<div class="detail-section" data-trip-section="stays"><h3>Campgrounds & hosts</h3><div class="stay-listing-stack">${stays.map(x=>stayListing(x,{viewer:true})).join('')||'<p class="intro">No campground details have been added yet.</p>'}</div></div><div class="detail-section" data-trip-section="plans"><h3>Plans & reservations</h3><div class="trip-plan-list">${plans.map(plan=>planCardHtml(plan,{viewer:true})).join('')||'<p class="intro">No activity plans have been added yet.</p>'}</div></div>`;
     bindStayPhotoButtons($('#detailBody'));
     bindStayMapLinks($('#detailBody'));
     bindStayCards($('#detailBody'),index);
     $('#detailDialog').showModal();
+    restoreTripDetail(index);
     return;
   }
-  $('#detailBody').innerHTML=`<div class="record-detail-actions"><button class="primary" id="editTripButton">Edit trip</button></div><div class="detail-section trip-totals-section"><h3>Trip totals</h3><div class="trip-totals-compact"><div><small>Stay cost</small><b>${money(stayCost)}</b></div><div><small>Fuel cost</small><b>${money(fuelCost)}</b></div><div><small>Miles</small><b>${number(t.distance,1)}</b></div><div><small>MPG</small><b>${number(t.mpg,2)}</b></div></div></div><div class="detail-section"><h3>Campgrounds & hosts</h3><div class="stay-listing-stack">${stays.map(x=>stayListing(x)).join('')||'<p class="intro">No campground stays linked yet.</p>'}</div></div><div class="detail-section trip-plans-section"><div class="detail-section-head"><h3>Plans & reservations</h3><button class="text-button" id="addTripPlanButton">Add plan</button></div><div class="trip-plan-list">${plans.map(plan=>planCardHtml(plan)).join('')||'<p class="intro">No activity plans or reservations linked yet.</p>'}</div></div><div class="detail-section trip-linked-notes-section"><div class="detail-section-head"><h3>Linked notes</h3><button class="text-button" id="addTripNoteButton">Add note</button></div><div class="trip-linked-notes">${linkedNotes.map(note=>noteCardHtml(note,true)).join('')||'<p class="intro">No notes linked to this trip yet.</p>'}</div></div><div class="detail-section"><div class="detail-section-head"><h3>Fuel &amp; DEF</h3><button class="text-button" id="addTripFuelButton">Add purchase</button></div>${tripPurchaseRows(t,fuel,def)}</div>${t.notes?`<div class="detail-section"><h3>Trip description</h3><p>${escapeHtml(t.notes)}</p></div>`:''}<div class="trip-delete-area"><button class="delete-link" id="deleteTripButton">Delete trip</button></div>`;
-  $('#editTripButton').onclick=()=>{closeDetailForTransition();openEntry('trip',index)};
-  $('#addTripFuelButton').onclick=()=>{closeDetailForTransition();openEntry('fuel',null,index)};
-  $('#addTripPlanButton').onclick=()=>{closeDetailForTransition();openEntry('trip-plan',null,index)};
-  $('#addTripNoteButton').onclick=()=>{closeDetailForTransition();openEntry('hub-note',null,index)};
-  $$('[data-trip-fuel-record-index]').forEach(button=>button.onclick=()=>showFuelRecord(+button.dataset.tripFuelRecordIndex,index));
-  $$('[data-trip-def-record-index]').forEach(button=>button.onclick=()=>showDefRecord(+button.dataset.tripDefRecordIndex,index));
+  const quickActions=status==='current'?`<div class="trip-context-actions" data-trip-section="quick"><small>ADD TO THIS TRIP</small><div><button type="button" data-trip-action="stay"><span>＋</span>Stay</button><button type="button" data-trip-action="plan"><span>◇</span>Activity</button><button type="button" data-trip-action="fuel"><span>⛽</span>Fuel / DEF</button><button type="button" data-trip-action="note"><span>✎</span>Note</button></div></div>`:'';
+  $('#detailBody').innerHTML=`<div class="record-detail-actions"><button class="primary" id="editTripButton">Edit trip</button></div>${quickActions}${t.notes?`<div class="detail-section trip-description-section" data-trip-section="identity"><h3>About this trip</h3><p>${escapeHtml(t.notes)}</p></div>`:''}<div class="detail-section" data-trip-section="stays"><div class="detail-section-head"><h3>Campgrounds & hosts</h3><button class="text-button" id="addTripStayButton">Add stay</button></div><div class="stay-listing-stack">${stays.map(x=>stayListing(x)).join('')||'<p class="intro">No campground stays linked yet.</p>'}</div></div><div class="detail-section trip-plans-section" data-trip-section="plans"><div class="detail-section-head"><h3>Plans & reservations</h3><button class="text-button" id="addTripPlanButton">Add plan</button></div><div class="trip-plan-list">${plans.map(plan=>planCardHtml(plan)).join('')||'<p class="intro">No activity plans or reservations linked yet.</p>'}</div></div><div class="detail-section trip-linked-notes-section" data-trip-section="notes"><div class="detail-section-head"><h3>Linked notes</h3><button class="text-button" id="addTripNoteButton">Add note</button></div><div class="trip-linked-notes">${linkedNotes.map(note=>noteCardHtml(note,true)).join('')||'<p class="intro">No notes linked to this trip yet.</p>'}</div></div><div class="detail-section" data-trip-section="records"><div class="detail-section-head"><h3>Fuel &amp; DEF</h3><button class="text-button" id="addTripFuelButton">Add purchase</button></div>${tripPurchaseRows(t,fuel,def)}</div><div class="detail-section trip-totals-section" data-trip-section="totals"><h3>Trip totals</h3><div class="trip-totals-compact"><div><small>Stay cost</small><b>${money(stayCost)}</b></div><div><small>Fuel cost</small><b>${money(fuelCost)}</b></div><div><small>Miles</small><b>${number(t.distance,1)}</b></div><div><small>MPG</small><b>${number(t.mpg,2)}</b></div></div></div><div class="trip-delete-area"><button class="delete-link" id="deleteTripButton">Delete trip</button></div>`;
+  const openTripEntry=(type,section)=>{rememberTripDetail(index,section);closeDetailForTransition();openEntry(type,null,index)};
+  $('#editTripButton').onclick=()=>{rememberTripDetail(index,'identity');closeDetailForTransition();openEntry('trip',index,index)};
+  $('#addTripStayButton').onclick=()=>openTripEntry('stay','stays');
+  $('#addTripFuelButton').onclick=()=>openTripEntry('fuel','records');
+  $('#addTripPlanButton').onclick=()=>openTripEntry('trip-plan','plans');
+  $('#addTripNoteButton').onclick=()=>openTripEntry('hub-note','notes');
+  $$('[data-trip-action]').forEach(button=>button.onclick=()=>{
+    const action=button.dataset.tripAction;
+    openTripEntry(action==='stay'?'stay':action==='plan'?'trip-plan':action==='fuel'?'fuel':'hub-note','quick');
+  });
+  $$('[data-trip-fuel-record-index]').forEach(button=>button.onclick=()=>{rememberTripDetail(index,'records');showFuelRecord(+button.dataset.tripFuelRecordIndex,index)});
+  $$('[data-trip-def-record-index]').forEach(button=>button.onclick=()=>{rememberTripDetail(index,'records');showDefRecord(+button.dataset.tripDefRecordIndex,index)});
   bindNoteCards($('#detailBody'),index);
   bindPlanCards($('#detailBody'),index);
   bindStayPhotoButtons($('#detailBody'));
@@ -1029,6 +1103,7 @@ function showTrip(index){
   bindStayCards($('#detailBody'),index);
   $('#deleteTripButton').onclick=()=>deleteTrip(index);
   $('#detailDialog').showModal();
+  restoreTripDetail(index);
 }
 function normalizedWebsiteUrl(value){
   const raw=String(value||'').trim();
@@ -2583,7 +2658,7 @@ function notePhotoChanges(){
   };
 }
 function openEntry(type,index=null,returnTripIndex=null){
-  const titles={'hub-note':index===null?'Add note':'Edit note',trip:index===null?'Add trip':'Edit trip','trip-plan':index===null?'Add plan or reservation':'Edit plan or reservation',fuel:index===null?'Add fuel or DEF':'Edit fuel stop',def:index===null?'Add DEF':'Edit DEF purchase',stay:index===null?'Add campground':'Edit stay','phillis-maint':index===null?'Add Phillis maintenance':'Edit Phillis maintenance','phillis-upgrade':index===null?'Add Phillis upgrade':'Edit Phillis upgrade','ruby-maint':index===null?'Add Ruby maintenance':'Edit Ruby maintenance','ruby-upgrade':index===null?'Add Ruby upgrade':'Edit Ruby upgrade',electric:index===null?'Add electric reading':'Edit electric reading',sitepayment:index===null?'Add seasonal payment':'Edit seasonal payment',sitefee:index===null?'Add season':'Edit season'};
+  const titles={'hub-note':index===null?'Add note':'Edit note',trip:index===null?'Add trip':'Edit trip','trip-plan':index===null?'Add plan or reservation':'Edit plan or reservation',fuel:index===null?'Add fuel or DEF':'Edit fuel stop',def:index===null?'Add DEF':'Edit DEF purchase',stay:index===null?'Add stay':'Edit stay','phillis-maint':index===null?'Add Phillis maintenance':'Edit Phillis maintenance','phillis-upgrade':index===null?'Add Phillis upgrade':'Edit Phillis upgrade','ruby-maint':index===null?'Add Ruby maintenance':'Edit Ruby maintenance','ruby-upgrade':index===null?'Add Ruby upgrade':'Edit Ruby upgrade',electric:index===null?'Add electric reading':'Edit electric reading',sitepayment:index===null?'Add seasonal payment':'Edit seasonal payment',sitefee:index===null?'Add season':'Edit season'};
   $('#entryType').value=type; $('#entryIndex').value=index===null?'':index; $('#entryStayIndex').value=returnTripIndex===null?'':returnTripIndex;
   entryReturnTripIndex=returnTripIndex;
   $('#entryKicker').textContent=index===null?'NEW RECORD':'EDIT RECORD';
@@ -2722,6 +2797,20 @@ function openEntry(type,index=null,returnTripIndex=null){
         cost.value='0';
       }
     }));
+    if(index===null&&returnTripIndex!==null){
+      const trip=db.tripSummaries[returnTripIndex];
+      if(trip){
+        const [tripStart,tripEnd]=tripDates(trip);
+        const lastDeparture=matchingStays(trip)
+          .map(stay=>stay.departure)
+          .filter(Boolean)
+          .sort((a,b)=>String(b).localeCompare(String(a)))[0];
+        $('#arrival').value=lastDeparture||tripStart||today;
+        $('#departure').value=tripEnd||'';
+        $('#checkInTime').value='12:00';
+        $('#checkOutTime').value='12:00';
+      }
+    }
   }
   if(type==='fuel'||type==='def'){
     const collection=type==='def'?db.def:db.fuel;
@@ -3038,6 +3127,7 @@ $('#tripStayForm').onsubmit=event=>{
 bindOpeners();
 $('#entryForm').onsubmit=async e=>{
   e.preventDefault(); const type=$('#entryType').value;
+  const returnTripIndex=$('#entryStayIndex').value===''?null:+$('#entryStayIndex').value;
   const notes=type==='hub-note'&&$('#noteChecklist')?.checked?checklistBody(readChecklistEditor()):$('#entryNotes').value;
   const submitButton=$('#entryForm').querySelector('.form-actions .primary');
   submitButton.classList.remove('attention-pulse');
@@ -3214,7 +3304,9 @@ $('#entryForm').onsubmit=async e=>{
   }
   else if(type==='stay'){
     const a=$('#arrival').value,d=$('#departure').value,index=$('#entryIndex').value===''?null:+$('#entryIndex').value,harvestHost=$('#harvestHost').checked,moochdocking=$('#moochdocking').checked,boondocking=$('#boondocking').checked,stayType=harvestHost?'harvest-host':moochdocking?'moochdocking':boondocking?'boondocking':'campground';
-    const record={...(index===null?{}:db.stays[index]),year:+a.slice(0,4),arrival:a,departure:d,checkInTime:$('#checkInTime').value,checkOutTime:$('#checkOutTime').value,nights:d?Math.round((new Date(d)-new Date(a))/86400000):null,name:$('#name').value,address:$('#address').value,city:$('#city').value,state:$('#state').value,zip:$('#zip').value,site:$('#site').value,price:+$('#total').value||0,harvestHost,moochdocking,boondocking,stayType,notes};
+    const prior=index===null?{}:db.stays[index];
+    const relatedTrip=returnTripIndex!==null?db.tripSummaries[returnTripIndex]:null;
+    const record={...prior,_tripId:prior._tripId||(relatedTrip?._cloudId||null),year:+a.slice(0,4),arrival:a,departure:d,checkInTime:$('#checkInTime').value,checkOutTime:$('#checkOutTime').value,nights:d?Math.round((new Date(d)-new Date(a))/86400000):null,name:$('#name').value,address:$('#address').value,city:$('#city').value,state:$('#state').value,zip:$('#zip').value,site:$('#site').value,price:+$('#total').value||0,harvestHost,moochdocking,boondocking,stayType,notes};
     if(index===null) db.stays.push(record); else db.stays[index]=record;
     savedStay=record;
   }
@@ -3247,7 +3339,6 @@ $('#entryForm').onsubmit=async e=>{
   }
   else if(type==='sitefee'){const y=+$('#year').value,total=+$('#total').value||0,index=$('#entryIndex').value===''?null:+$('#entryIndex').value,record={...(index===null?{}:db.stays[index]),year:y,arrival:'Season',departure:'Season',nights:null,name:'Lehigh Gorge Campground',address:$('#address').value,city:$('#city').value,state:$('#state').value,zip:$('#zip').value,site:$('#site').value||'39',price:total,harvestHost:false,notes};if(index===null)db.stays.push(record);else db.stays[index]=record;const annual=(db.siteFees||[]).find(x=>+x.year===y&&x.yearTotal!=null);if(annual)annual.yearTotal=total}
   else {const key=type==='phillis-maint'?'phillisMaintenance':type==='phillis-upgrade'?'phillisUpgrades':type==='ruby-maint'?'rubyMaintenance':'rubyUpgrades',index=$('#entryIndex').value===''?null:+$('#entryIndex').value,prior=index===null?{}:db[key][index],obj={...prior,date:$('#date').value,description:$('#description').value,location:$('#location').value,price:+$('#total').value||0,receiptPhotoPaths:[...(prior.receiptPhotoPaths||[])],receiptPhotoUrls:[...(prior.receiptPhotoUrls||[])],notes,...(type.startsWith('phillis-')?{trailer:$('#trailer').value}:{})};if(index===null)db[key].push(obj);else db[key][index]=obj;savedMultiReceiptRecord=obj;savedMultiReceiptKind='maintenance'}
-  const returnTripIndex=$('#entryStayIndex').value===''?null:+$('#entryStayIndex').value;
   submitButton.disabled=true;
   submitButton.textContent=stayPhotoChanges.length?'Saving stay…':tripPhotoChange?'Saving trip…':pendingElectricDocumentChanges?'Saving bill document…':pendingFuelReceiptDocument?'Saving purchase receipt…':pendingTripPlanPdfChanges?'Saving PDFs…':receiptChange||pendingMultiReceiptChanges.addFiles.length||pendingMultiReceiptChanges.removePaths.length?'Saving receipt…':pendingNotePhotoChanges.addFiles.length||pendingNotePhotoChanges.removePaths.length?'Saving note…':'Saving…';
   const cloudSaved=await save();
@@ -3423,7 +3514,7 @@ async function loadCloudData(){
   if(status)status.textContent='Loading shared Travel Journal records…';
   try{
     const browserBackup=migrate(JSON.parse(localStorage.getItem(KEY)||'null'));
-    db=migrate(await window.ADVENTURE_HUB_STORE.load());
+    db=migrate(await retryTemporaryNetworkFailure(()=>window.ADVENTURE_HUB_STORE.load()));
     refreshTripFuelSummaries();
     const canEditCloud=window.ADVENTURE_HUB_CLOUD?.role!=='viewer';
     let recoveredLocalChanges=false;
@@ -3454,8 +3545,14 @@ async function loadCloudData(){
     if(status&&window.ADVENTURE_HUB_CLOUD)status.textContent=`Connected as ${window.ADVENTURE_HUB_CLOUD.user.email} · Higgins Hub · Cloud sync is on · v${APP_VERSION}`;
     return true;
   }catch(error){
-    console.error(error);
+    console.error('Travel Journal cloud load failed.',{
+      version:APP_VERSION,
+      online:navigator.onLine,
+      name:error?.name||'Error',
+      message:error?.message||String(error)
+    },error);
     if(status)status.textContent='Could not load cloud records. Showing the browser backup.';
+    setCloudStatus('failed','Cloud refresh unavailable · Retry',()=>loadCloudData());
     return false;
   }
 }
