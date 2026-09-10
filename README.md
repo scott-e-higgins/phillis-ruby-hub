@@ -2,6 +2,12 @@
 
 Travel Journal is Scott and Kayla's private travel companion.
 
+## Version 1.3.0
+
+- Shows Cellar winery visits as ordinary activity cards inside **Plans & Reservations** instead of a separate wine section.
+- Keeps explicit trip links authoritative and infers an unlinked visit only when its date belongs to exactly one trip.
+- Avoids exact date/name duplicates with existing plans and no longer presents wine acquisitions in Travel Journal.
+
 ## Version 1.2.1
 
 - Republishes the Travel Journal JavaScript bundle cleanly after the initial v1.2.0 upload was corrupted.
