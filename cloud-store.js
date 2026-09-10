@@ -37,6 +37,7 @@
     const notePhotoBucket = client.storage.from('note-photos');
     const receiptBucket = client.storage.from('record-receipts');
     const hubDocumentBucket = client.storage.from('hub-documents');
+    const cellarPhotoBucket = client.storage.from('cellar-photos');
     let storageUsageCache = null;
     const photoMaxDimension = 1400;
     const photoQuality = .78;
@@ -49,6 +50,20 @@
         return '';
       }
       return result.data?.signedUrl || '';
+    }
+
+    async function getTripCellarActivity(tripId) {
+      const empty = { visits: [], wines: [] };
+      if (!tripId || role === 'viewer') return empty;
+      const result = await client.rpc('get_trip_cellar_activity', { p_trip_id: tripId });
+      if (result.error) throw result.error;
+      const activity = result.data && typeof result.data === 'object' ? result.data : empty;
+      const visits = Array.isArray(activity.visits) ? activity.visits : [];
+      const wines = Array.isArray(activity.wines) ? activity.wines : [];
+      await Promise.all([...visits, ...wines].map(async item => {
+        item.photo_url = item.photo_path ? await signedPhotoUrl(cellarPhotoBucket, item.photo_path) : '';
+      }));
+      return { visits, wines };
     }
 
     async function hydrateStayPhotoUrls(stays) {
@@ -2542,7 +2557,8 @@
       deleteRecordReceipt,
       setMultiRecordReceipts,
       getStorageUsage,
-      optimizeStoredPhotos
+      optimizeStoredPhotos,
+      getTripCellarActivity
     };
   }
 

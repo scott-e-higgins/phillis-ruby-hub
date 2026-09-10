@@ -2,6 +2,13 @@
 
 Travel Journal is Scott and Kayla's private travel companion.
 
+## Version 1.2.0
+
+- Shows a read-only **Wine & Wineries** section only on trips with activity linked in The Cellar.
+- Opens the exact winery visit or wine in The Cellar and returns to the same Travel Journal trip.
+- Keeps Cellar details out of the Family Viewer response at the Supabase authorization layer.
+- Reuses the existing trip, Cellar, and photo records without copying data.
+
 ## Version 1.1.0
 
 - Keeps Trip Detail open at the same section and scroll position after nested edits.
