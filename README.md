@@ -2,6 +2,11 @@
 
 Travel Journal is Scott and Kayla's private travel companion.
 
+## Version 1.2.1
+
+- Republishes the Travel Journal JavaScript bundle cleanly after the initial v1.2.0 upload was corrupted.
+- Uses a new asset version so phones and installed home-screen copies replace the broken cached file.
+
 ## Version 1.2.0
 
 - Shows a read-only **Wine & Wineries** section only on trips with activity linked in The Cellar.
