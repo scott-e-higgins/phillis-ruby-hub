@@ -245,21 +245,12 @@ label textarea{resize:vertical}
 .trip-totals-compact>div{min-width:0;padding:9px 10px;border:1px solid var(--line);border-radius:7px;background:#252e29}
 .trip-totals-compact small{display:block;color:var(--muted);font-size:9px;font-weight:850;letter-spacing:.045em;text-transform:uppercase;white-space:nowrap}
 .trip-totals-compact b{display:block;margin-top:3px;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.trip-cellar-section{padding-top:2px}
-.cellar-activity-group{margin-top:12px}
-.cellar-activity-group>h4{margin:0 0 7px;color:#d5c28a;font-size:11px;letter-spacing:.08em;text-transform:uppercase}
-.cellar-activity-list{display:grid;gap:8px}
-.cellar-activity-card{display:grid;grid-template-columns:58px minmax(0,1fr) auto;align-items:center;gap:11px;min-height:72px;padding:7px 11px 7px 7px;border:1px solid #4b5147;border-radius:8px;background:linear-gradient(145deg,#30352e,#262d29);color:var(--ink);text-decoration:none;box-shadow:var(--shadow-sm);transition:transform .18s var(--ease),border-color .18s var(--ease),background .18s var(--ease)}
-.cellar-activity-card:hover,.cellar-activity-card:focus-visible{transform:translateY(-1px);border-color:#9a8650;background:linear-gradient(145deg,#37392f,#2a312c);outline:none}
-.cellar-card-photo{display:grid;place-items:center;width:58px;height:58px;overflow:hidden;border:1px solid rgba(213,194,138,.28);border-radius:6px;background:#202722}
-.cellar-card-photo img{width:100%;height:100%;object-fit:cover}
-.cellar-card-placeholder{color:#d5c28a;font-size:27px}
-.cellar-card-copy{display:grid;gap:2px;min-width:0}
-.cellar-card-copy small{color:#d5c28a;font-size:8px;font-weight:900;letter-spacing:.11em}
-.cellar-card-copy b{font-size:15px;line-height:1.2;overflow:hidden;text-overflow:ellipsis}
-.cellar-card-copy span{color:var(--muted);font-size:11px;line-height:1.3}
-.cellar-card-copy em{display:-webkit-box;overflow:hidden;color:#bdc7c1;font-size:11px;font-style:normal;line-height:1.35;-webkit-box-orient:vertical;-webkit-line-clamp:2}
-.cellar-activity-card>.record-chevron{color:#d5c28a;font-size:24px}
+.cellar-visit-plan-card{display:grid;grid-template-columns:58px minmax(0,1fr) auto;padding:8px;color:var(--ink);text-decoration:none}
+.cellar-visit-plan-card:hover,.cellar-visit-plan-card:focus-visible{border-color:#78927f;background:linear-gradient(145deg,#37463e,#303c35);outline:none}
+.plan-card-photo{display:grid;place-items:center;width:58px;height:58px;overflow:hidden;border:1px solid #5d7568;border-radius:6px;background:#253a31}
+.plan-card-photo img{width:100%;height:100%;object-fit:cover}
+.plan-card-photo-fallback{color:#acd9c1;font-size:25px}
+.cellar-visit-note{display:-webkit-box!important;overflow:hidden;-webkit-box-orient:vertical;-webkit-line-clamp:1}
 .pill{display:inline-block;background:var(--pine-3);color:var(--pine);border-radius:999px;padding:4px 9px;font-size:11px;font-weight:850;letter-spacing:.04em}
 .record-actions{display:flex;gap:7px}
 .small-button{border:1px solid #3b4942;border-radius:10px;background:#28332e;color:var(--ink);padding:7px 10px;font-weight:800}
