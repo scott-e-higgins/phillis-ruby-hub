@@ -1,4 +1,4 @@
-const APP_VERSION='1.2.1';
+const APP_VERSION='1.3.0';
 const SEED={"tripSummaries":[],"campgrounds":[],"stays":[],"tripPlans":[],"fuel":[],"def":[],"siteFees":[],"electric":[],"sharedNotes":[],"vehicleDetails":[],"meta":{"source":"Supabase","version":APP_VERSION},"phillisUpgrades":[],"rubyMaintenance":[],"rubyUpgrades":[],"phillisMaintenance":[]};
 const KEY='phillis-ruby-hub-v04', OLDKEY='phillis-ruby-hub-v03';
 const NO_TRIP_VALUE='__everyday_ruby__';
@@ -1076,30 +1076,25 @@ function cellarRecordUrl(kind,id,tripId){
   target.searchParams.set('return_to',returnUrl.href);
   return target.href;
 }
-function tripCellarActivityHtml(activity,tripId){
-  const visits=Array.isArray(activity?.visits)?activity.visits:[];
-  const wines=Array.isArray(activity?.wines)?activity.wines:[];
-  if(!visits.length&&!wines.length)return '';
-  const picture=(item,label)=>item.photo_url
+function wineryVisitPlanCardHtml(item,tripId){
+  const label=item.winery_name||'Winery visit';
+  const picture=item.photo_url
     ?`<img src="${escapeHtml(item.photo_url)}" alt="${escapeHtml(label)}" loading="lazy">`
-    :'<span class="cellar-card-placeholder" aria-hidden="true">♢</span>';
-  const visitCards=visits.map(item=>{
-    const label=item.winery_name||'Winery visit';
-    const bottles=Number(item.bottle_count)||0;
-    return `<a class="cellar-activity-card" href="${escapeHtml(cellarRecordUrl('visit',item.visit_id,tripId))}"><span class="cellar-card-photo">${picture(item,label)}</span><span class="cellar-card-copy"><small>WINERY VISIT</small><b>${escapeHtml(label)}</b><span>${date(item.visit_date)}${bottles?` · ${number(bottles,0)} ${bottles===1?'bottle':'bottles'}`:''}</span>${item.notes?`<em>${escapeHtml(item.notes)}</em>`:''}</span><span class="record-chevron">›</span></a>`;
-  }).join('');
-  const wineCards=wines.map(item=>{
-    const vintage=item.non_vintage?'NV':item.vintage||'';
-    const label=[vintage,item.wine_name].filter(Boolean).join(' ');
-    const quantity=Number(item.quantity)||0;
-    return `<a class="cellar-activity-card cellar-wine-card" href="${escapeHtml(cellarRecordUrl('wine',item.wine_id,tripId))}"><span class="cellar-card-photo">${picture(item,label||'Wine')}</span><span class="cellar-card-copy"><small>WINE BROUGHT HOME</small><b>${escapeHtml(label||'Wine')}</b><span>${escapeHtml(item.winery_name||'Unknown winery')}${quantity?` · ${number(quantity,0)} ${quantity===1?'bottle':'bottles'}`:''}</span></span><span class="record-chevron">›</span></a>`;
-  }).join('');
-  return `<div class="detail-section trip-cellar-section" data-trip-section="cellar"><h3>Wine &amp; wineries</h3>${visitCards?`<div class="cellar-activity-group"><h4>Winery visits</h4><div class="cellar-activity-list">${visitCards}</div></div>`:''}${wineCards?`<div class="cellar-activity-group"><h4>Wines brought home</h4><div class="cellar-activity-list">${wineCards}</div></div>`:''}</div>`;
+    :'<span class="plan-card-photo-fallback" aria-hidden="true">◇</span>';
+  return `<a class="plan-listing-card cellar-visit-plan-card" href="${escapeHtml(cellarRecordUrl('visit',item.visit_id,tripId))}"><span class="plan-card-photo">${picture}</span><span class="plan-card-copy"><span class="plan-card-flags"><small>Winery visit</small></span><h4>${escapeHtml(label)}</h4><p>${date(item.visit_date)}</p>${item.notes?`<p class="cellar-visit-note">${escapeHtml(item.notes)}</p>`:''}</span><span class="plan-card-end" aria-hidden="true"><span>›</span></span></a>`;
+}
+function tripPlansAndWineryVisitsHtml(trip,activity){
+  const items=[
+    ...plansForTrip(trip).map(plan=>({date:plan.date||'',time:plan.startTime||'23:59',title:plan.title||'',html:planCardHtml(plan)})),
+    ...(Array.isArray(activity?.visits)?activity.visits:[]).map(visit=>({date:visit.visit_date||'',time:'23:59',title:visit.winery_name||'',html:wineryVisitPlanCardHtml(visit,trip._cloudId)}))
+  ];
+  items.sort((a,b)=>`${b.date}T${b.time}`.localeCompare(`${a.date}T${a.time}`)||a.title.localeCompare(b.title));
+  return items.map(item=>item.html).join('')||'<p class="intro">No activity plans or reservations linked yet.</p>';
 }
 async function renderTripCellarActivity(trip,index){
   if(window.ADVENTURE_HUB_CLOUD?.role==='viewer'||!trip?._cloudId||!window.ADVENTURE_HUB_STORE?.getTripCellarActivity)return;
-  const slot=$('#tripCellarSection');
-  if(!slot)return;
+  const list=$('#tripPlanList');
+  if(!list)return;
   try{
     let activity=tripCellarActivityCache.get(trip._cloudId);
     if(!activity){
@@ -1107,11 +1102,10 @@ async function renderTripCellarActivity(trip,index){
       tripCellarActivityCache.set(trip._cloudId,activity);
     }
     if(!$('#detailDialog')?.open||$('#detailBody')?.dataset.tripId!==trip._cloudId)return;
-    slot.innerHTML=tripCellarActivityHtml(activity,trip._cloudId);
-    slot.hidden=!slot.innerHTML;
+    list.innerHTML=tripPlansAndWineryVisitsHtml(trip,activity);
+    bindPlanCards(list,index);
   }catch(error){
     console.warn('Linked Cellar activity could not be loaded for this trip.',error);
-    if($('#detailBody')?.dataset.tripId===trip._cloudId)slot.hidden=true;
   }
 }
 function showTrip(index){
@@ -1134,7 +1128,7 @@ function showTrip(index){
   }
   const quickActions=status==='current'?`<div class="trip-context-actions" data-trip-section="quick"><small>ADD TO THIS TRIP</small><div><button type="button" data-trip-action="stay"><span>＋</span>Stay</button><button type="button" data-trip-action="plan"><span>◇</span>Activity</button><button type="button" data-trip-action="fuel"><span>⛽</span>Fuel / DEF</button><button type="button" data-trip-action="note"><span>✎</span>Note</button></div></div>`:'';
   $('#detailBody').dataset.tripId=t._cloudId||'';
-  $('#detailBody').innerHTML=`<div class="record-detail-actions"><button class="primary" id="editTripButton">Edit trip</button></div>${quickActions}${t.notes?`<div class="detail-section trip-description-section" data-trip-section="identity"><h3>About this trip</h3><p>${escapeHtml(t.notes)}</p></div>`:''}<div class="detail-section" data-trip-section="stays"><div class="detail-section-head"><h3>Campgrounds & hosts</h3><button class="text-button" id="addTripStayButton">Add stay</button></div><div class="stay-listing-stack">${stays.map(x=>stayListing(x)).join('')||'<p class="intro">No campground stays linked yet.</p>'}</div></div><div class="detail-section trip-plans-section" data-trip-section="plans"><div class="detail-section-head"><h3>Plans & reservations</h3><button class="text-button" id="addTripPlanButton">Add plan</button></div><div class="trip-plan-list">${plans.map(plan=>planCardHtml(plan)).join('')||'<p class="intro">No activity plans or reservations linked yet.</p>'}</div></div><div id="tripCellarSection" hidden></div><div class="detail-section trip-linked-notes-section" data-trip-section="notes"><div class="detail-section-head"><h3>Linked notes</h3><button class="text-button" id="addTripNoteButton">Add note</button></div><div class="trip-linked-notes">${linkedNotes.map(note=>noteCardHtml(note,true)).join('')||'<p class="intro">No notes linked to this trip yet.</p>'}</div></div><div class="detail-section" data-trip-section="records"><div class="detail-section-head"><h3>Fuel &amp; DEF</h3><button class="text-button" id="addTripFuelButton">Add purchase</button></div>${tripPurchaseRows(t,fuel,def)}</div><div class="detail-section trip-totals-section" data-trip-section="totals"><h3>Trip totals</h3><div class="trip-totals-compact"><div><small>Stay cost</small><b>${money(stayCost)}</b></div><div><small>Fuel cost</small><b>${money(fuelCost)}</b></div><div><small>Miles</small><b>${number(t.distance,1)}</b></div><div><small>MPG</small><b>${number(t.mpg,2)}</b></div></div></div><div class="trip-delete-area"><button class="delete-link" id="deleteTripButton">Delete trip</button></div>`;
+  $('#detailBody').innerHTML=`<div class="record-detail-actions"><button class="primary" id="editTripButton">Edit trip</button></div>${quickActions}${t.notes?`<div class="detail-section trip-description-section" data-trip-section="identity"><h3>About this trip</h3><p>${escapeHtml(t.notes)}</p></div>`:''}<div class="detail-section" data-trip-section="stays"><div class="detail-section-head"><h3>Campgrounds & hosts</h3><button class="text-button" id="addTripStayButton">Add stay</button></div><div class="stay-listing-stack">${stays.map(x=>stayListing(x)).join('')||'<p class="intro">No campground stays linked yet.</p>'}</div></div><div class="detail-section trip-plans-section" data-trip-section="plans"><div class="detail-section-head"><h3>Plans & reservations</h3><button class="text-button" id="addTripPlanButton">Add plan</button></div><div class="trip-plan-list" id="tripPlanList">${plans.map(plan=>planCardHtml(plan)).join('')||'<p class="intro">No activity plans or reservations linked yet.</p>'}</div></div><div class="detail-section trip-linked-notes-section" data-trip-section="notes"><div class="detail-section-head"><h3>Linked notes</h3><button class="text-button" id="addTripNoteButton">Add note</button></div><div class="trip-linked-notes">${linkedNotes.map(note=>noteCardHtml(note,true)).join('')||'<p class="intro">No notes linked to this trip yet.</p>'}</div></div><div class="detail-section" data-trip-section="records"><div class="detail-section-head"><h3>Fuel &amp; DEF</h3><button class="text-button" id="addTripFuelButton">Add purchase</button></div>${tripPurchaseRows(t,fuel,def)}</div><div class="detail-section trip-totals-section" data-trip-section="totals"><h3>Trip totals</h3><div class="trip-totals-compact"><div><small>Stay cost</small><b>${money(stayCost)}</b></div><div><small>Fuel cost</small><b>${money(fuelCost)}</b></div><div><small>Miles</small><b>${number(t.distance,1)}</b></div><div><small>MPG</small><b>${number(t.mpg,2)}</b></div></div></div><div class="trip-delete-area"><button class="delete-link" id="deleteTripButton">Delete trip</button></div>`;
   const openTripEntry=(type,section)=>{rememberTripDetail(index,section);closeDetailForTransition();openEntry(type,null,index)};
   $('#editTripButton').onclick=()=>{rememberTripDetail(index,'identity');closeDetailForTransition();openEntry('trip',index,index)};
   $('#addTripStayButton').onclick=()=>openTripEntry('stay','stays');
@@ -3578,6 +3572,7 @@ async function loadCloudData(){
   try{
     const browserBackup=migrate(JSON.parse(localStorage.getItem(KEY)||'null'));
     db=migrate(await retryTemporaryNetworkFailure(()=>window.ADVENTURE_HUB_STORE.load()));
+    tripCellarActivityCache.clear();
     refreshTripFuelSummaries();
     const canEditCloud=window.ADVENTURE_HUB_CLOUD?.role!=='viewer';
     let recoveredLocalChanges=false;
